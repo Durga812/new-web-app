@@ -3,12 +3,14 @@ import { CategoryTabs } from '@/components/courses/CategoryTabs';
 import { CategoryGrid } from '@/components/courses/CategoryGrid';
 import { GuidanceTable } from '@/components/courses/GuidanceTable';
 
+
 export const metadata = {
   title: 'All Courses - Immigreat.ai',
   description: 'Expert-guided immigration courses for EB1A, EB2-NIW, O-1, and EB5. Choose the right path for your American dream.',
 };
 
 export default function CoursesPage() {
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header Section */}
@@ -26,7 +28,7 @@ export default function CoursesPage() {
       <div className="mb-16">
         <CategoryTabs />
       </div>
-
+      
       {/* Category Cards */}
       <div className="mb-20">
         <CategoryGrid />

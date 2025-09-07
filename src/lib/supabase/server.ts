@@ -1,4 +1,5 @@
 //By default, the auth-helpers/ssr do not permit the use of the service_role secret so use createClient with service role key with secure server-side operations
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(

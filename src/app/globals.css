@@ -7,7 +7,7 @@
 
 /* Global gradient background matching 'bg-gradient-to-b from-amber-50/50 to-white' */
 body {
-  background-image: linear-gradient(to bottom, rgba(254, 243, 199, 0.5), rgb(255, 255, 255));
+  /* background-image: linear-gradient(to bottom, rgba(254, 243, 199, 0.5), rgb(255, 255, 255)); */
   min-height: 100vh;
   color: #1f2937;
   margin: 0;
@@ -15,10 +15,10 @@ body {
 }
 
 /* Main content area with top padding for fixed navigation */
-main {
+/* main {
   padding-top: 4rem;
   min-height: 100vh;
-}
+} */
 
 /* Custom scrollbar styling */
 ::-webkit-scrollbar {

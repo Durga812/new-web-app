@@ -2,11 +2,12 @@
 import { notFound } from 'next/navigation';
 import { CategoryTabs } from '@/components/courses/CategoryTabs';
 import { getCategoryBySlug, getAllCategories } from '@/lib/data/categories';
+import { getcoursesbyslug } from '@/lib/isr/data-isr';
 
 interface CategoryPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Generate static paths for all categories
@@ -20,7 +21,8 @@ export async function generateStaticParams() {
 
 // Generate metadata for SEO
 export async function generateMetadata({ params }: CategoryPageProps) {
-  const category = getCategoryBySlug(params.slug);
+  const { slug } = await params;
+  const category = getCategoryBySlug(slug);
   
   if (!category) {
     return {
@@ -34,8 +36,10 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   };
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
-  const category = getCategoryBySlug(params.slug);
+export default async function CategoryPage({ params }: CategoryPageProps) {
+  const { slug } = await params;
+  const category = getCategoryBySlug(slug);
+  const courses = await getcoursesbyslug(slug);
 
   if (!category) {
     notFound();
@@ -58,7 +62,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
+    
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="text-center mb-12">
@@ -90,7 +94,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
         {/* Tab Navigation */}
         <div className="mb-12">
-          <CategoryTabs activeSlug={params.slug} />
+          <CategoryTabs activeSlug={slug} />
         </div>
 
         {/* Placeholder for future course content */}
@@ -110,9 +114,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <br />
               Stay tuned for updates!
             </p>
+            
           </div>
+          <pre>{JSON.stringify(courses, null, 2)}</pre>
         </div>
       </div>
-    </div>
+    
   );
 }
