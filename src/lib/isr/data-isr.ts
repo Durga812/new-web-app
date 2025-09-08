@@ -168,3 +168,40 @@ export async function getBundleBySlug(bundle_slug: string) {
   )
   return cached()
 }
+
+
+async function _fetchCoursesByIds(ids: string[]) {
+  if (!ids || ids.length === 0) return []
+
+  const { data, error } = await supabase
+    .from('courses')
+    .select(`
+      course_id,
+      name,
+      course_slug,
+      rating,
+      description
+    `)
+    .eq('is_active', true)
+    .in('course_id', ids)
+
+  if (error) throw new Error(`Failed to fetch courses by ids: ${error.message}`)
+  return data ?? []
+}
+
+
+export async function getCoursesByIds(ids: string[]) {
+  // Sort for a stable cache key regardless of input order
+  const key = ['courses-by-ids', ...[...ids].sort()]
+
+  const cached = unstable_cache(
+    () => _fetchCoursesByIds(ids),
+    key,
+    {
+      revalidate: REVALIDATE_SECONDS,
+      tags: ['course', 'bundle'], // either tag will refresh this cache
+    }
+  )
+
+  return cached()
+}
