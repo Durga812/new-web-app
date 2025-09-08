@@ -1,6 +1,7 @@
 // src/components/bundles/BundleCard.tsx
 'use client';
 
+import Link from 'next/link';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingCart, Star, Package } from 'lucide-react';
@@ -8,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bundle } from '@/lib/types/bundle';
+import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface BundleCardProps {
   bundle: Bundle;
@@ -18,7 +20,8 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'left' | 'right'>('right');
-
+   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
+    const isEnrolled = hasEnrollment(bundle.bundle_id);
   const handleCardClick = (e: React.MouseEvent) => {
     if (!(e.target as HTMLElement).closest('[data-cart-button]')) {
       router.push(`/bundle/${bundle.bundle_slug}`);
@@ -107,15 +110,24 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
                 )}
               </div>
             </div>
-
-            <Button
+           {isEnrolled ? (
+                <Link href="/my-purchases" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium shadow-none hover:shadow-none transition-all duration-300 text-xs py-1.5 h-8"
+                  >
+                    Go to Course
+                  </Button>
+                </Link>
+              ) : 
+            (<Button
               data-cart-button
               onClick={handleAddToCart}
               className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 mt-auto text-xs py-1.5 h-8"
             >
               <ShoppingCart className="w-3 h-3 mr-1.5" />
               Add to Cart
-            </Button>
+            </Button>)}
           </div>
         </CardContent>
       </Card>

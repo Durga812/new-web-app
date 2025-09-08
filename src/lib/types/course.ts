@@ -4,7 +4,7 @@ export interface Course {
   name: string;
   course_slug: string;
   category_slug: string;
-  series_slug: string;
+  series_slug?: string; // optional, since it wasn’t in your JSON
   rating: number;
   is_active: boolean;
   validity: number;
@@ -12,6 +12,16 @@ export interface Course {
   description: {
     long: string;
     short: string;
+  };
+  content: {
+    about: string;
+    included: string[];
+    curriculum: {
+      module: string;
+      summary: string;
+      chapters: string[];
+    }[];
+    what_you_learn: string[];
   };
   price: {
     current: number;
@@ -40,6 +50,7 @@ export interface Course {
   created_at: string;
   updated_at: string;
 }
+
 
 export interface FilterState {
   series: string[];

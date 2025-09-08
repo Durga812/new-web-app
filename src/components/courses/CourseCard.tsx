@@ -9,16 +9,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Course } from '@/lib/types/course';
+import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface CourseCardProps {
   course: Course;
   categoryColor: string;
 }
 
+
 export function CourseCard({ course, categoryColor }: CourseCardProps) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'left' | 'right'>('right');
+
+ const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
+  const isEnrolled = hasEnrollment(course.course_id);
+//   console.log('isEnrolled', isEnrolled);
+//   console.log('course id', course.course_id);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking on the add to cart button
@@ -75,7 +82,7 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
                 className="text-xs font-medium text-white border-0 shadow-lg px-2 py-1"
                 style={{ backgroundColor: categoryColor }}
               >
-                {course.series_slug.replace(/-/g, ' ').toUpperCase()}
+                {(course.series_slug ?? 'uncategorized').replace(/-/g, ' ').toUpperCase()}
               </Badge>
               {course.tags[0] && (
                 <Badge
@@ -122,15 +129,28 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
               </div>
             </div>
 
-            {/* Add to Cart Button - Reduced size */}
-            <Button
-              data-cart-button
-              onClick={handleAddToCart}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 mt-auto text-xs py-1.5 h-8"
-            >
-              <ShoppingCart className="w-3 h-3 mr-1.5" />
-              Add to Cart
-            </Button>
+            {/* 3. Conditional Button Rendering */}
+            <div className="mt-auto">
+              {isEnrolled ? (
+                <Link href="/my-purchases" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium shadow-none hover:shadow-none transition-all duration-300 text-xs py-1.5 h-8"
+                  >
+                    Go to Course
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  data-cart-button
+                  onClick={handleAddToCart}
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs py-1.5 h-8"
+                >
+                  <ShoppingCart className="w-3 h-3 mr-1.5" />
+                  Add to Cart
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

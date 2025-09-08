@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
+import { EnrollmentDataLoader } from "@/components/providers/EnrollmentDataLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <Navigation />
           <main className="min-h-screen bg-gradient-to-b from-amber-50/80 to-white pt-16">
+          <EnrollmentDataLoader/>
             {children}
           </main>
           <Toaster 

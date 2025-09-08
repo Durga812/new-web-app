@@ -23,6 +23,7 @@ async function _fetchCoursesByCatSlug(slug: string) {
       validity,
       tags,
       description,
+      content,
       price,
       highlight,
       urls,

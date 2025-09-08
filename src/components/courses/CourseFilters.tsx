@@ -22,7 +22,7 @@ export function CourseFilters({ courses, categoryColor, filters }: CourseFilters
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Extract unique series and tags from courses
-  const availableSeries = Array.from(new Set(courses.map(course => course.series_slug))).sort();
+  const availableSeries = Array.from(new Set(courses.map(course => course.series_slug).filter((slug): slug is string => !!slug))).sort();
   const availableTags = Array.from(new Set(courses.flatMap(course => course.tags))).sort();
 
   // Toggle a value inside a comma-separated query param list
