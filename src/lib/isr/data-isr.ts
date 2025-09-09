@@ -106,6 +106,7 @@ async function _fetchAllBundles() {
       validity,
       tags,
       description,
+      content,
       price,
       highlight,
       urls,

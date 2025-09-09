@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { categories } from '@/lib/data/categories'
+import type { Bundle } from '@/lib/types/bundle'
 import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface Course {
@@ -37,7 +38,7 @@ interface Course {
 }
 
 interface BundleDetailContentProps {
-  bundle: any // Replace with proper type
+  bundle: Bundle
   courses: Course[]
 }
 
@@ -291,7 +292,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
             </div>
             
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3 text-lg">What's Covered</h3>
+              <h3 className="font-semibold text-gray-900 mb-3 text-lg">What&apos;s Covered</h3>
               <p className="text-gray-700 leading-relaxed">
                 {bundle.content.about}
               </p>
@@ -334,7 +335,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
           <CardHeader className="bg-gradient-to-r from-amber-50/50 to-orange-50/50 border-b border-amber-100">
             <CardTitle className="flex items-center gap-2">
               <Target className="w-6 h-6 text-amber-500" />
-              What You'll Learn
+              What You&apos;ll Learn
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">

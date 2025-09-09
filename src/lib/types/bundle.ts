@@ -13,6 +13,17 @@ export interface Bundle {
     long: string;
     short: string;
   };
+  content: {
+    about: string;
+    included: string[];
+    what_you_learn: string[];
+    // Capitalized key matches provided payload example
+    Courses?: {
+      summary: string;
+      // Support keys like "course-A", "course-B", etc.
+      [k: string]: string;
+    }[];
+  };
   price: {
     current: number;
     currency: string;

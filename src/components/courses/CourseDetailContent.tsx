@@ -28,8 +28,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { categories } from '@/lib/data/categories'
 import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
+import type { Course } from '@/lib/types/course'
 interface CourseDetailContentProps {
-  course: any // Replace with proper type
+  course: Course
 }
 
 export function CourseDetailContent({ course }: CourseDetailContentProps) {
@@ -302,7 +303,7 @@ export function CourseDetailContent({ course }: CourseDetailContentProps) {
             </div>
             
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3 text-lg">What's Covered</h3>
+              <h3 className="font-semibold text-gray-900 mb-3 text-lg">What&apos;s Covered</h3>
               <p className="text-gray-700 leading-relaxed">
                 {course.content.about}
               </p>
@@ -336,7 +337,7 @@ export function CourseDetailContent({ course }: CourseDetailContentProps) {
           <CardHeader className="bg-gradient-to-r from-amber-50/50 to-orange-50/50 border-b border-amber-100">
             <CardTitle className="flex items-center gap-2">
               <Target className="w-6 h-6 text-amber-500" />
-              What You'll Learn
+              What You&apos;ll Learn
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
@@ -366,7 +367,7 @@ export function CourseDetailContent({ course }: CourseDetailContentProps) {
               {course.content.curriculum.length} modules • {course.metadata.duration_hours} hours of content
             </p>
             
-            {course.content.curriculum.map((module: any, moduleIndex: number) => (
+            {course.content.curriculum.map((module: Course['content']['curriculum'][number], moduleIndex: number) => (
               <div key={moduleIndex} className="border border-amber-200/50 rounded-xl overflow-hidden bg-white/50 hover:shadow-md transition-all duration-200">
                 <button
                   onClick={() => toggleModule(moduleIndex)}
