@@ -75,19 +75,18 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
     
     if (isInCart) return;
 
-    const defaultOption = (course.course_options || [])
-      .filter(o => typeof o.price === 'number')
-      .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0];
-      const cartItem = {
+    // Use the currently selected option (not the default)
+    const option = (course.course_options || [])[selectedOptionIndex];
+    const cartItem = {
       product_id: course.course_id,
       product_type: 'course' as const,
       product_slug: course.course_slug,
-      variant_code: defaultOption?.variant_code,
-      product_enroll_id: defaultOption?.course_enroll_id,
+      variant_code: option?.variant_code,
+      product_enroll_id: option?.course_enroll_id ?? option?.variant_code,
       title: course.title,
-      original_price: defaultOption?.original_price || defaultOption?.price || 0,
-      price: defaultOption?.price || 0,
-      currency: defaultOption?.currency || 'USD',
+      original_price: option?.original_price ?? option?.price ?? 0,
+      price: option?.price ?? 0,
+      currency: option?.currency ?? 'USD',
       thumbnail_url: course.urls?.thumbnail_url,
     };
 

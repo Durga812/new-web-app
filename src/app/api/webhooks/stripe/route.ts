@@ -73,13 +73,18 @@ export async function POST(req: NextRequest) {
       if (paymentIntentId) {
         const { data: existingOrder, error: findErr } = await supabase
           .from('purchase_orders')
-          .select('id, status')
+          .select('id, status, enrollment_completed_at')
           .eq('payment_intent_id', paymentIntentId)
           .maybeSingle();
         if (findErr) {
           console.warn('Warning: purchase_orders lookup failed:', findErr.message);
         } else if (existingOrder) {
           existingOrderId = existingOrder.id;
+          // If we already completed enrollments for this order, short-circuit to acknowledge
+          if (existingOrder.enrollment_completed_at) {
+            console.log('Purchase order already completed, skipping reprocessing:', existingOrderId);
+            return NextResponse.json({ received: true, skipped: true });
+          }
         }
       }
 
@@ -246,18 +251,58 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // 3b) Fetch any existing enrollments for this particular Stripe session to ensure idempotency
+      // If Stripe retries the webhook, we will skip items we've already recorded for this session.
+      const { data: existingEnrollmentsForSession, error: existingEnrollmentsErr } = await supabase
+        .from('user_enrollment')
+        .select('item_id,item_type')
+        .eq('clerk_user_id', clerkUserId)
+        .eq('payment_session_id', paymentSessionId);
+      if (existingEnrollmentsErr) {
+        console.warn('Could not load existing enrollments for session:', existingEnrollmentsErr.message);
+      }
+      type ExistingEnrollmentRow = { item_id: string; item_type: 'course' | 'bundle' };
+      const skipKeys = new Set(
+        ((existingEnrollmentsForSession || []) as ExistingEnrollmentRow[])
+          .map((e) => `${e.item_type}:${e.item_id}`)
+      );
+
+      // If everything for this session is already recorded, we can safely acknowledge and exit
+      const allItemKeys = new Set(items.map((it) => `${it.item_type}:${it.item_id}`));
+      const allAlreadyRecorded = Array.from(allItemKeys).every(k => skipKeys.has(k));
+      if (allAlreadyRecorded) {
+        console.log('All items for session already recorded. Skipping processing.');
+        return NextResponse.json({ received: true, skipped: true });
+      }
+
       // 4) Enroll each item one-by-one, capture results, and store in user_enrollment
       let successCount = 0;
+      const alreadyRecordedCount = skipKeys.size;
       for (const [index, it] of items.entries()) {
+        // Idempotency guard: if we already wrote an enrollment row for this item in this session, skip re-processing
+        const itemKey = `${it.item_type}:${it.item_id}`;
+        if (skipKeys.has(itemKey)) {
+          console.log('Skipping duplicate enrollment for session item:', itemKey);
+          continue;
+        }
         const justification = `Stripe purchase ${paymentIntentId || session.id} item#${index + 1}`;
         const priceMajor = Math.max(0, Math.round(it.price_cents) / 100);
         let enrollStatus: string = 'pending';
         // Compute validity months
         let validityMonths: number | null = null;
+        let effectiveEnrollId: string = it.item_enroll_id || '';
         if (it.item_type === 'course') {
           const opts = courseOptionsByCourseId[it.item_id] || [];
-          const match = opts.find(o => (o.course_enroll_id && it.item_enroll_id && o.course_enroll_id === it.item_enroll_id) || (o.variant_code && it.variant_code && o.variant_code === it.variant_code));
+          let match = opts.find(o => (o.course_enroll_id && it.item_enroll_id && o.course_enroll_id === it.item_enroll_id) || (o.variant_code && it.variant_code && o.variant_code === it.variant_code));
+          // If not matched yet but we derived an effectiveEnrollId, try matching by it
+          if (!match && effectiveEnrollId) {
+            match = opts.find(o => o.course_enroll_id && o.course_enroll_id === effectiveEnrollId);
+          }
           validityMonths = match?.validity ?? null;
+          // If enroll_id was missing in metadata but variant_code matched, derive the correct LW enroll id
+          if (!effectiveEnrollId && match?.course_enroll_id) {
+            effectiveEnrollId = match.course_enroll_id;
+          }
         } else if (it.item_type === 'bundle') {
           validityMonths = bundleValidityMap[it.item_id] ?? null;
         }
@@ -266,7 +311,7 @@ export async function POST(req: NextRequest) {
           : null;
         try {
           const ok = await learnWorldsService.enrollUser(email, {
-            productId: it.item_enroll_id, // Must be LW enroll id
+            productId: effectiveEnrollId || it.item_enroll_id, // Must be LW enroll id
             productType: it.item_type,
             justification,
             price: priceMajor,
@@ -278,7 +323,7 @@ export async function POST(req: NextRequest) {
           } else {
             enrollStatus = 'failed';
           }
-        } catch (_e: unknown) {
+        } catch {
           enrollStatus = 'failed';
         }
 
@@ -292,7 +337,7 @@ export async function POST(req: NextRequest) {
           item_name: it.item_name,
           item_type: it.item_type,
           product_slug: it.product_slug,
-          item_enroll_id: it.item_enroll_id || it.item_id, // fallback to product id to satisfy not-null
+          item_enroll_id: effectiveEnrollId || it.item_enroll_id || it.item_id, // fallback to product id to satisfy not-null
           enroll_status: enrollStatus, // keep under 50 chars as per schema
           expires_at: expiresAtSec,
           is_expired: expiresAtSec ? Date.now() / 1000 > expiresAtSec : false,
@@ -321,9 +366,10 @@ export async function POST(req: NextRequest) {
       }
 
       // 5) Update order with enrollment summary (best-effort)
-      const enrollSummary = successCount === items.length
+      const totalSuccessful = successCount + alreadyRecordedCount;
+      const enrollSummary = totalSuccessful === items.length
         ? 'success'
-        : successCount > 0
+        : totalSuccessful > 0
           ? 'partial'
           : 'failed';
 

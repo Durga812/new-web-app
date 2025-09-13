@@ -138,30 +138,27 @@ export async function createStripeSession(cart: CartItem[], purchaseIntentId?: s
   const courseCount = normalized.filter((i) => i.product_type === "course").length;
   const discountPercent = computeDiscountPercent(courseCount);
 
-  try {
-    const stripeCustomerId = await getStripeIdByClerkId(userId!);
-    const line_items = normalized.map((i) => toStripeLineItem(i, discountPercent));
+  const stripeCustomerId = await getStripeIdByClerkId(userId!);
+  const line_items = normalized.map((i) => toStripeLineItem(i, discountPercent));
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      client_reference_id: userId!,
-      customer: stripeCustomerId,
-      metadata: {
-        clerk_id: userId!,
-        purchase_intent_id: purchaseIntentId || "",
-        discount_applied_percent: String(discountPercent),
-      },
-      line_items,
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel?session_id={CHECKOUT_SESSION_ID}`,
-    });
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    client_reference_id: userId!,
+    customer: stripeCustomerId,
+    metadata: {
+      clerk_id: userId!,
+      purchase_intent_id: purchaseIntentId || "",
+      discount_applied_percent: String(discountPercent),
+    },
+    line_items,
+    success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel?session_id={CHECKOUT_SESSION_ID}`,
+  });
 
-    if (!session.url) {
-      throw new Error("Stripe session was created but no URL was returned");
-    }
-    redirect(session.url);
-  } catch (error) {
-    console.error("Error creating Stripe session:", error);
-    throw error;
+  if (!session.url) {
+    throw new Error("Stripe session was created but no URL was returned");
   }
+  // Let Next.js handle redirect by throwing the internal NEXT_REDIRECT.
+  // Do not wrap in try/catch so it isn't logged as an error.
+  redirect(session.url);
 }

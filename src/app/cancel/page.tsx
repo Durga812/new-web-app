@@ -6,8 +6,9 @@ export const metadata = {
   title: 'Payment Canceled',
 };
 
-export default async function CancelPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
-  const sessionId = typeof searchParams.session_id === 'string' ? searchParams.session_id : undefined;
+export default async function CancelPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const sp = await searchParams;
+  const sessionId = typeof sp.session_id === 'string' ? sp.session_id : undefined;
   let details: { sessionId?: string; paymentIntentId?: string; amount?: number; currency?: string; status?: string } = {};
   if (sessionId) {
     try {
