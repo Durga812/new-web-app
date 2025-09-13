@@ -31,7 +31,7 @@ export function BundleGrid({ bundles }: BundleGridProps) {
         <BundleCard
           key={bundle.bundle_id}
           bundle={bundle}
-          categoryColor={getCategoryColor(bundle.category_slug)}
+          categoryColor={getCategoryColor(bundle.category || '')}
         />
       ))}
     </div>

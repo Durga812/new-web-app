@@ -17,7 +17,7 @@ async function BundlesContent({ searchParams }: BundlesPageProps) {
   const { category } = await searchParams;
   const allBundles = await getBundles();
   const filteredBundles = category 
-    ? allBundles.filter(bundle => bundle.category_slug === category)
+    ? allBundles.filter(bundle => (bundle.category || '') === category)
     : allBundles;
 
   const filterSummary = category ? ` in ${category.toUpperCase().replace('-', '-')}` : '';

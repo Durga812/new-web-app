@@ -39,6 +39,6 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
   // This makes checking for an item in your components super clean!
   hasEnrollment: (productId: string) => {
     const enrollments = get().enrollments;
-    return enrollments.some(item => item.product_id === productId);
+    return enrollments.some(item => item.item_id === productId);
   },
 }));

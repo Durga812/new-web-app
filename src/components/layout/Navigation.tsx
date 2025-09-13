@@ -82,7 +82,7 @@ export function Navigation() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-1">
-              <Link href="/courses">
+              <Link href="/courses/eb1a/individual-courses">
                 <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
                   <BookOpen className="h-4 w-4 mr-2" />
                   Courses

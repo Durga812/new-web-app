@@ -14,27 +14,33 @@ async function _fetchCoursesByCatSlug(slug: string) {
     .from('courses')
     .select(`
       course_id,
-      name,
+      title,
       course_slug,
-      category_slug,
-      series_slug,
+      category,
+      series,
       rating,
+      rating_count,
       is_active,
-      validity,
       tags,
       description,
       content,
-      price,
-      highlight,
+      highlights,
       urls,
-      enroll_ids,
-      metadata,
+      course_metadata,
       created_at,
-      updated_at
+      updated_at,
+      course_options(
+        course_enroll_id,
+        variant_code,
+        price,
+        original_price,
+        validity,
+        currency
+      )
     `)
-    .eq('category_slug', slug)
+    .eq('category', slug)
     .eq('is_active', true)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw new Error(`Failed to fetch courses: ${error.message}`)
   return data ?? []
@@ -54,22 +60,29 @@ async function _fetchCourseDetail(course_slug: string) {
     .from('courses')
     .select(`
       course_id,
-      name,
+      title,
       course_slug,
-      category_slug,
+      category,
+      series,
       rating,
+      rating_count,
       is_active,
-      validity,
       tags,
       description,
       content,
-      price,
-      highlight,
+      highlights,
       urls,
-      enroll_ids,
-      metadata,
+      course_metadata,
       created_at,
-      updated_at
+      updated_at,
+      course_options(
+        course_enroll_id,
+        variant_code,
+        price,
+        original_price,
+        validity,
+        currency
+      )
     `)
     .eq('course_slug', course_slug)
     .eq('is_active', true)
@@ -97,21 +110,21 @@ async function _fetchAllBundles() {
     .from('bundles') // <-- change if your table name differs
     .select(`
       bundle_id,
-      course_ids,
-      name,
       bundle_slug,
-      category_slug,
-      rating,
-      is_active,
-      validity,
+      title,
+      category,
+      series,
       tags,
+      child_course_ids,
       description,
       content,
+      highlights,
+      bundle_metadata,
       price,
-      highlight,
-      urls,
+      original_price,
       bundle_enroll_id,
-      metadata,
+      is_active,
+      validity,
       created_at,
       updated_at
     `)
@@ -136,21 +149,21 @@ async function _fetchBundleBySlug(bundle_slug: string) {
     .from('bundles') // <-- change if needed
     .select(`
       bundle_id,
-      course_ids,
-      name,
       bundle_slug,
-      category_slug,
-      rating,
-      is_active,
-      validity,
+      title,
+      category,
+      series,
       tags,
+      child_course_ids,
       description,
       content,
+      highlights,
+      bundle_metadata,
       price,
-      highlight,
-      urls,
+      original_price,
       bundle_enroll_id,
-      metadata,
+      is_active,
+      validity,
       created_at,
       updated_at
     `)
@@ -179,7 +192,7 @@ async function _fetchCoursesByIds(ids: string[]) {
     .from('courses')
     .select(`
       course_id,
-      name,
+      title,
       course_slug,
       rating,
       description

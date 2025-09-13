@@ -54,9 +54,13 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: course.price.currency || 'USD',
+      currency: (course.course_options?.[0]?.currency || 'USD').toUpperCase(),
     }).format(price);
   };
+
+  const defaultOption = (course.course_options || [])
+    .filter(o => typeof o.price === 'number')
+    .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0];
 
   return (
     <div className="relative">
@@ -71,7 +75,7 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
           <div className="relative w-full">
             <img
               src="https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/thumbnail.png"
-              alt={course.name}
+              alt={course.title}
               className="w-full object-cover"
               style={{ height: '250px', aspectRatio: '400/250' }}
             />
@@ -82,7 +86,7 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
                 className="text-xs font-medium text-white border-0 shadow-lg px-2 py-1"
                 style={{ backgroundColor: categoryColor }}
               >
-                {(course.series_slug ?? 'uncategorized').replace(/-/g, ' ').toUpperCase()}
+                {(course.series ?? 'uncategorized').replace(/-/g, ' ').toUpperCase()}
               </Badge>
               {course.tags[0] && (
                 <Badge
@@ -107,23 +111,23 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
           <div className="p-3 sm:p-4 flex flex-col flex-grow">
             {/* Title */}
             <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-gray-700 transition-colors">
-              {course.name}
+              {course.title}
             </h3>
 
             {/* Description */}
             <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 leading-relaxed flex-grow">
-              {course.description.short}
+              {course.description?.short}
             </p>
 
             {/* Price Section */}
             <div className="mb-3">
               <div className="flex items-center gap-2 justify-start">
                 <span className="text-lg sm:text-xl font-bold" style={{ color: categoryColor }}>
-                  {formatPrice(course.price.current)}
+                  {formatPrice((defaultOption?.price as number) || 0)}
                 </span>
-                {course.price.original > course.price.current && (
+                {defaultOption?.original_price && defaultOption?.price && defaultOption.original_price > defaultOption.price && (
                   <span className="text-sm sm:text-base text-gray-400 line-through">
-                    {formatPrice(course.price.original)}
+                    {formatPrice(defaultOption.original_price as number)}
                   </span>
                 )}
               </div>
@@ -171,10 +175,10 @@ export function CourseCard({ course, categoryColor }: CourseCardProps) {
           
           <div className="relative">
             <h4 className="font-bold text-gray-900 mb-3" style={{ color: categoryColor }}>
-              {course.highlight.title}
+              {course.highlights?.title}
             </h4>
             <ul className="space-y-2">
-              {course.highlight.highlights.map((highlight, index) => (
+              {(course.highlights?.highlights || []).map((highlight, index) => (
                 <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
                   {highlight}

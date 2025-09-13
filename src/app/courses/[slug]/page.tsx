@@ -48,9 +48,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const searchParamsResolved = await searchParams;
   const category = getCategoryBySlug(slug);
   const allCourses = await getcoursesbyslug(slug);
-
   if (!category) {
-    notFound();
+    notFound();     
   }
 
   // Parse URL parameters into arrays for multiple selection
@@ -68,7 +67,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   // Apply search parameter filters with multiple selection support
   const filteredCourses = allCourses.filter(course => {
     // If series filters are applied, course must match at least one selected series
-    if (filters.series.length > 0 && !filters.series.includes(course.series_slug)) {
+    if (filters.series.length > 0 && !filters.series.includes(course.series ?? '')) {
       return false;
     }
     

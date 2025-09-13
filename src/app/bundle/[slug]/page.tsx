@@ -10,8 +10,9 @@ export default async function BundleDetailPage({
 }) {
   const { slug } = await params
   const bundle = await getBundleBySlug(slug)
-  const course_ids = bundle?.course_ids || []
+  const course_ids = bundle?.child_course_ids || []
   const courses = await getCoursesByIds(course_ids)
+  console.log('Bundle courses:', bundle)
 
   if (!bundle) {
     notFound()

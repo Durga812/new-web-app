@@ -14,7 +14,7 @@ export async function getStripeIdByClerkId(clerkId: string): Promise<string> {
   const { data: user, error: fetchError } = await supabase
     .from('users')
     .select('id, email, first_name, last_name, stripe_customer_id')
-    .eq('clerk_id', clerkId)
+    .eq('clerk_user_id', clerkId)
     .single();
 
   if (fetchError) {
@@ -37,7 +37,7 @@ export async function getStripeIdByClerkId(clerkId: string): Promise<string> {
   const customer = await stripe.customers.create({
     email: user.email ?? undefined,
     name: fullName,
-    metadata: { clerk_id: clerkId },
+    metadata: { clerk_user_id: clerkId },
   });
 
   // 5. Update users table with new Stripe customer ID

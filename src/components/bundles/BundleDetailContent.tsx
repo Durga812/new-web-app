@@ -28,12 +28,12 @@ import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface Course {
   course_id: string
-  name: string
+  title: string
   course_slug: string
   rating: number
   description: {
-    long: string
-    short: string
+    long?: string
+    short?: string
   }
 }
 
@@ -47,7 +47,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
   
   // Get category details
   const categoryDetails = Object.values(categories).find(
-    cat => cat.cat_slug === bundle.category_slug
+    cat => cat.cat_slug === (bundle.category || '')
   )
 
   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
@@ -66,11 +66,11 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
     router.push(`/course/${courseSlug}`)
   }
 
-  const discountPercentage = Math.round(
-    ((bundle.price.original - bundle.price.current) / bundle.price.original) * 100
-  )
+  const discountPercentage = bundle.original_price && bundle.price
+    ? Math.round(((bundle.original_price - bundle.price) / bundle.original_price) * 100)
+    : 0
 
-  const totalSavings = bundle.price.original - bundle.price.current
+  const totalSavings = (bundle.original_price || 0) - (bundle.price || 0)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/30 via-white to-orange-50/20">
@@ -101,7 +101,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                     <span className="text-gray-400">/</span>
                   </>
                 )}
-                <span className="text-gray-700 font-medium truncate">{bundle.name}</span>
+                <span className="text-gray-700 font-medium truncate">{bundle.title}</span>
               </div>
 
               {/* Title & Category Badge */}
@@ -137,11 +137,11 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                 </div>
                 
                 <h1 className="text-2xl lg:text-4xl font-bold text-gray-900 mb-4">
-                  {bundle.name}
+                  {bundle.title}
                 </h1>
                 
                 <p className="text-lg text-gray-600 leading-relaxed">
-                  {bundle.description.short}
+                  {bundle.description?.short}
                 </p>
               </div>
 
@@ -168,10 +168,10 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                 <CardContent className="p-5 lg:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Sparkles className="w-5 h-5 text-amber-500" />
-                    <h3 className="font-semibold text-gray-900">{bundle.highlight.title}</h3>
+                    <h3 className="font-semibold text-gray-900">{bundle.highlights?.title}</h3>
                   </div>
                   <div className="space-y-2">
-                    {bundle.highlight.courses?.map((course: string, index: number) => (
+                    {(bundle.highlights?.courses || []).map((course: string, index: number) => (
                       <div key={index} className="flex items-start gap-2">
                         <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                         <span className="text-sm text-gray-700">{course}</span>
@@ -198,10 +198,10 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                     <div>
                       <div className="flex items-baseline gap-3 mb-2">
                         <span className="text-3xl font-bold text-gray-900">
-                          ${bundle.price.current}
+                          ${bundle.price || 0}
                         </span>
                         <span className="text-xl text-gray-400 line-through">
-                          ${bundle.price.original}
+                          ${bundle.original_price || 0}
                         </span>
                       </div>
                       <p className="text-sm text-green-600 font-medium">
@@ -247,7 +247,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                         <Calendar className="w-5 h-5 text-gray-400" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">Bundle Access</p>
-                          <p className="text-sm text-gray-600">{bundle.metadata.validity_label} access to all courses</p>
+                          <p className="text-sm text-gray-600">{bundle.bundle_metadata?.validity_label || 'Lifetime'} access to all courses</p>
                         </div>
                       </div>
                     </div>
@@ -256,7 +256,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                     <div className="pt-4 border-t border-gray-200">
                       <h4 className="font-semibold text-gray-900 mb-3">This bundle includes:</h4>
                       <ul className="space-y-2">
-                        {bundle.content.included?.map((item: string, index: number) => (
+                        {bundle.content?.included?.map((item: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                             <span className="text-sm text-gray-700">{item}</span>
@@ -287,14 +287,14 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 text-lg">Bundle Overview</h3>
               <p className="text-gray-700 leading-relaxed">
-                {bundle.description.long}
+                {bundle.description?.long}
               </p>
             </div>
             
             <div>
               <h3 className="font-semibold text-gray-900 mb-3 text-lg">What&apos;s Covered</h3>
               <p className="text-gray-700 leading-relaxed">
-                {bundle.content.about}
+                {bundle.content?.about}
               </p>
             </div>
 
@@ -322,7 +322,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                   <Calendar className="w-7 h-7 text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{bundle.metadata.validity_label}</p>
+                  <p className="font-semibold text-gray-900">{bundle.bundle_metadata?.validity_label || 'Lifetime'}</p>
                   <p className="text-sm text-gray-600">Full Access</p>
                 </div>
               </div>
@@ -340,7 +340,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid sm:grid-cols-2 gap-4">
-              {bundle.content.what_you_learn?.map((item: string, index: number) => (
+              {(bundle.content?.what_you_learn || []).map((item: string, index: number) => (
                 <div key={index} className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-r from-amber-50/30 to-orange-50/30 border border-amber-200/30 hover:from-amber-50/50 hover:to-orange-50/50 transition-all duration-200">
                   <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -382,7 +382,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                             </div>
                             <div className="flex-1">
                               <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
-                                {course.name}
+                                {course.title}
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
                                 {course.rating && (
@@ -412,7 +412,7 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                             </div>
                           </div>
                           <p className="text-gray-600 text-sm pl-[52px]">
-                            {course.description.short}
+                            {course.description?.short}
                           </p>
                         </div>
                         <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-amber-500 transition-colors flex-shrink-0 mt-2" />

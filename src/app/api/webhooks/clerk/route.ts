@@ -29,12 +29,12 @@ export async function POST(req: NextRequest) {
         .from('users')
         .upsert(
           {
-            clerk_id: id,
+            clerk_user_id: id,
             email,     
             first_name,
             last_name,
           },
-          { onConflict: 'clerk_id' } // requires UNIQUE(clerk_id) in schema
+          { onConflict: 'clerk_user_id' } // requires UNIQUE(clerk_user_id) in schema
         )
 
       if (error) {

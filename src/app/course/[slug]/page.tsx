@@ -11,7 +11,6 @@ export default async function CourseDetailPage({
 }) {
   const { slug } = await params
   const course = await getCourseDetail(slug)
-  
   if (!course) {
     notFound()
   }

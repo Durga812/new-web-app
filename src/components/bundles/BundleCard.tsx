@@ -43,7 +43,7 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
   const formatPrice = (price: number) => 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price);
 
-  const courseCount = bundle.metadata.course_count || bundle.course_ids.length;
+  const courseCount = (bundle.bundle_metadata?.course_count ?? 0) || (bundle.child_course_ids?.length ?? 0);
 
   return (
     <div className="relative">
@@ -58,7 +58,7 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
           <div className="relative w-full">
             <img
               src="https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/thumbnail.png"
-              alt={bundle.name}
+              alt={bundle.title}
               className="w-full object-cover"
               style={{ height: '250px', aspectRatio: '400/250' }}
             />
@@ -88,7 +88,7 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
           {/* Content */}
           <div className="p-3 sm:p-4 flex flex-col flex-grow">
             <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-gray-700 transition-colors">
-              {bundle.name}
+              {bundle.title}
             </h3>
 
             <div className="mb-3 flex-grow flex items-center">
@@ -101,11 +101,11 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
             <div className="mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg sm:text-xl font-bold" style={{ color: categoryColor }}>
-                  {formatPrice(bundle.price.current)}
+                  {formatPrice(bundle.price || 0)}
                 </span>
-                {bundle.price.original > bundle.price.current && (
+                {bundle.original_price && bundle.price && bundle.original_price > bundle.price && (
                   <span className="text-sm sm:text-base text-gray-400 line-through">
-                    {formatPrice(bundle.price.original)}
+                    {formatPrice(bundle.original_price)}
                   </span>
                 )}
               </div>
@@ -138,10 +138,10 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
           <div className={`absolute top-6 w-3 h-3 bg-white/95 border-l border-t border-gray-200/50 rotate-45 ${tooltipPosition === 'left' ? 'right-[-6px]' : 'left-[-6px]'}`} />
           <div className="relative">
             <h4 className="font-bold text-gray-900 mb-3" style={{ color: categoryColor }}>
-              {bundle.highlight.title}
+              {bundle.highlights?.title}
             </h4>
             <ul className="space-y-2">
-              {bundle.highlight.courses.map((course, index) => (
+              {(bundle.highlights?.courses || []).map((course, index) => (
                 <li key={index} className="text-sm text-gray-600 flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
                   {course}
