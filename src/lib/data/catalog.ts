@@ -4,10 +4,10 @@ import { supabase } from '@/lib/supabase/server';
 import { off } from 'process';
 
 export const discounts = {
-  tier1: { quantity: 5, discount: 15 }, // 13% → 15%
-  tier2: { quantity: 10, discount: 20 }, // 16% → 20%
-  tier3: { quantity: 20, discount: 25 }, // 20% → 25%
-  tier4: { quantity: 30, discount: 30 }, // 25% → 30%
+  tier1: { min_course_in_cart: 5, discount: 15 }, // 13% → 15%
+  tier2: { min_course_in_cart: 10, discount: 20 }, // 16% → 20%
+  tier3: { min_course_in_cart: 20, discount: 25 }, // 20% → 25%
+  tier4: { min_course_in_cart: 30, discount: 30 }, // 25% → 30%
 
 } as const;
 

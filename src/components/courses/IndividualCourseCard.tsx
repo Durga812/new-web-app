@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 import type { Course } from '@/lib/types/course';
+import { useCartStore } from '@/lib/stores/useCartStore';
+import Link from 'next/link';
 
 interface IndividualCourseCardProps {
   course: Course;
@@ -54,7 +56,12 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
   };
 
   const hasEnrollment = useEnrollmentStore(state => state.hasEnrollment);
-  const isEnrolled = hasEnrollment(course.course_id);
+  // Consider both the course id (item_id) and the selected option's enroll id (item_enroll_id)
+  const isEnrolled = hasEnrollment(course.course_id, selectedOption.enroll_id);
+
+   const { addItem, hasItem } = useCartStore();
+   const cartHydrated = useCartStore(state => state.hasHydrated);
+   const isInCart = cartHydrated ? hasItem(course.course_id) : false;
 
   const handleCardClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-interactive]')) {
@@ -63,10 +70,28 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
     router.push(`/course/${course.course_slug}`);
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+ const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Adding to cart with selected option:', selectedOption);
-    // TODO: Implement add to cart with selectedOption
+    
+    if (isInCart) return;
+
+    const defaultOption = (course.course_options || [])
+      .filter(o => typeof o.price === 'number')
+      .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))[0];
+      const cartItem = {
+      product_id: course.course_id,
+      product_type: 'course' as const,
+      product_slug: course.course_slug,
+      variant_code: defaultOption?.variant_code,
+      product_enroll_id: defaultOption?.course_enroll_id,
+      title: course.title,
+      original_price: defaultOption?.original_price || defaultOption?.price || 0,
+      price: defaultOption?.price || 0,
+      currency: defaultOption?.currency || 'USD',
+      thumbnail_url: course.urls?.thumbnail_url,
+    };
+
+    await addItem(cartItem);
   };
 
   const handleMouseEnter = (e: React.MouseEvent) => {
@@ -214,29 +239,32 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
             )}
 
             {/* Action Button */}
-            <div data-interactive className="pt-2">
-              {isEnrolled ? (
-                <Button
-                  variant="outline"
-                  className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium h-9 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push('/my-purchases');
-                  }}
-                >
-                  Go to Course
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleAddToCart}
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 h-9 text-sm"
-                >
-                  <ShoppingCart className="w-4 h-4 mr-1.5" />
-                  Add to Cart
-                </Button>
-              )}
-            </div>
+            <div className="mt-auto">
+    {isEnrolled ? (
+      <Link href="/my-purchases" passHref>
+        <Button
+          variant="outline"
+          className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium shadow-none hover:shadow-none transition-all duration-300 text-xs py-1.5 h-8"
+        >
+          Already purchased
+        </Button>
+      </Link>
+    ) : (
+      <Button
+        data-cart-button
+        onClick={handleAddToCart}
+        disabled={cartHydrated ? isInCart : false}
+        className={`w-full font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs py-1.5 h-8 ${
+          (cartHydrated ? isInCart : false)
+            ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+            : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+        }`}
+      >
+        <ShoppingCart className="w-3 h-3 mr-1.5" />
+        {(cartHydrated ? isInCart : false) ? 'Added' : 'Add to Cart'}
+      </Button>
+    )}
+  </div>
           </div>
         </CardContent>
       </Card>

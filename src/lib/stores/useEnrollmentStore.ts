@@ -11,7 +11,7 @@ interface EnrollmentState {
   // Action to clear data on logout
   clearEnrollments: () => void;
   // A helper/selector to easily check if a product is owned
-  hasEnrollment: (productId: string) => boolean;
+  hasEnrollment: (productId: string, itemEnrollId?: string) => boolean;
 }
 
 export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
@@ -36,9 +36,14 @@ export const useEnrollmentStore = create<EnrollmentState>((set, get) => ({
     console.log('🗑️ Cleared enrollments from global state.');
   },
 
-  // This makes checking for an item in your components super clean!
-  hasEnrollment: (productId: string) => {
+  // Check ownership by product id, and optionally by specific item_enroll_id
+  hasEnrollment: (productId: string, itemEnrollId?: string) => {
     const enrollments = get().enrollments;
-    return enrollments.some(item => item.item_id === productId);
+    if (!itemEnrollId) {
+      return enrollments.some((item) => item.item_id === productId);
+    }
+    return enrollments.some(
+      (item) => item.item_id === productId && item.item_enroll_id === itemEnrollId
+    );
   },
 }));

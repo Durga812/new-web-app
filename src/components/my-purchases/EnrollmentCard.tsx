@@ -118,8 +118,12 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
               {isExpired ? (
                 <span>Expired</span>
               ) : (
-                <a 
-                  href={`https://learn.immigreat.ai/access/${enrollment.item_enroll_id}`}
+                <a
+                  href={
+                    isBundle
+                      ? 'https://courses.greencardiy.com'
+                      : `https://courses.greencardiy.com/path-player?courseid=${enrollment.item_enroll_id}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1"

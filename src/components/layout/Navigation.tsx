@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { CartDrawer } from './CartDrawer'
+import { useCartStore } from '@/lib/stores/useCartStore';
 
 export function Navigation() {
   const { isLoaded, isSignedIn, user } = useUser()
@@ -28,10 +29,11 @@ export function Navigation() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
   // Cart state
-  const  itemCount =2 //layer state will be managed here
+  const itemCount = useCartStore(state => state.getItemCount());
 
   // Sync authentication state with stores
  
@@ -64,6 +66,11 @@ export function Navigation() {
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Ensure client-only UI (like persisted cart) renders after hydration
+  useEffect(() => {
+    setMounted(true)
   }, [])
 
   return (
@@ -114,10 +121,11 @@ export function Navigation() {
               <Button
                 variant="ghost"
                 size="icon"
+                className="relative"
                 onClick={() => setIsCartOpen(true)}
               >
                 <ShoppingCart className="h-5 w-5" />
-                {itemCount > 0 && (
+                {mounted && itemCount > 0 && (
                   <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-amber-500 text-white text-xs">
                     {itemCount}
                   </Badge>

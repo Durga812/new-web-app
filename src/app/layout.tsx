@@ -7,6 +7,7 @@ import "./globals.css";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { EnrollmentDataLoader } from "@/components/providers/EnrollmentDataLoader";
+import { CartDataLoader } from "@/components/providers/CartDataLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
           <Navigation />
           <main className="min-h-screen bg-gradient-to-b from-amber-50/80 to-white pt-16">
           <EnrollmentDataLoader/>
+          <CartDataLoader/>
             {children}
           </main>
           <Toaster 
