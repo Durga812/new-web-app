@@ -1,8 +1,6 @@
 // src/app/my-purchases/page.tsx
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { auth } from '@clerk/nextjs/server';
 import { 
   BookOpen, 
   Package, 
@@ -23,12 +21,6 @@ export const metadata = {
 };
 
 async function MyPurchasesContent() {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    redirect('/sign-in?redirect_url=/my-purchases');
-  }
-
   const [enrollments, orderHistory] = await Promise.all([
     getMyEnrollments(),
     getMyOrderHistory()

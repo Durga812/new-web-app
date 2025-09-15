@@ -161,4 +161,10 @@ export async function createStripeSession(cart: CartItem[], purchaseIntentId?: s
   // Let Next.js handle redirect by throwing the internal NEXT_REDIRECT.
   // Do not wrap in try/catch so it isn't logged as an error.
   redirect(session.url);
+
+  try {
+    
+  } catch (error) {
+    
+  }
 }
