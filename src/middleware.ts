@@ -12,22 +12,28 @@ const isPublicApiRoute = createRouteMatcher([
 ])
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  // Allow public API routes and all other matched APIs without auth work
-  if (isPublicApiRoute(req)) return NextResponse.next()
+  // 1) Allow public API routes
+  if (isPublicApiRoute(req)) {
+    return NextResponse.next()
+  }
 
-  // Protect app pages that require auth
+  // 2) Protect app pages that require auth
   if (isProtectedRoute(req)) {
     await auth.protect()
   }
 
-  // For everything else, do nothing to preserve static/ISR caching
-  return NextResponse.next()
+  // 3) Attach Clerk user id header for everything else
+  const { userId } = await auth()
+  const res = NextResponse.next()
+  if (userId) res.headers.set('x-clerk-user-id', userId)
+  return res
 })
 
-// Narrow matcher so public pages (course/bundle) skip middleware entirely
 export const config = {
   matcher: [
-    '/my-purchases(.*)',
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 }
