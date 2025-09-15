@@ -1,8 +1,9 @@
 // src/components/my-purchases/EnrollmentCard.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   ExternalLink, 
   Star, 
@@ -25,6 +26,8 @@ interface EnrollmentCardProps {
 }
 
 export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
+  const router = useRouter();
+  const prefetchRef = useRef<HTMLDivElement | null>(null);
   const [showChildCourses, setShowChildCourses] = useState(false);
   const [childCourses, setChildCourses] = useState<CourseChild[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -36,6 +39,34 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
   const detailHref = enrollment.product_slug
     ? `${isBundle ? '/bundle' : '/course'}/${enrollment.product_slug}`
     : undefined;
+
+  // Simplified prefetch on viewport intersection
+  useEffect(() => {
+    if (!detailHref) return;
+    const el = prefetchRef.current;
+    if (!el) return;
+    
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            router.prefetch(detailHref);
+            io.disconnect();
+            break;
+          }
+        }
+      });
+      io.observe(el);
+      return () => io.disconnect();
+    }
+  }, [detailHref, router]);
+
+  // Direct navigation handler (like individual courses)
+  const handleDetailClick = () => {
+    if (detailHref) {
+      router.push(detailHref);
+    }
+  };
 
   // Format expiry date
   const getExpiryDate = () => {
@@ -70,7 +101,7 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
   }, [isBundle, enrollment.item_id]);
 
   return (
-    <>
+    <div ref={prefetchRef}>
       <Card className="bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:shadow-md transition-all duration-200">
         <CardContent className="p-4">
           {/* Header with badges */}
@@ -108,6 +139,7 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Access Button */}
             <Button
               size="sm"
               className={`flex-1 ${
@@ -137,19 +169,19 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
               )}
             </Button>
 
-            {/* Detail button linking to internal product page */}
+            {/* Detail button - SIMPLIFIED with direct navigation */}
             <Button
               variant="outline"
               size="sm"
               className="flex-1 px-3 border-amber-300 text-amber-700 hover:bg-amber-50"
               disabled={!detailHref}
-              asChild={Boolean(detailHref)}
+              onClick={handleDetailClick}
+              onMouseEnter={() => {
+                // Prefetch on hover for better UX
+                if (detailHref) router.prefetch(detailHref);
+              }}
             >
-              {detailHref ? (
-                <Link href={detailHref}>Detail</Link>
-              ) : (
-                <span>Detail</span>
-              )}
+              Detail
             </Button>
 
             {/* Bundle Courses Button */}
@@ -230,6 +262,6 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
           }}
         />
       )}
-    </>
+    </div>
   );
 }
