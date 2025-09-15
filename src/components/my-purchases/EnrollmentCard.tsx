@@ -33,6 +33,9 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
 
   const isBundle = enrollment.item_type === 'bundle';
   const isExpired = enrollment.is_expired ?? false;
+  const detailHref = enrollment.product_slug
+    ? `${isBundle ? '/bundle' : '/course'}/${enrollment.product_slug}`
+    : undefined;
 
   // Format expiry date
   const getExpiryDate = () => {
@@ -131,6 +134,21 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
                   Access
                   <ExternalLink className="w-3 h-3" />
                 </a>
+              )}
+            </Button>
+
+            {/* Detail button linking to internal product page */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 px-3 border-amber-300 text-amber-700 hover:bg-amber-50"
+              disabled={!detailHref}
+              asChild={Boolean(detailHref)}
+            >
+              {detailHref ? (
+                <Link href={detailHref}>Detail</Link>
+              ) : (
+                <span>Detail</span>
               )}
             </Button>
 
