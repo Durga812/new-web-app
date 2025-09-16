@@ -50,29 +50,47 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
 
   // State for search
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+
+  const availableTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    courses.forEach(course => {
+      const primaryTag = course.tags?.[0];
+      if (primaryTag) {
+        tagSet.add(primaryTag);
+      }
+    });
+    const tags = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+    if (selectedTags.size === 0) {
+      return tags;
+    }
+    const selected = tags.filter(tag => selectedTags.has(tag));
+    const unselected = tags.filter(tag => !selectedTags.has(tag));
+    return [...selected, ...unselected];
+  }, [courses, selectedTags]);
 
   // Filter courses based on search query
   const filteredCourses = useMemo(() => {
-    if (!searchQuery.trim()) return courses;
-    
     const query = searchQuery.toLowerCase().trim();
-    
+
     return courses.filter(course => {
-      // Search in title
+      const primaryTag = course.tags?.[0];
+      if (selectedTags.size > 0) {
+        if (!primaryTag || !selectedTags.has(primaryTag)) {
+          return false;
+        }
+      }
+
+      if (!query) return true;
+
       if (course.title?.toLowerCase().includes(query)) return true;
-      
-      // Search in series
       if (course.series?.toLowerCase().includes(query)) return true;
-      
-      // Search in tags
       if (course.tags?.some(tag => tag.toLowerCase().includes(query))) return true;
-      
-      // Search in short description
       if (course.description?.short?.toLowerCase().includes(query)) return true;
-      
+
       return false;
     });
-  }, [courses, searchQuery]);
+  }, [courses, searchQuery, selectedTags]);
 
   // Group filtered courses by series
   const coursesBySeries = useMemo(() => {
@@ -179,7 +197,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
           </div>
 
           {/* Page Title */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-0">
             <Badge 
               className="mb-4 px-4 py-1.5 text-white font-medium"
               style={{ backgroundColor: category.color }}
@@ -198,9 +216,9 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
       </div>
 
       {/* Search and Filter Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 space-y-4">
         {/* Search Bar */}
-        <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg p-4">
+        <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg p-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -232,7 +250,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
         </Card>
 
         {/* Series Filter */}
-        <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg p-4 sm:p-6">
+        <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg p-0 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="w-5 h-5" style={{ color: category.color }} />
             <h2 className="text-lg font-semibold text-gray-900">Filter by Series</h2>
@@ -260,6 +278,57 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
               );
             })}
           </div>
+
+          {availableTags.length > 0 && (
+            <div className="mt-6 border-t border-gray-200/70 pt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <h3 className="text-md font-semibold text-gray-900">Filter by Tag</h3>
+                <Badge variant="outline" className="ml-auto">
+                  {selectedTags.size === 0 ? 'All tags' : `${selectedTags.size} selected`}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTags(new Set())}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors border ${
+                    selectedTags.size === 0
+                      ? 'bg-amber-500 text-white border-amber-500 shadow'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-amber-300 hover:text-amber-700'
+                  }`}
+                >
+                  All Tags
+                </button>
+                {availableTags.map(tag => {
+                  const isActive = selectedTags.has(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTags(prev => {
+                          const next = new Set(prev);
+                          if (next.has(tag)) {
+                            next.delete(tag);
+                          } else {
+                            next.add(tag);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors border ${
+                        isActive
+                          ? 'bg-amber-500 text-white border-amber-500 shadow'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-amber-300 hover:text-amber-700'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Results Summary */}
@@ -268,6 +337,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
             Showing {totalFilteredCourses} courses 
             {activeSeriesList.length < availableSeries.length && ` in ${activeSeriesList.length} series`}
             {searchQuery && ` matching "${searchQuery}"`}
+            {selectedTags.size > 0 && ` tagged ${Array.from(selectedTags).join(', ')}`}
           </p>
         </div>
       </div>

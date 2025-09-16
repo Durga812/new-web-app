@@ -84,3 +84,5 @@ export interface FilterState {
   series: string[];
   tags: string[];
 }
+
+export type CourseWithTwelveMonthOption = Course & { twelveMonthOption: CourseOption };

@@ -1,6 +1,8 @@
 // src/app/courses/[slug]/page.tsx
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CategoryTabs } from '@/components/courses/CategoryTabs';
+import { CourseFilters } from '@/components/courses/CourseFilters';
+import { CourseGrid } from '@/components/courses/CourseGrid';
 import { getCategoryBySlug, getAllCategories } from '@/lib/data/categories';
 import { getcoursesbyslug } from '@/lib/isr/data-isr';
 import { FilterState } from '@/lib/types/course';
@@ -49,7 +51,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   if (!category) {
     notFound();     
   }
-  const isEb1aCategory = slug === 'eb1a';
 
   // Parse URL parameters into arrays for multiple selection
   const parseFilterArray = (paramValue: string | undefined): string[] => {
@@ -83,33 +84,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     return true;
   });
 
-  const filteredCourseCount = filteredCourses.length;
-
-  const eb1aHighlights = isEb1aCategory
-    ? [
-        {
-          title: 'Explore Individual EB1A Courses',
-          description:
-            'Deep-dive lessons that walk you through evidence prep, petition strategy, and expert reviews tailored for extraordinary ability cases.',
-          cta: 'Browse Courses',
-          href: `/courses/${slug}/individual-courses`,
-        },
-        {
-          title: 'Build Your EB1A Bundle',
-          description:
-            'Curate your perfect mix of expert trainings, document templates, and coaching add-ons—only pay for the support you need. get Discounts for volume.',
-          cta: 'Start Building',
-          href: `/courses/${slug}/build-your-bundle`,
-        },
-        {
-          title: 'Explore EB1A Curated Bundles',
-          description:
-            'We are assembling attorney-crafted bundles that combine guidance, reviews, and tools for popular EB1A profiles—check back shortly.',
-          cta: 'Curated Bundles',
-          href: `/bundles?category=${slug}`,
-        },
-      ]
-    : [];
+  // Sort courses by tags (same tags together)
+  const sortedCourses = filteredCourses.sort((a, b) => {
+    const aFirstTag = a.tags[0] || '';
+    const bFirstTag = b.tags[0] || '';
+    return aFirstTag.localeCompare(bFirstTag);
+  });
 
   const getLightColor = (color: string): string => {
     const hex = color.replace('#', '');
@@ -125,6 +105,27 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
     return `rgba(${r}, ${g}, ${b}, 0.2)`;
+  };
+
+  // Generate filter summary text
+  const getFilterSummary = (): string => {
+    const parts: string[] = [];
+    
+    if (filters.series.length > 0) {
+      const seriesText = filters.series.length === 1 
+        ? filters.series[0].replace('-', ' ')
+        : `${filters.series.length} series`;
+      parts.push(`in ${seriesText}`);
+    }
+    
+    if (filters.tags.length > 0) {
+      const tagsText = filters.tags.length === 1 
+        ? filters.tags[0] 
+        : `${filters.tags.length} tags`;
+      parts.push(`tagged with ${tagsText}`);
+    }
+    
+    return parts.length > 0 ? ` ${parts.join(' and ')}` : '';
   };
 
   return (
@@ -156,74 +157,55 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
             {category.full_description}
           </p>
-          <p className="mt-4 text-base text-gray-500">
-            Showing {filteredCourseCount} course{filteredCourseCount === 1 ? '' : 's'} in this category.
-          </p>
         </div>
 
         {/* Tab Navigation */}
-        {/* <div className="mb-8">
+        <div className="mb-8">
           <CategoryTabs activeSlug={slug} />
-        </div> */}
+        </div>
 
-        {isEb1aCategory && (
-          <section className="mb-16">
-            
+        {/* Results Summary */}
+        <div className="mb-6">
+          <p className="text-gray-600 text-center">
+            Showing {sortedCourses.length} of {allCourses.length} courses
+            {getFilterSummary()}
+          </p>
+        </div>
 
-            <div className="grid gap-6 lg:gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {eb1aHighlights.map((card) => (
-                <div
-                  key={card.title}
-                  className="relative flex h-full flex-col overflow-hidden rounded-3xl border shadow-lg transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
-                  style={{
-                    borderColor: getBorderColor(category.color),
-                    background: `linear-gradient(135deg, ${getLightColor(category.color)} 0%, rgba(255,255,255,0.95) 100%)`,
-                  }}
-                >
-                  <div
-                    className="pointer-events-none absolute -right-14 -top-14 h-36 w-36 rounded-full opacity-40 blur-3xl"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <div className="relative flex flex-1 flex-col p-6 sm:p-8">
-                  <div>
-                    <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                      {card.title}
-                    </h3>
-                    <p className="text-base text-gray-700 leading-relaxed">
-                      {card.description}
-                    </p>
-                  </div>
-                  <div className="mt-auto pt-6 border-t border-white/60">
-                    <div className="flex justify-start">
-                    {card.href ? (
-                      <Link
-                        href={card.href}
-                        className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                        style={{
-                          backgroundColor: category.color,
-                          boxShadow: `0 12px 24px -12px ${getBorderColor(category.color)}`,
-                        }}
-                      >
-                        {card.cta}
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-gray-500 bg-white/80 cursor-not-allowed"
-                      >
-                        {card.cta}
-                      </button>
-                    )}
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              ))}
+        {/* Filter Implementation */}
+        <div className="mb-8">
+          <CourseFilters 
+            courses={allCourses} 
+            categoryColor={category.color}
+            filters={filters}
+          />
+        </div>
+
+        {/* Course Cards Render */}
+        <CourseGrid 
+          courses={sortedCourses} 
+          categoryColor={category.color}
+        />
+
+        {/* No Results State */}
+        {sortedCourses.length === 0 && (
+          <div className="text-center py-16">
+            <div 
+              className="inline-block p-8 rounded-2xl border-2"
+              style={{
+                backgroundColor: getLightColor(category.color),
+                borderColor: getBorderColor(category.color),
+              }}
+            >
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">
+                No courses found
+              </h2>
+              <p className="text-gray-600">
+                Try adjusting your filters or check back later for new content.
+              </p>
             </div>
-          </section>
+          </div>
         )}
-
       </div>
     </div>
   );

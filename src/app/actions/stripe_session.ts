@@ -162,9 +162,5 @@ export async function createStripeSession(cart: CartItem[], purchaseIntentId?: s
   // Do not wrap in try/catch so it isn't logged as an error.
   redirect(session.url);
 
-  try {
-    
-  } catch (error) {
-    
-  }
+
 }

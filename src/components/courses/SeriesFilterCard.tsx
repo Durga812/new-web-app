@@ -33,16 +33,6 @@ export function SeriesFilterCard({
           <p className="text-xs text-gray-600 line-clamp-1 mb-2">
             {description}
           </p>
-          <Badge
-            variant="outline"
-            className="text-xs px-2 py-0.5"
-            style={{
-              borderColor: isActive ? color : '#e5e7eb',
-              color: isActive ? color : '#6b7280',
-            }}
-          >
-            {courseCount} {courseCount === 1 ? 'course' : 'courses'}
-          </Badge>
         </div>
         
         {/* Toggle Switch */}

@@ -8,7 +8,6 @@ import {
   CheckCircle, 
   Clock, 
   BookOpen, 
-  TrendingUp, 
   Package,
   ChevronDown,
   Sparkles,
@@ -223,9 +222,9 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <Link href="/courses" className="block">
+                  <Link href="/courses/eb1a/build-your-bundle" className="block">
                     <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white">
-                      Build Bundle
+                      Build EB1A Bundle
                     </Button>
                   </Link>
                 </div>

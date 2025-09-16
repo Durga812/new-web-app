@@ -89,16 +89,10 @@ export function Navigation() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-1">
-              <Link href="/courses/eb1a/individual-courses">
+              <Link href="/courses">
                 <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
                   <BookOpen className="h-4 w-4 mr-2" />
                   Courses
-                </Button>
-              </Link>
-              <Link href="/bundles">
-                <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
-                  <Package className="h-4 w-4 mr-2" />
-                  Bundles
                 </Button>
               </Link>
               <Link href="/contact">
@@ -221,12 +215,7 @@ export function Navigation() {
                   Courses
                 </Button>
               </Link>
-              <Link href="/bundles" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Package className="mr-3 h-4 w-4" />
-                  Bundles
-                </Button>
-              </Link>
+            
               <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start">
                   <Phone className="mr-3 h-4 w-4" />
