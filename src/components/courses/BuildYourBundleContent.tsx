@@ -407,7 +407,7 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                         onClick={() => selectAllInSeries(series.key)}
                         className={`flex-1 text-xs h-7 ${allSelected ? 'bg-green-100 border-green-400 text-green-700' : ''}`}
                       >
-                        All
+                        Select All
                       </Button>
                       <Button
                         variant="outline"
