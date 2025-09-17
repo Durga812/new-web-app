@@ -1,9 +1,9 @@
 // src/components/courses/IndividualCourseCard.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, Star, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ interface IndividualCourseCardProps {
   course: Course;
   categoryColor: string;
   seriesColor: string;
+  defaultVariantIndex?: number;
 }
 
 interface SelectedOption {
@@ -27,7 +28,12 @@ interface SelectedOption {
   title: string;
 }
 
-export function IndividualCourseCard({ course, categoryColor, seriesColor }: IndividualCourseCardProps) {
+export function IndividualCourseCard({ 
+  course, 
+  categoryColor, 
+  seriesColor,
+  defaultVariantIndex = 0 
+}: IndividualCourseCardProps) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'left' | 'right'>('right');
@@ -35,8 +41,24 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
   // Get course options from the database structure
   const courseOptions = course.course_options || [];
   
-  // State for selected option index
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number>(0);
+  // State for selected option index - use defaultVariantIndex initially
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState<number>(() => {
+    // If the default variant index is valid for this course, use it
+    if (courseOptions[defaultVariantIndex]) {
+      return defaultVariantIndex;
+    }
+    // Otherwise use the first option (index 0)
+    return 0;
+  });
+  
+  // Update selected option when defaultVariantIndex changes
+  useEffect(() => {
+    // Only update if the user hasn't manually selected an option
+    // and the default variant exists for this course
+    if (courseOptions[defaultVariantIndex]) {
+      setSelectedOptionIndex(defaultVariantIndex);
+    }
+  }, [defaultVariantIndex, courseOptions]);
   
   // Get the selected option
   const selectedOption: SelectedOption = courseOptions[selectedOptionIndex] ? {
@@ -75,7 +97,7 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
     
     if (isInCart) return;
 
-    // Use the currently selected option (not the default)
+    // Use the currently selected option
     const option = (course.course_options || [])[selectedOptionIndex];
     const cartItem = {
       product_id: course.course_id,
@@ -238,32 +260,31 @@ export function IndividualCourseCard({ course, categoryColor, seriesColor }: Ind
             )}
 
             {/* Action Button */}
-            <div className="mt-auto">
-    {isEnrolled ? (
-      <Link href="/my-purchases" passHref>
-        <Button
-          variant="outline"
-          className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium shadow-none hover:shadow-none transition-all duration-300 text-xs py-1.5 h-8"
-        >
-          Already purchased
-        </Button>
-      </Link>
-    ) : (
-      <Button
-        data-cart-button
-        onClick={handleAddToCart}
-        disabled={cartHydrated ? isInCart : false}
-        className={`w-full font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs py-1.5 h-8 ${
-          (cartHydrated ? isInCart : false)
-            ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
-            : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
-        }`}
-      >
-        <ShoppingCart className="w-3 h-3 mr-1.5" />
-        {(cartHydrated ? isInCart : false) ? 'Added' : 'Add to Cart'}
-      </Button>
-    )}
-  </div>
+            <div className="mt-auto" data-interactive>
+              {isEnrolled ? (
+                <Link href="/my-purchases" passHref>
+                  <Button
+                    variant="outline"
+                    className="w-full border-green-600 text-green-700 bg-green-50 hover:bg-green-100 font-medium shadow-none hover:shadow-none transition-all duration-300 text-xs py-1.5 h-8"
+                  >
+                    Already purchased
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  onClick={handleAddToCart}
+                  disabled={cartHydrated ? isInCart : false}
+                  className={`w-full font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs py-1.5 h-8 ${
+                    (cartHydrated ? isInCart : false)
+                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                  }`}
+                >
+                  <ShoppingCart className="w-3 h-3 mr-1.5" />
+                  {(cartHydrated ? isInCart : false) ? 'Added' : 'Add to Cart'}
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -23,8 +23,9 @@ export function SeriesFilterCard({
   courseCount,
   onToggle
 }: SeriesFilterCardProps) {
+  // Original card version for main filter area (if needed elsewhere)
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-2 sm:p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm sm:text-base text-gray-900 mb-1">
