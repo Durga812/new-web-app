@@ -1,8 +1,9 @@
+// src/components/my-purchases/BillingButton.tsx
 'use client';
 
 import { useTransition } from 'react';
 import { goToBillingPortal } from '@/app/actions/my-purchases';
-import { Receipt, Loader2 } from 'lucide-react';
+import { Receipt, Loader2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function BillingPortalButton() {
@@ -32,16 +33,22 @@ export function BillingPortalButton() {
       disabled={isPending}
       aria-busy={isPending}
       title="Open billing portal"
-      className="border-amber-300 text-amber-700 hover:bg-amber-50 focus-visible:ring-amber-500"
+      className="group border-2 border-amber-300 bg-white hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 text-amber-700 hover:text-amber-800 hover:border-amber-400 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
     >
       {isPending ? (
-        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          <span className="animate-pulse">Redirecting to Billing...</span>
+        </>
       ) : (
-        <Receipt className="w-4 h-4 mr-2" />
+        <>
+          <div className="relative mr-2">
+            <Receipt className="w-4 h-4 transition-transform group-hover:scale-110" />
+            <CreditCard className="w-4 h-4 absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <span aria-live="polite">My Billing</span>
+        </>
       )}
-      <span aria-live="polite">
-        {isPending ? 'Redirecting to Billing...' : 'My Billing'}
-      </span>
     </Button>
   );
 }

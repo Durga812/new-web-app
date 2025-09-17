@@ -11,7 +11,9 @@ import {
   ChevronUp, 
   Package, 
   BookOpen,
-  Calendar
+  Calendar,
+  Clock,
+  ArrowUpRight
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,7 +63,7 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
     }
   }, [detailHref, router]);
 
-  // Direct navigation handler (like individual courses)
+  // Direct navigation handler
   const handleDetailClick = () => {
     if (detailHref) {
       router.push(detailHref);
@@ -72,8 +74,31 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
   const getExpiryDate = () => {
     if (!enrollment.expires_at) return 'Updating...';
     const date = new Date(enrollment.expires_at * 1000);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const now = new Date();
+    const daysLeft = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+
+    if (!isExpired && daysLeft > 0 && daysLeft <= 30) {
+      return `${formattedDate} (${daysLeft} days left)`;
+    }
+    return formattedDate;
   };
+
+  // Check days remaining for urgency styling
+  const getDaysRemaining = () => {
+    if (!enrollment.expires_at || isExpired) return null;
+    const date = new Date(enrollment.expires_at * 1000);
+    const now = new Date();
+    return Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const daysLeft = getDaysRemaining();
+  const isUrgent = daysLeft !== null && daysLeft <= 7;
 
   // Load child courses for bundles
   const toggleChildCourses = async () => {
@@ -102,12 +127,18 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
 
   return (
     <div ref={prefetchRef}>
-      <Card className="bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:shadow-md transition-all duration-200">
-        <CardContent className="p-4">
-          {/* Header with badges */}
-          <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Badge className={`text-xs ${isBundle ? 'bg-emerald-500' : 'bg-blue-500'} text-white`}>
+      <Card className={`group relative bg-white backdrop-blur-sm border shadow-md hover:shadow-xl transition-all duration-300 ${
+        isExpired ? 'opacity-75 border-gray-200' : 'border-gray-200 hover:border-amber-300'
+      }`}>
+        <CardContent className="p-5">
+          {/* Enhanced Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className={`text-xs font-semibold ${
+                isBundle 
+                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' 
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600'
+              } text-white border-0`}>
                 {isBundle ? (
                   <>
                     <Package className="w-3 h-3 mr-1" />
@@ -120,33 +151,44 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
                   </>
                 )}
               </Badge>
-              {isExpired && (
+              {isExpired ? (
                 <Badge variant="destructive" className="text-xs">
                   EXPIRED
                 </Badge>
-              )}
+              ) : isUrgent ? (
+                <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-xs">
+                  <Clock className="w-3 h-3 mr-1" />
+                  EXPIRING SOON
+                </Badge>
+              ) : null}
             </div>
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              {getExpiryDate()}
-            </span>
           </div>
 
-          {/* Title */}
-          <h3 className="font-semibold text-gray-900 mb-3 text-sm line-clamp-1">
+          {/* Title with better typography */}
+          <h3 className="font-semibold text-gray-900 mb-3 text-base line-clamp-2 group-hover:text-amber-600 transition-colors">
             {enrollment.item_name}
           </h3>
 
-          {/* Actions */}
+          {/* Expiry info with enhanced styling */}
+          <div className={`flex items-center gap-2 mb-4 text-xs ${
+            isUrgent ? 'text-orange-600' : 'text-gray-500'
+          }`}>
+            <Calendar className="w-3 h-3" />
+            <span className="font-medium">
+              {isExpired ? 'Expired on' : 'Expires'}: {getExpiryDate()}
+            </span>
+          </div>
+
+          {/* Enhanced Actions with better visual hierarchy */}
           <div className="flex items-center gap-2">
-            {/* Access Button */}
+            {/* Primary Access Button */}
             <Button
               size="sm"
-              className={`flex-1 ${
+              className={`flex-1 font-medium ${
                 isExpired 
                   ? 'bg-gray-400 hover:bg-gray-500 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
-              } text-white`}
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg'
+              } text-white transition-all`}
               disabled={isExpired}
               asChild={!isExpired}
             >
@@ -164,80 +206,105 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
                   className="flex items-center justify-center gap-1"
                 >
                   Access
-                  <ExternalLink className="w-3 h-3" />
+                  <ArrowUpRight className="w-3 h-3" />
                 </a>
               )}
             </Button>
 
-            {/* Detail button - SIMPLIFIED with direct navigation */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 px-3 border-amber-300 text-amber-700 hover:bg-amber-50"
-              disabled={!detailHref}
-              onClick={handleDetailClick}
-              onMouseEnter={() => {
-                // Prefetch on hover for better UX
-                if (detailHref) router.prefetch(detailHref);
-              }}
-            >
-              Detail
-            </Button>
-
-            {/* Bundle Courses Button */}
-            {isBundle && (
+            {/* Secondary Actions Container */}
+            <div className="flex items-center gap-2">
+              {/* Detail button */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleChildCourses}
-                className="px-3 border-amber-300 text-amber-700 hover:bg-amber-50"
+                className="px-3 border-gray-200 hover:border-amber-300 text-gray-700 hover:text-amber-700 hover:bg-amber-50/50"
+                disabled={!detailHref}
+                onClick={handleDetailClick}
+                onMouseEnter={() => {
+                  if (detailHref) router.prefetch(detailHref);
+                }}
               >
-                {showChildCourses ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                Detail
               </Button>
-            )}
 
-            {/* Rating Button */}
-            {!isBundle && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => !isRated && setShowRatingModal(true)}
-                disabled={isRated}
-                className="px-3 border-amber-300 text-amber-700 hover:bg-amber-50"
-              >
-                {isRated ? (
-                  <>
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    <span className="ml-1 text-xs">Rated</span>
-                  </>
-                ) : (
-                  <>
-                    <Star className="w-3 h-3" />
-                    <span className="ml-1 text-xs">Rate</span>
-                  </>
-                )}
-              </Button>
-            )}
+              {/* Bundle Courses Button */}
+              {isBundle && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleChildCourses}
+                  className="px-2 border-gray-200 hover:border-amber-300 text-gray-700 hover:text-amber-700 hover:bg-amber-50/50"
+                  title={showChildCourses ? 'Hide courses' : 'Show courses'}
+                >
+                  {showChildCourses ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+              )}
+
+              {/* Rating Button with better state indication */}
+              {!isBundle && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => !isRated && setShowRatingModal(true)}
+                  disabled={isRated}
+                  className={`px-3 ${
+                    isRated 
+                      ? 'border-amber-300 bg-amber-50 text-amber-700' 
+                      : 'border-gray-200 hover:border-amber-300 text-gray-700 hover:text-amber-700 hover:bg-amber-50/50'
+                  }`}
+                  title={isRated ? 'Already rated' : 'Rate this course'}
+                >
+                  {isRated ? (
+                    <>
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span className="ml-1 text-xs">Rated</span>
+                    </>
+                  ) : (
+                    <>
+                      <Star className="w-3 h-3" />
+                      <span className="ml-1 text-xs">Rate</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Bundle Child Courses */}
+          {/* Enhanced Bundle Child Courses with better styling */}
           {isBundle && showChildCourses && (
-            <div className="mt-3 p-3 bg-amber-50/50 rounded-lg border border-amber-200/30">
+            <div className="mt-4 p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200/50">
               {loadingCourses ? (
-                <div className="flex justify-center py-2">
-                  <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                <div className="flex justify-center py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm text-amber-700">Loading courses...</span>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-1">
-                  {childCourses.map((course) => (
-                    <div key={course.course_id} className="flex items-center justify-between py-1 text-xs">
-                      <span className="text-gray-700 truncate">{course.title}</span>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-amber-800 mb-2">
+                    {childCourses.length} Courses Included:
+                  </p>
+                  {childCourses.map((course, index) => (
+                    <div 
+                      key={course.course_id} 
+                      className="flex items-center justify-between p-2 hover:bg-white/60 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-xs text-amber-600 font-medium">
+                          {index + 1}.
+                        </span>
+                        <span className="text-sm text-gray-700 truncate">
+                          {course.title}
+                        </span>
+                      </div>
                       {course.course_slug && (
                         <Link 
                           href={`/course/${course.course_slug}`}
-                          className="text-amber-600 hover:text-amber-700 ml-2"
+                          className="text-xs text-amber-600 hover:text-amber-700 font-medium ml-2 flex items-center gap-1"
                         >
                           View
+                          <ExternalLink className="w-3 h-3" />
                         </Link>
                       )}
                     </div>
