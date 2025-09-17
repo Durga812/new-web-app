@@ -14,11 +14,18 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { CourseWithTwelveMonthOption } from '@/lib/types/course';
 import type { Category } from '@/lib/data/categories';
+import { useAuth, useClerk } from '@clerk/nextjs';
+import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
+import {
+  createBuildYourBundleSession,
+  type BundleCourseSelectionInput,
+} from '@/app/actions/build_bundle_checkout';
 
 interface BuildBundleCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCourses: CourseWithTwelveMonthOption[];
+  onRemoveCourses: (courseIds: string[]) => void;
   pricing: {
     tier: string;
     tierDescription: string;
@@ -50,10 +57,17 @@ export function BuildBundleCheckoutModal({
   isOpen,
   onClose,
   selectedCourses,
+  onRemoveCourses,
   pricing,
   category
 }: BuildBundleCheckoutModalProps) {
+  const { isSignedIn } = useAuth();
+  const { openSignIn } = useClerk();
+  const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
   const [expandedSeries, setExpandedSeries] = React.useState<Set<string>>(() => new Set());
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  const [checkoutLabel, setCheckoutLabel] = React.useState('Proceed to Checkout');
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   // Group courses by series; memoize to avoid effect thrashing
   const coursesBySeries = React.useMemo(() => {
@@ -86,13 +100,109 @@ export function BuildBundleCheckoutModal({
     setExpandedSeries(newExpanded);
   };
 
-  const handleCheckout = () => {
-    console.log('Checkout with:', {
-      courses: selectedCourses.length,
-      total: pricing.total,
-      tier: pricing.tier
-    });
-    alert('Checkout functionality coming soon!');
+  const handleCheckout = async () => {
+    if (isProcessing) return;
+    setErrorMessage(null);
+
+    if (!selectedCourses.length) {
+      setErrorMessage('Select at least 5 courses to continue.');
+      return;
+    }
+
+    if (!isSignedIn) {
+      try {
+        openSignIn();
+      } catch {
+        window.location.href = '/sign-in';
+      }
+      return;
+    }
+
+    setIsProcessing(true);
+    setCheckoutLabel('Validating selection...');
+
+    let workingSelection = selectedCourses;
+
+    const duplicates = selectedCourses.filter((course) =>
+      hasEnrollment(
+        course.course_id,
+        course.twelveMonthOption.course_enroll_id ?? course.twelveMonthOption.variant_code
+      )
+    );
+
+    if (duplicates.length > 0) {
+      const names = duplicates.map((course) => course.title).join(', ');
+      const confirmRemove = window.confirm(
+        `You already own: ${names}. Remove them from this bundle?`
+      );
+
+      if (!confirmRemove) {
+        setIsProcessing(false);
+        setCheckoutLabel('Proceed to Checkout');
+        return;
+      }
+
+      const duplicateIds = duplicates.map((course) => course.course_id);
+      const filteredSelection = selectedCourses.filter(
+        (course) => !duplicateIds.includes(course.course_id)
+      );
+
+      onRemoveCourses(duplicateIds);
+
+      if (!filteredSelection.length) {
+        setErrorMessage('All selected courses are already owned. Choose different courses to continue.');
+        setIsProcessing(false);
+        setCheckoutLabel('Proceed to Checkout');
+        onClose();
+        return;
+      }
+
+      if (filteredSelection.length < 5) {
+        setErrorMessage('Select at least 5 courses after removing owned items to access bundle pricing.');
+        setIsProcessing(false);
+        setCheckoutLabel('Proceed to Checkout');
+        onClose();
+        return;
+      }
+
+      workingSelection = filteredSelection;
+    }
+
+    if (workingSelection.length < 5) {
+      setErrorMessage('Select at least 5 courses to access bundle pricing.');
+      setIsProcessing(false);
+      setCheckoutLabel('Proceed to Checkout');
+      return;
+    }
+
+    setCheckoutLabel('Creating checkout...');
+
+    const payload: BundleCourseSelectionInput[] = workingSelection.map((course) => ({
+      course_id: course.course_id,
+      course_slug: course.course_slug,
+      title: course.title,
+      thumbnail_url: course.urls?.thumbnail_url,
+      variant_code: course.twelveMonthOption.variant_code ?? null,
+      course_enroll_id: course.twelveMonthOption.course_enroll_id ?? null,
+    }));
+
+    const purchaseIntentId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : String(Date.now());
+
+    try {
+      await createBuildYourBundleSession(payload, purchaseIntentId);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Checkout failed. Please try again.';
+      console.error('Bundle checkout failed:', error);
+      setErrorMessage(message);
+      setIsProcessing(false);
+      setCheckoutLabel('Proceed to Checkout');
+    }
   };
 
   return (
@@ -253,9 +363,16 @@ export function BuildBundleCheckoutModal({
 
         {/* Footer Actions */}
         <div className="border-t bg-gray-50 p-4 lg:p-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-sm text-gray-600 text-center sm:text-left">
-            <span className="hidden sm:inline">Secure checkout powered by Stripe</span>
-            <span className="sm:hidden">{selectedCourses.length} courses • ${pricing.total.toLocaleString()}</span>
+          <div className="flex-1 flex flex-col gap-1 text-center sm:text-left">
+            <div className="text-sm text-gray-600">
+              <span className="hidden sm:inline">Secure checkout powered by Stripe</span>
+              <span className="sm:hidden">{selectedCourses.length} courses • ${pricing.total.toLocaleString()}</span>
+            </div>
+            {errorMessage && (
+              <div className="text-sm text-red-600">
+                {errorMessage}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <Button 
@@ -267,10 +384,11 @@ export function BuildBundleCheckoutModal({
             </Button>
             <Button 
               onClick={handleCheckout}
-              className="flex-1 sm:flex-none px-8 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              disabled={isProcessing}
+              className="flex-1 sm:flex-none px-8 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              Proceed to Checkout
+              {checkoutLabel}
             </Button>
           </div>
         </div>

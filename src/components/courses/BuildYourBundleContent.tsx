@@ -166,6 +166,15 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
     });
   };
 
+  const removeSelectedCourses = React.useCallback((courseIds: string[]) => {
+    if (!courseIds.length) return;
+    setSelectedCourses((prev) => {
+      const next = new Set(prev);
+      courseIds.forEach((id) => next.delete(id));
+      return next;
+    });
+  }, []);
+
   const selectAllInSeries = (seriesKey: string) => {
     const seriesCourses = filteredCoursesBySeries[seriesKey] || [];
     setSelectedCourses(prev => {
@@ -544,6 +553,7 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
         isOpen={showCheckoutModal}
         onClose={() => setShowCheckoutModal(false)}
         selectedCourses={getSelectedCoursesData()}
+        onRemoveCourses={removeSelectedCourses}
         pricing={{
           tier: tier?.name || 'No Tier',
           tierDescription: tier?.desc || '',
