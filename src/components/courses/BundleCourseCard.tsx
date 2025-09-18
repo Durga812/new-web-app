@@ -16,6 +16,7 @@ interface BundleCourseCardProps {
   discountPct: number;
   hasDiscount: boolean;
   seriesColor: string;
+  owned?: boolean;
 }
 
 export function BundleCourseCard({
@@ -26,37 +27,52 @@ export function BundleCourseCard({
   effectivePrice,
   discountPct,
   hasDiscount,
-  seriesColor
+  seriesColor,
+  owned = false
 }: BundleCourseCardProps) {
   const originalPrice = twelveMonthOption.price;
+  const isSelected = selected && !owned;
+  const backgroundColor = owned ? 'rgba(243, 244, 246, 0.75)' : isSelected ? `${seriesColor}08` : 'white';
   
   return (
     <div
-      className={`relative w-full rounded-lg border-2 overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer ${
-        selected 
-          ? 'shadow-sm' 
-          : 'border-gray-200 hover:border-gray-300'
+      className={`relative w-full rounded-lg border-2 border-gray-200 overflow-hidden transition-all duration-200 ${
+        isSelected
+          ? 'shadow-sm cursor-pointer'
+          : owned
+            ? 'cursor-not-allowed opacity-75'
+            : 'hover:shadow-md hover:border-gray-300 cursor-pointer'
       }`}
       style={{
-        borderColor: selected ? seriesColor : undefined,
-        backgroundColor: selected ? `${seriesColor}08` : 'white',
+        borderColor: isSelected ? seriesColor : undefined,
+        backgroundColor,
       }}
-      onClick={onToggle}
+      onClick={() => {
+        if (owned) return;
+        onToggle();
+      }}
+      aria-disabled={owned}
     >
       {/* Checkbox overlay */}
       <div
         className={`absolute top-2 left-2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition-all bg-white/90 backdrop-blur-sm ${
-          selected 
+          isSelected
             ? '' 
             : 'border-gray-400'
         }`}
         style={{
-          backgroundColor: selected ? seriesColor : 'rgba(255,255,255,0.9)',
-          borderColor: selected ? seriesColor : undefined,
+          backgroundColor: isSelected ? seriesColor : 'rgba(255,255,255,0.9)',
+          borderColor: isSelected ? seriesColor : undefined,
         }}
       >
-        {selected && <Check className="w-3 h-3 text-white" />}
+        {isSelected && <Check className="w-3 h-3 text-white" />}
       </div>
+
+      {owned && (
+        <Badge className="absolute top-2 right-2 z-10 bg-green-600 text-white border-0 text-[10px] px-2 py-0.5">
+          Purchased
+        </Badge>
+      )}
 
       {/* Image - Full width at top */}
       <div className="relative w-full h-32 lg:h-24">
@@ -103,7 +119,11 @@ export function BundleCourseCard({
             ${twelveMonthOption.validity} months
           </Badge>
           
-          {hasDiscount ? (
+          {owned ? (
+            <Badge className="bg-green-100 text-green-700 text-[10px] px-2 py-0 h-5 border-0">
+              Already owned
+            </Badge>
+          ) : hasDiscount ? (
             <>
               <span className="text-[10px] text-gray-400 line-through">
                 ${originalPrice}

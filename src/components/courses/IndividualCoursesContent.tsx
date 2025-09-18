@@ -13,6 +13,7 @@ import { useCartStore } from '@/lib/stores/useCartStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { Course } from '@/lib/types/course';
 import type { Category } from '@/lib/data/categories';
+import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface IndividualCoursesContentProps {
   courses: Course[];
@@ -26,15 +27,16 @@ const seriesMetadata: Record<string, { title: string; description: string; color
     description: 'Master EB1A eligibility criteria',
     color: '#f59e0b', // amber
   },
-  rfe: {
-    title: 'RFE',
-    description: 'Handle Request for Evidence',
-    color: '#3b82f6', // blue
-  },
+
   'final-merit': {
     title: 'Final Merit',
     description: 'Build compelling final merits',
     color: '#10b981', // emerald
+  },
+  rfe: {
+    title: 'RFE',
+    description: 'Handle Request for Evidence',
+    color: '#3b82f6', // blue
   },
   'comparable-evidence': {
     title: 'Comparable Evidence',
@@ -43,14 +45,18 @@ const seriesMetadata: Record<string, { title: string; description: string; color
   },
 };
 
+const seriesOrder = ['criteria', 'final-merit', 'rfe', 'comparable-evidence'];
+
 export function IndividualCoursesContent({ courses, category }: IndividualCoursesContentProps) {
-  const { addItem, hasItem } = useCartStore();
+  const { addItem, hasItem, removeItem } = useCartStore();
+  const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [addingAllSeries, setAddingAllSeries] = useState<string | null>(null);
+  const [clearingSeries, setClearingSeries] = useState<string | null>(null);
 
   // State for active series filters - all active by default
   const [activeSeries, setActiveSeries] = useState<Set<string>>(
-    new Set(['criteria', 'rfe', 'final-merit', 'comparable-evidence'])
+    new Set(['criteria', 'final-merit', 'rfe', 'comparable-evidence'])
   );
 
   // State for search
@@ -156,7 +162,17 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
   }, [filteredCourses]);
 
   // Get available series from filtered data for display
-  const availableSeries = Object.keys(coursesBySeries);
+  const availableSeries = useMemo(() => {
+    return Object.keys(coursesBySeries).sort((a, b) => {
+      const orderA = seriesOrder.indexOf(a);
+      const orderB = seriesOrder.indexOf(b);
+
+      if (orderA === -1 && orderB === -1) return a.localeCompare(b);
+      if (orderA === -1) return 1;
+      if (orderB === -1) return -1;
+      return orderA - orderB;
+    });
+  }, [coursesBySeries]);
 
   // Toggle series filter
   const toggleSeries = (series: string) => {
@@ -174,6 +190,12 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
   // Get active series that have courses
   const activeSeriesList = availableSeries.filter((s) => activeSeries.has(s));
 
+  const getVariantLabel = (index: number): string => {
+    if (index === 0) return '6 Month';
+    if (index === 1) return '12 Month';
+    return `Option ${index + 1}`;
+  };
+
   // Calculate grid columns based on active series count
   const getContainerClass = () => {
     const count = activeSeriesList.length;
@@ -181,12 +203,12 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
       case 1:
         return '';
       case 2:
-        return 'grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8';
+        return 'grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4';
       case 3:
-        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8';
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4';
       case 4:
       default:
-        return 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8';
+        return 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4';
     }
   };
 
@@ -212,12 +234,19 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
   const handleAddAllToCart = async (series: string) => {
     setAddingAllSeries(series);
     const seriesCourses = allCoursesBySeries[series] || [];
-    let addedCount = 0;
-
     seriesCourses.forEach((course) => {
       if (!hasItem(course.course_id)) {
         const option =
           (course.course_options || [])[globalVariantIndex] || course.course_options?.[0];
+        const enrollId = option?.course_enroll_id ?? option?.variant_code;
+        const alreadyOwned = enrollId
+          ? hasEnrollment(course.course_id, enrollId)
+          : hasEnrollment(course.course_id);
+
+        if (alreadyOwned) {
+          return;
+        }
+
         const cartItem = {
           product_id: course.course_id,
           product_type: 'course' as const,
@@ -231,7 +260,6 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
           thumbnail_url: course.urls?.thumbnail_url,
         };
         addItem(cartItem);
-        addedCount++;
       }
     });
 
@@ -239,6 +267,23 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
     setTimeout(() => {
       setAddingAllSeries(null);
     }, 2000);
+  };
+
+  const handleClearSeriesFromCart = async (series: string) => {
+    setClearingSeries(series);
+    const seriesCourses = allCoursesBySeries[series] || [];
+
+    await Promise.all(
+      seriesCourses.map(async (course) => {
+        if (hasItem(course.course_id)) {
+          await removeItem(course.course_id);
+        }
+      })
+    );
+
+    setTimeout(() => {
+      setClearingSeries(null);
+    }, 1500);
   };
 
   // Determine max number of course options available
@@ -257,7 +302,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
       {/* Global Variant Selection */}
       {maxOptionsCount > 1 && (
         <div className="">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Default Course Option</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter By Validity</h3>
           <div className="relative bg-gray-100 rounded-full p-1 flex">
             <div
               className="absolute top-1 bottom-1 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out"
@@ -274,7 +319,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
                   globalVariantIndex === i ? 'text-amber-700' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Option {i + 1}
+                {getVariantLabel(i)}
               </button>
             ))}
           </div>
@@ -395,7 +440,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
                   globalVariantIndex === i ? 'text-amber-700' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Option {i + 1} 
+                {getVariantLabel(i)} 
               </button>
             ))}
           </div>
@@ -720,23 +765,34 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
                             {seriesCourses.length} {seriesCourses.length === 1 ? 'course' : 'courses'}
                           </p>
                         </div>
-                        <Button
-                          onClick={() => handleAddAllToCart(series)}
-                          size="sm"
-                          disabled={addingAllSeries === series}
-                          className={`transition-all ${
-                            addingAllSeries === series
-                              ? 'bg-green-500 hover:bg-green-600'
-                              : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
-                          } text-white`}
-                        >
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          {addingAllSeries === series ? 'Added!' : 'Add All to Cart'}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleAddAllToCart(series)}
+                            size="sm"
+                            disabled={addingAllSeries === series}
+                            className={`transition-all ${
+                              addingAllSeries === series
+                                ? 'bg-green-500 hover:bg-green-600'
+                                : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
+                            } text-white`}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            {addingAllSeries === series ? 'Added!' : 'Add All to Cart'}
+                          </Button>
+                          <Button
+                            onClick={() => handleClearSeriesFromCart(series)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={clearingSeries === series}
+                            className="text-gray-600 hover:text-red-600"
+                          >
+                            {clearingSeries === series ? 'Cleared' : 'Clear All'}
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Course Cards in responsive grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                         {seriesCourses.map((course) => (
                           <IndividualCourseCard
                             key={course.course_id}
@@ -778,28 +834,39 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
                             {metadata.title}
                           </h3>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <p className="text-xs lg:text-sm text-gray-600">
                             {seriesCourses.length} {seriesCourses.length === 1 ? 'course' : 'courses'}
                           </p>
-                          <Button
-                            onClick={() => handleAddAllToCart(series)}
-                            size="sm"
-                            disabled={addingAllSeries === series}
-                            className={`transition-all text-xs px-2 py-1 h-7 ${
-                              addingAllSeries === series
-                                ? 'bg-green-500 hover:bg-green-600'
-                                : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
-                            } text-white`}
-                          >
-                            <ShoppingCart className="w-3 h-3 mr-1" />
-                            {addingAllSeries === series ? 'Added!' : 'Add All'}
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              onClick={() => handleAddAllToCart(series)}
+                              size="sm"
+                              disabled={addingAllSeries === series}
+                              className={`transition-all text-xs px-2 py-1 h-7 ${
+                                addingAllSeries === series
+                                  ? 'bg-green-500 hover:bg-green-600'
+                                  : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
+                              } text-white`}
+                            >
+                              <ShoppingCart className="w-3 h-3 mr-1" />
+                              {addingAllSeries === series ? 'Added!' : 'Add All'}
+                            </Button>
+                            <Button
+                              onClick={() => handleClearSeriesFromCart(series)}
+                              size="sm"
+                              variant="ghost"
+                              disabled={clearingSeries === series}
+                              className="text-xs h-7 text-gray-600 hover:text-red-600"
+                            >
+                              {clearingSeries === series ? 'Cleared' : 'Clear'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
                       {/* Course Cards - responsive grid within column */}
-                      <div className={`grid gap-4 ${activeSeriesList.length === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                      <div className={`grid gap-3 ${activeSeriesList.length === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
                         {seriesCourses.map((course) => (
                           <IndividualCourseCard
                             key={course.course_id}

@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Package, ArrowLeft, X, Sparkles, Filter } from 'lucide-react';
+import { Search, ArrowLeft, X, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { BundleCourseCard } from './BundleCourseCard';
 import { BuildBundleCheckoutModal } from './BuildBundleCheckoutModal';
 import type { Course, CourseOption, CourseWithTwelveMonthOption } from '@/lib/types/course';
 import type { Category } from '@/lib/data/categories';
+import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
 
 interface BuildYourBundleContentProps {
   courses: Course[];
@@ -81,6 +82,17 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
   // Default to first series on mobile
   const [activeSeries, setActiveSeries] = useState<string | null>('criteria');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
+  const ownedEnrollments = useEnrollmentStore((state) => state.enrollments);
+
+  const isCourseOwned = React.useCallback(
+    (course: CourseWithTwelveMonthOption) => {
+      if (!course?.twelveMonthOption) return false;
+      const enrollId = course.twelveMonthOption.course_enroll_id ?? course.twelveMonthOption.variant_code;
+      return enrollId ? hasEnrollment(course.course_id, enrollId) : hasEnrollment(course.course_id);
+    },
+    [hasEnrollment, ownedEnrollments]
+  );
 
   // Extract unique tags from all courses
   const availableTags = useMemo(() => {
@@ -173,14 +185,20 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
   const discountPct = rack ? (discountAmount / rack) * 100 : 0;
 
   // Selection handlers
-  const toggleCourse = (courseId: string) => {
+  const toggleCourse = (course: CourseWithTwelveMonthOption) => {
     setSelectedCourses(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(courseId)) {
-        newSet.delete(courseId);
-      } else {
-        newSet.add(courseId);
+      if (newSet.has(course.course_id)) {
+        newSet.delete(course.course_id);
+        return newSet;
       }
+
+      if (isCourseOwned(course)) {
+        newSet.delete(course.course_id);
+        return newSet;
+      }
+
+      newSet.add(course.course_id);
       return newSet;
     });
   };
@@ -214,7 +232,13 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
     const seriesCourses = filteredCoursesBySeries[seriesKey] || [];
     setSelectedCourses(prev => {
       const newSet = new Set(prev);
-      seriesCourses.forEach(course => newSet.add(course.course_id));
+      seriesCourses.forEach(course => {
+        if (isCourseOwned(course)) {
+          newSet.delete(course.course_id);
+          return;
+        }
+        newSet.add(course.course_id);
+      });
       return newSet;
     });
   };
@@ -236,19 +260,39 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
   // Check if all courses in series are selected
   const isAllSelected = (seriesKey: string) => {
     const seriesCourses = filteredCoursesBySeries[seriesKey] || [];
-    if (seriesCourses.length === 0) return false;
-    return seriesCourses.every(course => selectedCourses.has(course.course_id));
+    const selectableCourses = seriesCourses.filter(course => !isCourseOwned(course));
+    if (selectableCourses.length === 0) return false;
+    return selectableCourses.every(course => selectedCourses.has(course.course_id));
   };
+
+  const allCoursesFlattened = useMemo(
+    () => Object.values(coursesBySeries).flat(),
+    [coursesBySeries]
+  );
 
   const getSelectedCoursesData = () => {
     const selected: CourseWithTwelveMonthOption[] = [];
-    Object.values(coursesBySeries).flat().forEach(course => {
+    allCoursesFlattened.forEach(course => {
       if (selectedCourses.has(course.course_id)) {
         selected.push(course);
       }
     });
     return selected;
   };
+
+  React.useEffect(() => {
+    setSelectedCourses(prev => {
+      let changed = false;
+      const next = new Set(prev);
+      allCoursesFlattened.forEach((course) => {
+        if (isCourseOwned(course) && next.has(course.course_id)) {
+          next.delete(course.course_id);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [allCoursesFlattened, isCourseOwned]);
 
   const meetsMin = totalSelected >= MIN_BUNDLE;
 
@@ -413,6 +457,8 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                   const seriesCourses = filteredCoursesBySeries[activeSeries] || [];
                   if (!series) return null;
 
+                  const selectableCourses = seriesCourses.filter(course => !isCourseOwned(course));
+
                   return (
                     <>
                       <div className="flex items-center justify-between mb-3">
@@ -425,6 +471,7 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                             size="sm"
                             variant="outline"
                             onClick={() => selectAllInSeries(activeSeries)}
+                            disabled={selectableCourses.length === 0}
                             className={`text-xs h-7 ${isAllSelected(activeSeries) ? 'bg-black text-white border-black' : ''}`}
                           >
                             Select All
@@ -441,19 +488,23 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                       </div>
                       
                       <div className="grid grid-cols-2 gap-3">
-                        {seriesCourses.map((course) => (
-                          <BundleCourseCard
-                            key={course.course_id}
-                            course={course}
-                            twelveMonthOption={course.twelveMonthOption}
-                            selected={selectedCourses.has(course.course_id)}
-                            onToggle={() => toggleCourse(course.course_id)}
-                            effectivePrice={perCourse}
-                            discountPct={discountPct}
-                            hasDiscount={totalSelected >= 5}
-                            seriesColor={series.color}
-                          />
-                        ))}
+                        {seriesCourses.map((course) => {
+                          const owned = isCourseOwned(course);
+                          return (
+                            <BundleCourseCard
+                              key={course.course_id}
+                              course={course}
+                              twelveMonthOption={course.twelveMonthOption}
+                              selected={selectedCourses.has(course.course_id)}
+                              onToggle={() => toggleCourse(course)}
+                              effectivePrice={perCourse}
+                              discountPct={discountPct}
+                              hasDiscount={totalSelected >= 5}
+                              seriesColor={series.color}
+                              owned={owned}
+                            />
+                          );
+                        })}
                       </div>
                     </>
                   );
@@ -468,7 +519,9 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
           <div className="grid grid-cols-4 gap-2 xl:gap-3 2xl:gap-4">
             {SERIES_CONFIG.map((series) => {
               const seriesCourses = filteredCoursesBySeries[series.key] || [];
+              const selectableCourses = seriesCourses.filter(course => !isCourseOwned(course));
               const selectedCount = getSeriesCount(series.key);
+              const ownedCount = seriesCourses.length - selectableCourses.length;
               const allSelected = isAllSelected(series.key);
               
               return (
@@ -481,15 +534,23 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                           <span>{series.emoji}</span>
                           <span>{series.label}</span>
                         </h3>
-                        <Badge variant="outline" className="text-xs">
-                          {selectedCount}/{seriesCourses.length}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {selectableCourses.length > 0 ? `${selectedCount}/${selectableCourses.length}` : '0/0'}
+                          </Badge>
+                          {ownedCount > 0 && (
+                            <Badge className="bg-green-100 text-green-700 text-xs border-0">
+                              {ownedCount} owned
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="flex gap-1">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => selectAllInSeries(series.key)}
+                          disabled={selectableCourses.length === 0}
                           className={`flex-1 text-xs h-7 ${allSelected ? 'bg-black text-white border-black hover:bg-gray-800' : ''}`}
                         >
                           Select All
@@ -507,19 +568,23 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
 
                     {/* Course List - No scroll */}
                     <div className="space-y-2">
-                      {seriesCourses.map((course) => (
-                        <BundleCourseCard
-                          key={course.course_id}
-                          course={course}
-                          twelveMonthOption={course.twelveMonthOption}
-                          selected={selectedCourses.has(course.course_id)}
-                          onToggle={() => toggleCourse(course.course_id)}
-                          effectivePrice={perCourse}
-                          discountPct={discountPct}
-                          hasDiscount={totalSelected >= 5}
-                          seriesColor={series.color}
-                        />
-                      ))}
+                      {seriesCourses.map((course) => {
+                        const owned = isCourseOwned(course);
+                        return (
+                          <BundleCourseCard
+                            key={course.course_id}
+                            course={course}
+                            twelveMonthOption={course.twelveMonthOption}
+                            selected={selectedCourses.has(course.course_id)}
+                            onToggle={() => toggleCourse(course)}
+                            effectivePrice={perCourse}
+                            discountPct={discountPct}
+                            hasDiscount={totalSelected >= 5}
+                            seriesColor={series.color}
+                            owned={owned}
+                          />
+                        );
+                      })}
                       
                       {seriesCourses.length === 0 && (
                         <div className="text-center py-8 text-gray-500">

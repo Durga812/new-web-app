@@ -15,6 +15,7 @@ interface BundleCourseCardProps {
   discountPct: number;
   hasDiscount: boolean;
   seriesColor: string;
+  owned?: boolean;
 }
 
 export function BundleCourseCard({
@@ -25,22 +26,29 @@ export function BundleCourseCard({
   effectivePrice,
   discountPct,
   hasDiscount,
-  seriesColor
+  seriesColor,
+  owned = false
 }: BundleCourseCardProps) {
   const originalPrice = twelveMonthOption.price;
+  const isSelected = selected && !owned;
   
   return (
     <div
-      onClick={onToggle}
+      onClick={() => {
+        if (owned) return;
+        onToggle();
+      }}
       className={`
-        relative w-full p-4 rounded-lg border-2 cursor-pointer
-        transition-all duration-200 hover:shadow-md
-        ${selected 
-          ? 'bg-blue-50 border-blue-500 shadow-sm' 
-          : 'bg-white border-gray-200 hover:border-gray-300'
+        relative w-full p-4 rounded-lg border-2 transition-all duration-200
+        ${owned
+          ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-75'
+          : isSelected
+            ? 'bg-blue-50 border-blue-500 shadow-sm cursor-pointer'
+            : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md cursor-pointer'
         }
       `}
-      style={{ borderColor: selected ? seriesColor : undefined }}
+      style={{ borderColor: isSelected ? seriesColor : undefined }}
+      aria-disabled={owned}
     >
       <div className="flex items-start gap-4">
         {/* Selection Checkbox */}
@@ -49,13 +57,13 @@ export function BundleCourseCard({
             className={`
               w-6 h-6 rounded-md border-2 flex items-center justify-center
               transition-all duration-200
-              ${selected 
+              ${isSelected 
                 ? 'bg-blue-500 border-blue-500' 
                 : 'bg-white border-gray-300 hover:border-gray-400'
               }
             `}
           >
-            {selected && <Check className="w-4 h-4 text-white" />}
+            {isSelected && <Check className="w-4 h-4 text-white" />}
           </div>
         </div>
 
@@ -69,7 +77,11 @@ export function BundleCourseCard({
             
             {/* Price Display - Clean and Clear */}
             <div className="flex-shrink-0 text-right">
-              {hasDiscount ? (
+              {owned ? (
+                <Badge className="bg-green-100 text-green-700 border-0 text-xs px-2 py-0.5">
+                  Already owned
+                </Badge>
+              ) : hasDiscount ? (
                 <div>
                   <div className="text-sm text-gray-400 line-through">
                     ${originalPrice}
