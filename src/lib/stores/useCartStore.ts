@@ -8,6 +8,7 @@ export interface CartItem {
   category_slug?: string;
   variant_code?: string;
   product_enroll_id?: string;
+  variant_label?: string;
   title: string;
   original_price: number;
   price: number;

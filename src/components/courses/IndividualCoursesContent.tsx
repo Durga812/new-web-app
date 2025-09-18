@@ -47,6 +47,12 @@ const seriesMetadata: Record<string, { title: string; description: string; color
 
 const seriesOrder = ['criteria', 'final-merit', 'rfe', 'comparable-evidence'];
 
+const formatAccessLabel = (months?: number | null) => {
+  if (!months || months <= 0) return undefined;
+  const label = months === 1 ? '1 month' : `${months} months`;
+  return `${label} access`;
+};
+
 export function IndividualCoursesContent({ courses, category }: IndividualCoursesContentProps) {
   const { addItem, hasItem, removeItem } = useCartStore();
   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
@@ -257,6 +263,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
               : undefined),
           variant_code: option?.variant_code,
           product_enroll_id: option?.course_enroll_id ?? option?.variant_code,
+          variant_label: formatAccessLabel(option?.validity ?? option?.validity_months ?? null),
           title: course.title,
           original_price: option?.original_price ?? option?.price ?? 0,
           price: option?.price ?? 0,

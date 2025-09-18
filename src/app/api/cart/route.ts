@@ -47,6 +47,7 @@ export async function POST(request: Request) {
         title: item.title,
         thumbnail_url: item.thumbnail_url,
         category_slug: item.category_slug ?? null,
+        variant_label: item.variant_label ?? null,
       },
     })
     .select()

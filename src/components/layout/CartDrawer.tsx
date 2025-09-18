@@ -91,7 +91,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           type: item.product_type,
           slug: item.product_slug,
           thumbnailUrl: item.thumbnail_url,
-          variantLabel: null,
+          variantLabel: item.variant_label ?? (matchingEnrollment ? 'Existing access plan' : null),
           note: matchingEnrollment
             ? `This ${matchingEnrollment.item_type === 'bundle' ? 'bundle' : 'course'} is already in your purchases.`
             : `This ${item.product_type === 'bundle' ? 'bundle' : 'course'} is already in your purchases.`,
@@ -252,15 +252,20 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             className="w-20 h-20 rounded-lg object-cover"
                           />
                         )}
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
-                              {item.product_type === 'course' ? 'Course' : 'Bundle'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center justify-between mt-3">
-                            <div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                          {item.product_type === 'course' ? 'Course' : 'Bundle'}
+                        </Badge>
+                      </div>
+                      {item.variant_label && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {item.variant_label}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between mt-3">
+                        <div>
                               {item.original_price && item.price < item.original_price && (
                                 <span className="text-sm text-gray-400 line-through mr-2">
                                   {formatPrice(item.original_price, item.currency)}

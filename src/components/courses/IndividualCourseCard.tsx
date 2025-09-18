@@ -103,6 +103,10 @@ export function IndividualCourseCard({
       (typeof course.category === 'string'
         ? course.category.toLowerCase().replace(/\s+/g, '-')
         : undefined);
+    const validityMonths = option?.validity ?? option?.validity_months ?? selectedOption.validity_months;
+    const variantLabel = typeof validityMonths === 'number' && validityMonths > 0
+      ? `${getValidityLabel(validityMonths)} access`
+      : undefined;
     const cartItem = {
       product_id: course.course_id,
       product_type: 'course' as const,
@@ -110,6 +114,7 @@ export function IndividualCourseCard({
       category_slug: categorySlug,
       variant_code: option?.variant_code,
       product_enroll_id: option?.course_enroll_id ?? option?.variant_code,
+      variant_label: variantLabel,
       title: course.title,
       original_price: option?.original_price ?? option?.price ?? 0,
       price: option?.price ?? 0,
