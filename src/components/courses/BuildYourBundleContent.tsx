@@ -3,7 +3,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Package, ArrowLeft, X, Sparkles } from 'lucide-react';
+import { Search, Package, ArrowLeft, X, Sparkles, Filter } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +80,18 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   // Default to first series on mobile
   const [activeSeries, setActiveSeries] = useState<string | null>('criteria');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+
+  // Extract unique tags from all courses
+  const availableTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    courses.forEach(course => {
+      if (course.tags && course.tags.length > 0) {
+        tagsSet.add(course.tags[0]);
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [courses]);
 
   // Group courses by series
   const coursesBySeries = useMemo(() => {
@@ -113,21 +125,28 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
     return grouped;
   }, [courses]);
 
-  // Filter courses by search
+  // Filter courses by search and tags
   const filteredCoursesBySeries = useMemo(() => {
-    if (!searchQuery.trim()) return coursesBySeries;
     const query = searchQuery.toLowerCase().trim();
     const filtered: typeof coursesBySeries = {};
 
     Object.keys(coursesBySeries).forEach(series => {
-      filtered[series] = coursesBySeries[series].filter(course =>
-        course.title?.toLowerCase().includes(query) ||
-        course.tags?.some(tag => tag.toLowerCase().includes(query))
-      );
+      filtered[series] = coursesBySeries[series].filter(course => {
+        // Search filter
+        const matchesSearch = !query || 
+          course.title?.toLowerCase().includes(query) ||
+          course.tags?.some(tag => tag.toLowerCase().includes(query));
+
+        // Tag filter
+        const matchesTags = selectedTags.size === 0 || 
+          (course.tags && course.tags.length > 0 && selectedTags.has(course.tags[0]));
+
+        return matchesSearch && matchesTags;
+      });
     });
 
     return filtered;
-  }, [coursesBySeries, searchQuery]);
+  }, [coursesBySeries, searchQuery, selectedTags]);
 
   // Calculate pricing
   const totalSelected = selectedCourses.size;
@@ -164,6 +183,22 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
       }
       return newSet;
     });
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tag)) {
+        newSet.delete(tag);
+      } else {
+        newSet.add(tag);
+      }
+      return newSet;
+    });
+  };
+
+  const clearAllTags = () => {
+    setSelectedTags(new Set());
   };
 
   const removeSelectedCourses = React.useCallback((courseIds: string[]) => {
@@ -247,12 +282,12 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
         {/* Header - Simplified */}
         <div className="text-center mb-6 lg:mb-8">
           <Badge 
-                        className="mb-4 px-4 py-1.5 text-white font-medium"
-                        style={{ backgroundColor: category.color }}
-                      >
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        BUILD YOUR OWN BUNDLE
-                      </Badge>
+            className="mb-4 px-4 py-1.5 text-white font-medium"
+            style={{ backgroundColor: category.color }}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            BUILD YOUR OWN BUNDLE
+          </Badge>
           <h1 className="text-2xl lg:text-4xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent mb-2">
             Build Your {category.title} Bundle
           </h1>
@@ -268,7 +303,7 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
         </div>
 
         {/* Search Bar - Mobile Optimized */}
-        <div className="mb-4 lg:mb-6">
+        <div className="mb-4 lg:mb-6 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -284,6 +319,46 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1"
               >
                 <X className="h-4 w-4 text-gray-400" />
+              </button>
+            )}
+          </div>
+
+          {/* Tag Filters - Responsive */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full">
+              <div className="flex items-center justify-between sm:justify-start">
+                <span className="text-xs sm:text-sm font-medium text-gray-700 flex-shrink-0">Filter by Criteria:</span>
+                {selectedTags.size > 0 && (
+                  <button
+                    onClick={clearAllTags}
+                    className="text-xs font-medium text-gray-600 hover:text-gray-800 underline sm:hidden"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs rounded-full border transition-all ${
+                      selectedTags.has(tag) 
+                        ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600' 
+                        : 'bg-white border-gray-300 text-gray-700 hover:border-amber-400 hover:bg-amber-50'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {selectedTags.size > 0 && (
+              <button
+                onClick={clearAllTags}
+                className="hidden sm:block text-xs font-medium text-gray-600 hover:text-gray-800 underline flex-shrink-0"
+              >
+                Clear
               </button>
             )}
           </div>
@@ -350,7 +425,7 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
                             size="sm"
                             variant="outline"
                             onClick={() => selectAllInSeries(activeSeries)}
-                            className={`text-xs h-7 ${isAllSelected(activeSeries) ? 'bg-green-100 border-green-400' : ''}`}
+                            className={`text-xs h-7 ${isAllSelected(activeSeries) ? 'bg-black text-white border-black' : ''}`}
                           >
                             Select All
                           </Button>
@@ -388,73 +463,75 @@ export function BuildYourBundleContent({ courses, category }: BuildYourBundleCon
           )}
         </div>
 
-        {/* Desktop Grid */}
-        <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          {SERIES_CONFIG.map((series) => {
-            const seriesCourses = filteredCoursesBySeries[series.key] || [];
-            const selectedCount = getSeriesCount(series.key);
-            const allSelected = isAllSelected(series.key);
-            
-            return (
-              <Card key={series.key} className="bg-white/80 backdrop-blur-sm p-0.5 border border-gray-200/50">
-                <CardContent className="p-4">
-                  {/* Series Header */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-bold flex items-center gap-1" style={{ color: series.color }}>
-                        <span>{series.emoji}</span>
-                        <span>{series.label}</span>
-                      </h3>
-                      <Badge variant="outline" className="text-xs">
-                        {selectedCount}/{seriesCourses.length}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => selectAllInSeries(series.key)}
-                        className={`flex-1 text-xs h-7 ${allSelected ? 'bg-green-100 border-green-400 text-green-700' : ''}`}
-                      >
-                        Select All
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => clearSeries(series.key)}
-                        className="flex-1 text-xs h-7"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Course List - No scroll */}
-                  <div className="space-y-2">
-                    {seriesCourses.map((course) => (
-                      <BundleCourseCard
-                        key={course.course_id}
-                        course={course}
-                        twelveMonthOption={course.twelveMonthOption}
-                        selected={selectedCourses.has(course.course_id)}
-                        onToggle={() => toggleCourse(course.course_id)}
-                        effectivePrice={perCourse}
-                        discountPct={discountPct}
-                        hasDiscount={totalSelected >= 5}
-                        seriesColor={series.color}
-                      />
-                    ))}
-                    
-                    {seriesCourses.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <p className="text-sm">No courses found</p>
+        {/* Desktop Grid - Closer columns */}
+        <div className="hidden lg:block mb-8">
+          <div className="grid grid-cols-4 gap-2 xl:gap-3 2xl:gap-4">
+            {SERIES_CONFIG.map((series) => {
+              const seriesCourses = filteredCoursesBySeries[series.key] || [];
+              const selectedCount = getSeriesCount(series.key);
+              const allSelected = isAllSelected(series.key);
+              
+              return (
+                <Card key={series.key} className="bg-white/80 backdrop-blur-sm p-0.5 border border-gray-200/50">
+                  <CardContent className="p-3 xl:p-4">
+                    {/* Series Header */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-bold flex items-center gap-1 text-sm xl:text-base" style={{ color: series.color }}>
+                          <span>{series.emoji}</span>
+                          <span>{series.label}</span>
+                        </h3>
+                        <Badge variant="outline" className="text-xs">
+                          {selectedCount}/{seriesCourses.length}
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => selectAllInSeries(series.key)}
+                          className={`flex-1 text-xs h-7 ${allSelected ? 'bg-black text-white border-black hover:bg-gray-800' : ''}`}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => clearSeries(series.key)}
+                          className="flex-1 text-xs h-7"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Course List - No scroll */}
+                    <div className="space-y-2">
+                      {seriesCourses.map((course) => (
+                        <BundleCourseCard
+                          key={course.course_id}
+                          course={course}
+                          twelveMonthOption={course.twelveMonthOption}
+                          selected={selectedCourses.has(course.course_id)}
+                          onToggle={() => toggleCourse(course.course_id)}
+                          effectivePrice={perCourse}
+                          discountPct={discountPct}
+                          hasDiscount={totalSelected >= 5}
+                          seriesColor={series.color}
+                        />
+                      ))}
+                      
+                      {seriesCourses.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p className="text-sm">No courses found</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
 
         {/* Bundle Package Offering - Improved */}

@@ -326,7 +326,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
       {/* Tag Filter */}
       {availableTags.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter by Tag</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter by criteria</h3>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -378,7 +378,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
       {/* Global Variant Selection */}
       {maxOptionsCount > 1 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Default Course Option</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter by Course Validity</h3>
           <div className="relative bg-gray-100 rounded-full p-1 flex">
             <div
               className="absolute top-1 bottom-1 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out"
@@ -395,7 +395,7 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
                   globalVariantIndex === i ? 'text-amber-700' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Option {i + 1}
+                Option {i + 1} 
               </button>
             ))}
           </div>
