@@ -251,6 +251,10 @@ export function IndividualCoursesContent({ courses, category }: IndividualCourse
           product_id: course.course_id,
           product_type: 'course' as const,
           product_slug: course.course_slug,
+          category_slug: course.category_slug ??
+            (typeof course.category === 'string'
+              ? course.category.toLowerCase().replace(/\s+/g, '-')
+              : undefined),
           variant_code: option?.variant_code,
           product_enroll_id: option?.course_enroll_id ?? option?.variant_code,
           title: course.title,

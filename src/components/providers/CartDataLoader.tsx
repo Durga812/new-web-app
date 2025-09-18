@@ -36,7 +36,7 @@ export function CartDataLoader() {
         original_price: number;
         price: number;
         currency: string;
-        cart_metadata?: { title?: string; thumbnail_url?: string } | null;
+        cart_metadata?: { title?: string; thumbnail_url?: string; category_slug?: string | null } | null;
       };
       const serverItems: ServerCartItem[] = await res.json();
 
@@ -63,6 +63,7 @@ export function CartDataLoader() {
           product_id: i.product_id,
           product_type: i.product_type,
           product_slug: i.product_slug,
+          category_slug: i.cart_metadata?.category_slug ?? undefined,
           variant_code: i.variant_code ?? undefined,
           product_enroll_id: i.product_enroll_id ?? undefined,
           title: i.cart_metadata?.title ?? i.product_slug ?? 'Item',

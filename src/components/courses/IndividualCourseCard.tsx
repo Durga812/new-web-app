@@ -92,17 +92,22 @@ export function IndividualCourseCard({
     router.push(`/course/${course.course_slug}`);
   };
 
- const handleAddToCart = async (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (isInCart) return;
 
     // Use the currently selected option
     const option = (course.course_options || [])[selectedOptionIndex];
+    const categorySlug = course.category_slug ??
+      (typeof course.category === 'string'
+        ? course.category.toLowerCase().replace(/\s+/g, '-')
+        : undefined);
     const cartItem = {
       product_id: course.course_id,
       product_type: 'course' as const,
       product_slug: course.course_slug,
+      category_slug: categorySlug,
       variant_code: option?.variant_code,
       product_enroll_id: option?.course_enroll_id ?? option?.variant_code,
       title: course.title,

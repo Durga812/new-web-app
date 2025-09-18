@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { Package, CreditCard, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { 
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
   createBuildYourBundleSession,
   type BundleCourseSelectionInput,
 } from '@/app/actions/build_bundle_checkout';
+import { OwnedItemsDialog, OwnedItemSummary } from '@/components/dialogs/OwnedItemsDialog';
 
 interface BuildBundleCheckoutModalProps {
   isOpen: boolean;
@@ -61,13 +63,20 @@ export function BuildBundleCheckoutModal({
   pricing,
   category
 }: BuildBundleCheckoutModalProps) {
+  const router = useRouter();
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
+  const enrollments = useEnrollmentStore((state) => state.enrollments);
   const [expandedSeries, setExpandedSeries] = React.useState<Set<string>>(() => new Set());
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [checkoutLabel, setCheckoutLabel] = React.useState('Proceed to Checkout');
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [ownedDialogOpen, setOwnedDialogOpen] = React.useState(false);
+  const [ownedItems, setOwnedItems] = React.useState<OwnedItemSummary[]>([]);
+  const [ownedDuplicateIds, setOwnedDuplicateIds] = React.useState<string[]>([]);
+  const [isRemovingOwned, setIsRemovingOwned] = React.useState(false);
+  const [ownedReturnPath, setOwnedReturnPath] = React.useState<string | null>(null);
 
   // Group courses by series; memoize to avoid effect thrashing
   const coursesBySeries = React.useMemo(() => {
@@ -121,7 +130,7 @@ export function BuildBundleCheckoutModal({
     setIsProcessing(true);
     setCheckoutLabel('Validating selection...');
 
-    let workingSelection = selectedCourses;
+    const workingSelection = selectedCourses;
 
     const duplicates = selectedCourses.filter((course) =>
       hasEnrollment(
@@ -131,41 +140,44 @@ export function BuildBundleCheckoutModal({
     );
 
     if (duplicates.length > 0) {
-      const names = duplicates.map((course) => course.title).join(', ');
-      const confirmRemove = window.confirm(
-        `You already own: ${names}. Remove them from this bundle?`
-      );
+      const duplicateSummaries: OwnedItemSummary[] = duplicates.map((course) => {
+        const enrollmentMatch = enrollments.find((enrollment) => {
+          if (enrollment.item_id !== course.course_id) return false;
+          const enrollId = course.twelveMonthOption.course_enroll_id ?? course.twelveMonthOption.variant_code;
+          if (!enrollId) return true;
+          return enrollment.item_enroll_id === enrollId;
+        });
 
-      if (!confirmRemove) {
-        setIsProcessing(false);
-        setCheckoutLabel('Proceed to Checkout');
-        return;
-      }
+        const validity = course.twelveMonthOption.validity;
+        let variantLabel: string | null = null;
+        if (typeof validity === 'number') {
+          if (validity === 12) variantLabel = '12 months access';
+          else if (validity === 6) variantLabel = '6 months access';
+          else if (validity === 3) variantLabel = '3 months access';
+          else if (validity === 1) variantLabel = '1 month access';
+          else variantLabel = `${validity} months access`;
+        } else if (enrollmentMatch?.item_enroll_id) {
+          variantLabel = 'Existing access plan';
+        }
 
-      const duplicateIds = duplicates.map((course) => course.course_id);
-      const filteredSelection = selectedCourses.filter(
-        (course) => !duplicateIds.includes(course.course_id)
-      );
+        return {
+          id: course.course_id,
+          title: course.title,
+          type: 'course' as const,
+          slug: course.course_slug,
+          thumbnailUrl: course.urls?.thumbnail_url,
+          variantLabel,
+          note: 'This course is already in your purchases.',
+        };
+      });
 
-      onRemoveCourses(duplicateIds);
-
-      if (!filteredSelection.length) {
-        setErrorMessage('All selected courses are already owned. Choose different courses to continue.');
-        setIsProcessing(false);
-        setCheckoutLabel('Proceed to Checkout');
-        onClose();
-        return;
-      }
-
-      if (filteredSelection.length < 5) {
-        setErrorMessage('Select at least 5 courses after removing owned items to access bundle pricing.');
-        setIsProcessing(false);
-        setCheckoutLabel('Proceed to Checkout');
-        onClose();
-        return;
-      }
-
-      workingSelection = filteredSelection;
+      setOwnedItems(duplicateSummaries);
+      setOwnedDuplicateIds(duplicates.map((course) => course.course_id));
+      setOwnedReturnPath(`/courses/${category.cat_slug}/build-your-bundle`);
+      setOwnedDialogOpen(true);
+      setIsProcessing(false);
+      setCheckoutLabel('Proceed to Checkout');
+      return;
     }
 
     if (workingSelection.length < 5) {
@@ -205,13 +217,59 @@ export function BuildBundleCheckoutModal({
     }
   };
 
+  const handleOwnedDialogCancel = () => {
+    setOwnedDialogOpen(false);
+    setOwnedItems([]);
+    setOwnedDuplicateIds([]);
+    setOwnedReturnPath(null);
+    setIsProcessing(false);
+    setCheckoutLabel('Proceed to Checkout');
+  };
+
+  const handleOwnedDialogConfirm = async () => {
+    if (!ownedItems.length) {
+      handleOwnedDialogCancel();
+      return;
+    }
+
+    setIsRemovingOwned(true);
+    try {
+      await Promise.resolve(onRemoveCourses(ownedDuplicateIds));
+      setErrorMessage('Owned courses were removed. Add new courses before checking out.');
+      setOwnedDialogOpen(false);
+      setOwnedItems([]);
+      setOwnedDuplicateIds([]);
+      setIsProcessing(false);
+      setCheckoutLabel('Proceed to Checkout');
+      const target = ownedReturnPath ?? `/courses/${category.cat_slug}/build-your-bundle`;
+      setOwnedReturnPath(null);
+      onClose();
+      if (target) {
+        router.push(target);
+      }
+    } finally {
+      setIsRemovingOwned(false);
+    }
+  };
+
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
+    <>
+      <OwnedItemsDialog
+        open={ownedDialogOpen}
+        items={ownedItems}
+        onCancel={handleOwnedDialogCancel}
+        onConfirm={handleOwnedDialogConfirm}
+        isConfirming={isRemovingOwned}
+        confirmLabel="Remove and review"
+        cancelLabel="Keep selection"
+        description="Confirm removal to return to the bundle builder and update your selection before checking out."
+      />
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
       <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl max-h-[90vh] p-0 overflow-hidden bg-white">
         <DialogHeader className="p-4 lg:p-6 border-b bg-gradient-to-r from-amber-50 to-orange-50">
           <DialogTitle className="flex items-center gap-3 text-lg lg:text-xl">
@@ -393,6 +451,7 @@ export function BuildBundleCheckoutModal({
           </div>
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

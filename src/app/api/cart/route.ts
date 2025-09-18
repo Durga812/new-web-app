@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       cart_metadata: {
         title: item.title,
         thumbnail_url: item.thumbnail_url,
+        category_slug: item.category_slug ?? null,
       },
     })
     .select()

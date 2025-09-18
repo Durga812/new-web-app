@@ -5,6 +5,7 @@ export interface CartItem {
   product_id: string;
   product_type: 'course' | 'bundle';
   product_slug: string;
+  category_slug?: string;
   variant_code?: string;
   product_enroll_id?: string;
   title: string;
