@@ -25,9 +25,18 @@ import { toast } from 'sonner';
 
 interface EnrollmentCardProps {
   enrollment: EnrollmentItem;
+  courseSeries?: string | null;
 }
 
-export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
+const formatSeriesLabel = (series?: string | null) => {
+  if (!series) return null;
+  return series
+    .split('-')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+};
+
+export function EnrollmentCard({ enrollment, courseSeries }: EnrollmentCardProps) {
   const router = useRouter();
   const prefetchRef = useRef<HTMLDivElement | null>(null);
   const [showChildCourses, setShowChildCourses] = useState(false);
@@ -127,10 +136,10 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
 
   return (
     <div ref={prefetchRef}>
-      <Card className={`group relative bg-white backdrop-blur-sm border shadow-md hover:shadow-xl transition-all duration-300 ${
+      <Card className={`group relative p-0.5 bg-white backdrop-blur-sm border shadow-md hover:shadow-lg transition-all duration-300 ${
         isExpired ? 'opacity-75 border-gray-200' : 'border-gray-200 hover:border-amber-300'
       }`}>
-        <CardContent className="p-5">
+        <CardContent className="p-4 sm:p-5">
           {/* Enhanced Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -151,6 +160,11 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
                   </>
                 )}
               </Badge>
+              {!isBundle && courseSeries && (
+                <Badge className="text-xs font-semibold bg-blue-50 text-blue-700 border-blue-200">
+                  {formatSeriesLabel(courseSeries)}
+                </Badge>
+              )}
               {isExpired ? (
                 <Badge variant="destructive" className="text-xs">
                   EXPIRED
@@ -180,11 +194,11 @@ export function EnrollmentCard({ enrollment }: EnrollmentCardProps) {
           </div>
 
           {/* Enhanced Actions with better visual hierarchy */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             {/* Primary Access Button */}
             <Button
               size="sm"
-              className={`flex-1 font-medium ${
+              className={`font-medium px-3 min-w-[7.25rem] justify-center ${
                 isExpired 
                   ? 'bg-gray-400 hover:bg-gray-500 cursor-not-allowed' 
                   : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md hover:shadow-lg'

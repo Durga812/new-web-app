@@ -16,6 +16,8 @@ import { EnrollmentCard } from '@/components/my-purchases/EnrollmentCard';
 import { BillingPortalButton } from '@/components/my-purchases/BillingButton';
 import { OrderHistoryTable } from '@/components/my-purchases/OrderHistoryItem';
 import { getMyEnrollments, getMyOrderHistory } from '@/app/actions/my-purchases';
+import { getCourseBasicsLookup } from '@/lib/data/course_lookup';
+import { groupCourseEnrollmentsByCategory } from '@/lib/utils/groupCourseEnrollments';
 
 export const metadata = {
   title: 'My Purchases - Immigreat.ai',
@@ -32,6 +34,32 @@ async function MyPurchasesContent() {
   const expiredEnrollments = enrollments.filter(e => e.is_expired);
   const coursesCount = enrollments.filter(e => e.item_type === 'course').length;
   const bundlesCount = enrollments.filter(e => e.item_type === 'bundle').length;
+
+  const activeCourseEnrollments = activeEnrollments.filter(e => e.item_type === 'course');
+  const expiredCourseEnrollments = expiredEnrollments.filter(e => e.item_type === 'course');
+  const activeBundleEnrollments = activeEnrollments.filter(e => e.item_type === 'bundle');
+  const expiredBundleEnrollments = expiredEnrollments.filter(e => e.item_type === 'bundle');
+
+  const needsCourseLookup = activeCourseEnrollments.length > 0 || expiredCourseEnrollments.length > 0;
+
+  const courseLookup = needsCourseLookup
+    ? await getCourseBasicsLookup({
+        slugs: [...activeCourseEnrollments, ...expiredCourseEnrollments].map((enrollment) => enrollment.product_slug),
+        ids: [...activeCourseEnrollments, ...expiredCourseEnrollments].map((enrollment) => enrollment.item_id),
+      })
+    : { bySlug: {}, byId: {} };
+
+  const groupedActiveCourses = needsCourseLookup
+    ? groupCourseEnrollmentsByCategory(activeCourseEnrollments, courseLookup)
+    : [];
+  const groupedExpiredCourses = needsCourseLookup
+    ? groupCourseEnrollmentsByCategory(expiredCourseEnrollments, courseLookup)
+    : [];
+
+  const resolveCourseBasics = (enrollment: typeof activeCourseEnrollments[number]) => {
+    return (enrollment.product_slug && courseLookup.bySlug[enrollment.product_slug])
+      || courseLookup.byId[enrollment.item_id];
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30">
@@ -91,13 +119,52 @@ async function MyPurchasesContent() {
                     </h3>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    {activeEnrollments.map((enrollment) => (
-                      <EnrollmentCard 
-                        key={enrollment.id} 
-                        enrollment={enrollment} 
-                      />
+                  <div className="space-y-6">
+                    {groupedActiveCourses.map((group) => (
+                      <div key={`${group.slug}-${group.label}`}>
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <span
+                            className="text-lg font-semibold"
+                            style={group.color ? { color: group.color } : undefined}
+                          >
+                            {group.label}
+                          </span>
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                            {group.enrollments.length} {group.enrollments.length === 1 ? 'course' : 'courses'}
+                          </Badge>
+                        </div>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {group.enrollments.map((enrollment) => (
+                            <EnrollmentCard
+                              key={enrollment.id}
+                              enrollment={enrollment}
+                              courseSeries={resolveCourseBasics(enrollment)?.series}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
+
+                    {activeBundleEnrollments.length > 0 && (
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <span className="text-lg font-semibold text-emerald-600">
+                            Bundles
+                          </span>
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                            {activeBundleEnrollments.length} {activeBundleEnrollments.length === 1 ? 'bundle' : 'bundles'}
+                          </Badge>
+                        </div>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                          {activeBundleEnrollments.map((enrollment) => (
+                            <EnrollmentCard
+                              key={enrollment.id}
+                              enrollment={enrollment}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -112,13 +179,52 @@ async function MyPurchasesContent() {
                     </h3>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-2 opacity-75">
-                    {expiredEnrollments.map((enrollment) => (
-                      <EnrollmentCard 
-                        key={enrollment.id} 
-                        enrollment={enrollment} 
-                      />
+                  <div className="space-y-6">
+                    {groupedExpiredCourses.map((group) => (
+                      <div key={`${group.slug}-${group.label}`}>
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <span
+                            className="text-lg font-semibold"
+                            style={group.color ? { color: group.color } : undefined}
+                          >
+                            {group.label}
+                          </span>
+                          <Badge className="bg-gray-100 text-gray-600 border-gray-200">
+                            {group.enrollments.length} {group.enrollments.length === 1 ? 'course' : 'courses'}
+                          </Badge>
+                        </div>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 opacity-75">
+                          {group.enrollments.map((enrollment) => (
+                            <EnrollmentCard
+                              key={enrollment.id}
+                              enrollment={enrollment}
+                              courseSeries={resolveCourseBasics(enrollment)?.series}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
+
+                    {expiredBundleEnrollments.length > 0 && (
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <span className="text-lg font-semibold text-gray-600">
+                            Bundles
+                          </span>
+                          <Badge className="bg-gray-100 text-gray-600 border-gray-200">
+                            {expiredBundleEnrollments.length} {expiredBundleEnrollments.length === 1 ? 'bundle' : 'bundles'}
+                          </Badge>
+                        </div>
+                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 opacity-75">
+                          {expiredBundleEnrollments.map((enrollment) => (
+                            <EnrollmentCard
+                              key={enrollment.id}
+                              enrollment={enrollment}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
