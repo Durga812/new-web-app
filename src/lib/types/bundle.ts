@@ -22,6 +22,12 @@ export interface BundleMetadata {
   [key: string]: unknown;
 }
 
+export interface BundleUrls {
+  thumbnail_url?: string | null;
+  access_url?: string | null;
+  [key: string]: unknown;
+}
+
 export interface Bundle {
   bundle_id: string;
   bundle_slug: string;
@@ -36,6 +42,7 @@ export interface Bundle {
   highlights?: BundleHighlights;
   content?: BundleContent;
   bundle_metadata?: BundleMetadata;
+  urls?: BundleUrls | null;
 
   price: number | null; // smallest unit integer
   original_price: number | null;

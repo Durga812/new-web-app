@@ -13,7 +13,8 @@ import {
   BookOpen,
   Calendar,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -104,18 +105,26 @@ export function EnrollmentCard({ enrollment, courseSeries }: EnrollmentCardProps
 
   // Load child courses for bundles
   const toggleChildCourses = async () => {
-    if (!showChildCourses && childCourses.length === 0) {
-      setLoadingCourses(true);
-      try {
-        const courses = await getBundleCourses(enrollment.item_id);
-        setChildCourses(courses);
-      } catch (error) {
-        toast.error('Failed to load courses');
-      } finally {
-        setLoadingCourses(false);
+    if (loadingCourses) return;
+
+    if (!showChildCourses) {
+      setShowChildCourses(true);
+
+      if (childCourses.length === 0) {
+        setLoadingCourses(true);
+        try {
+          const courses = await getBundleCourses(enrollment.item_id);
+          setChildCourses(courses);
+        } catch (error) {
+          toast.error('Failed to load courses');
+        } finally {
+          setLoadingCourses(false);
+        }
       }
+      return;
     }
-    setShowChildCourses(!showChildCourses);
+
+    setShowChildCourses(false);
   };
 
   // Check if course is rated
@@ -242,8 +251,15 @@ export function EnrollmentCard({ enrollment, courseSeries }: EnrollmentCardProps
                   onClick={toggleChildCourses}
                   className="px-2 border-gray-200 hover:border-amber-300 text-gray-700 hover:text-amber-700 hover:bg-amber-50/50"
                   title={showChildCourses ? 'Hide courses' : 'Show courses'}
+                  disabled={loadingCourses}
                 >
-                  {showChildCourses ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {loadingCourses ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : showChildCourses ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
                 </Button>
               )}
 

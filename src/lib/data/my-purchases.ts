@@ -67,7 +67,7 @@ export async function getBundleChildCourses(bundleId: string): Promise<CourseChi
   // Fetch course details
   const { data, error } = await supabase
     .from('courses')
-    .select('course_id, name, course_slug')
+    .select('course_id, title, course_slug')
     .in('course_id', courseIds);
 
   if (error) {
@@ -76,7 +76,7 @@ export async function getBundleChildCourses(bundleId: string): Promise<CourseChi
 
   return (data || []).map(course => ({
     course_id: course.course_id,
-    title: course.name,
+    title: course.title,
     course_slug: course.course_slug
   }));
 }

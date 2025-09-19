@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bundle } from '@/lib/types/bundle';
 import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore';
+import { useCartStore } from '@/lib/stores/useCartStore';
+import type { CartItem } from '@/lib/stores/useCartStore';
 
 interface BundleCardProps {
   bundle: Bundle;
@@ -20,17 +22,47 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'left' | 'right'>('right');
-   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
-    const isEnrolled = hasEnrollment(bundle.bundle_id);
+  const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
+  const isEnrolled = hasEnrollment(bundle.bundle_id);
+  const addItem = useCartStore((state) => state.addItem);
+  const hasItem = useCartStore((state) => state.hasItem);
+  const cartHydrated = useCartStore((state) => state.hasHydrated);
+  const fallbackThumbnail = 'https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/thumbnail.png';
+  const thumbnailUrl = bundle.urls?.thumbnail_url || fallbackThumbnail;
+  const disableAddButton = cartHydrated ? hasItem(bundle.bundle_id) : false;
   const handleCardClick = (e: React.MouseEvent) => {
     if (!(e.target as HTMLElement).closest('[data-cart-button]')) {
       router.push(`/bundle/${bundle.bundle_slug}`);
     }
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('Adding bundle to cart:', bundle.bundle_id);
+    if (disableAddButton) return;
+
+    const variantLabel = bundle.bundle_metadata?.validity_label
+      ?? (typeof bundle.validity === 'number' && bundle.validity > 0
+        ? `${bundle.validity} months access`
+        : undefined);
+
+    const price = bundle.price ?? bundle.original_price ?? 0;
+    const originalPrice = bundle.original_price ?? price;
+
+    const cartItem: CartItem = {
+      product_id: bundle.bundle_id,
+      product_type: 'bundle',
+      product_slug: bundle.bundle_slug,
+      category_slug: bundle.category ?? undefined,
+      product_enroll_id: bundle.bundle_enroll_id ?? undefined,
+      variant_label: variantLabel,
+      title: bundle.title,
+      original_price: originalPrice,
+      price,
+      currency: 'USD',
+      thumbnail_url: thumbnailUrl,
+    };
+
+    await addItem(cartItem);
   };
 
   const handleMouseEnter = (e: React.MouseEvent) => {
@@ -57,10 +89,11 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
           {/* Image */}
           <div className="relative w-full">
             <img
-              src="https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/thumbnail.png"
+              src={thumbnailUrl}
               alt={bundle.title}
               className="w-full object-cover"
               style={{ height: '250px', aspectRatio: '400/250' }}
+              loading="lazy"
             />
             
             {/* Badges */}
@@ -123,10 +156,15 @@ export function BundleCard({ bundle, categoryColor }: BundleCardProps) {
             (<Button
               data-cart-button
               onClick={handleAddToCart}
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 mt-auto text-xs py-1.5 h-8"
+              disabled={disableAddButton}
+              className={`w-full font-medium shadow-md hover:shadow-lg transition-all duration-300 mt-auto text-xs py-1.5 h-8 ${
+                disableAddButton
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+              }`}
             >
               <ShoppingCart className="w-3 h-3 mr-1.5" />
-              Add to Cart
+              {disableAddButton ? 'Added' : 'Add to Cart'}
             </Button>)}
           </div>
         </CardContent>

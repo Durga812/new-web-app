@@ -4,15 +4,19 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { X, ShoppingCart, Trash2, ArrowRight } from 'lucide-react'
+import { X, ShoppingCart, Trash2, ArrowRight, Loader2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/useCartStore'
 import { useAuth, useClerk } from '@clerk/nextjs'
 import { useEnrollmentStore } from '@/lib/stores/useEnrollmentStore'
 import { createStripeSession } from '@/app/actions/stripe_session'
 import { OwnedItemsDialog, OwnedItemSummary } from '@/components/dialogs/OwnedItemsDialog'
+import type { CourseChild } from '@/lib/types/my-purchases'
+import { getBundleIncludedCourses } from '@/app/actions/bundles'
+import type { CartItem } from '@/lib/stores/useCartStore'
 
 interface CartDrawerProps {
   isOpen: boolean
@@ -240,53 +244,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 {/* Cart Items */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {items.map((item) => (
-                    <div
+                    <CartDrawerItem
                       key={item.product_id}
-                      className="bg-gradient-to-r from-amber-50/50 to-orange-50/50 rounded-xl p-4 hover:from-amber-50 hover:to-orange-50 transition-colors duration-200"
-                    >
-                      <div className="flex items-start space-x-4">
-                        {item.thumbnail_url && (
-                          <img
-                            src={item.thumbnail_url}
-                            alt={item.title}
-                            className="w-20 h-20 rounded-lg object-cover"
-                          />
-                        )}
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
-                          {item.product_type === 'course' ? 'Course' : 'Bundle'}
-                        </Badge>
-                      </div>
-                      {item.variant_label && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {item.variant_label}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between mt-3">
-                        <div>
-                              {item.original_price && item.price < item.original_price && (
-                                <span className="text-sm text-gray-400 line-through mr-2">
-                                  {formatPrice(item.original_price, item.currency)}
-                                </span>
-                              )}
-                              <span className="text-lg font-bold text-amber-600">
-                                {formatPrice(item.price, item.currency)}
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => removeItem(item.product_id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      item={item}
+                      onRemove={removeItem}
+                      formatPrice={formatPrice}
+                    />
                   ))}
                 </div>
 
@@ -345,5 +308,164 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         </>
       )}
     </>
+  )
+}
+
+interface CartDrawerItemProps {
+  item: CartItem
+  onRemove: (productId: string) => Promise<void>
+  formatPrice: (price: number, currency?: string) => string
+}
+
+function CartDrawerItem({ item, onRemove, formatPrice }: CartDrawerItemProps) {
+  const [showIncludedCourses, setShowIncludedCourses] = useState(false)
+  const [loadingIncludedCourses, setLoadingIncludedCourses] = useState(false)
+  const [includedCourses, setIncludedCourses] = useState<CourseChild[]>([])
+  const [includedError, setIncludedError] = useState<string | null>(null)
+
+  const isBundle = item.product_type === 'bundle'
+
+  const toggleIncludedCourses = async () => {
+    if (!isBundle) return
+
+    if (!showIncludedCourses) {
+      setShowIncludedCourses(true)
+
+      if (includedCourses.length === 0) {
+        setLoadingIncludedCourses(true)
+        setIncludedError(null)
+        try {
+          const courses = await getBundleIncludedCourses(item.product_id)
+          setIncludedCourses(courses)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load included courses.'
+          if (message.toLowerCase().includes('unauthorized')) {
+            setIncludedError('Sign in to view the courses included in this bundle.')
+          } else {
+            setIncludedError('Failed to load included courses. Please try again.')
+          }
+        } finally {
+          setLoadingIncludedCourses(false)
+        }
+      }
+      return
+    }
+
+    setShowIncludedCourses(false)
+  }
+
+  return (
+    <div className="bg-gradient-to-r from-amber-50/50 to-orange-50/50 rounded-xl p-4 hover:from-amber-50 hover:to-orange-50 transition-colors duration-200">
+      <div className="flex items-start space-x-4">
+        {item.thumbnail_url && (
+          <img
+            src={item.thumbnail_url}
+            alt={item.title}
+            className="w-20 h-20 rounded-lg object-cover"
+          />
+        )}
+        <div className="flex-1">
+          <h4 className="font-semibold text-gray-900">{item.title}</h4>
+          <div className="flex items-center space-x-2 mt-1">
+            <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+              {isBundle ? 'Bundle' : 'Course'}
+            </Badge>
+          </div>
+          {item.variant_label && (
+            <p className="text-xs text-gray-500 mt-1">
+              {item.variant_label}
+            </p>
+          )}
+          <div className="flex items-center justify-between mt-3">
+            <div>
+              {item.original_price && item.price < item.original_price && (
+                <span className="text-sm text-gray-400 line-through mr-2">
+                  {formatPrice(item.original_price, item.currency)}
+                </span>
+              )}
+              <span className="text-lg font-bold text-amber-600">
+                {formatPrice(item.price, item.currency)}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => onRemove(item.product_id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {isBundle && (
+            <div className="mt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                onClick={toggleIncludedCourses}
+              >
+                {loadingIncludedCourses ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </span>
+                ) : showIncludedCourses ? (
+                  <span className="flex items-center gap-2">
+                    <ChevronUp className="w-4 h-4" />
+                    Hide included courses
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4" />
+                    View included courses
+                  </span>
+                )}
+              </Button>
+
+              {showIncludedCourses && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-white/70 p-3">
+                  {loadingIncludedCourses ? (
+                    <div className="flex justify-center py-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                    </div>
+                  ) : includedError ? (
+                    <p className="text-sm text-red-600">{includedError}</p>
+                  ) : includedCourses.length === 0 ? (
+                    <p className="text-sm text-gray-600">No courses found for this bundle yet.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {includedCourses.map((course, index) => (
+                        <li
+                          key={course.course_id}
+                          className="flex items-center justify-between text-sm text-gray-700"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-amber-600">{index + 1}.</span>
+                            <span className="truncate max-w-[11rem] sm:max-w-[14rem]">
+                              {course.title}
+                            </span>
+                          </span>
+                          {course.course_slug && (
+                            <Link
+                              href={`/course/${course.course_slug}`}
+                              className="text-xs text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              View
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

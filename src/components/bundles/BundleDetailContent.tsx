@@ -52,6 +52,8 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
 
   const hasEnrollment = useEnrollmentStore((state) => state.hasEnrollment);
       const isEnrolled = hasEnrollment(bundle.bundle_id);
+  const fallbackThumbnail = 'https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/thumbnail.png';
+  const heroImageUrl = bundle.urls?.thumbnail_url || fallbackThumbnail;
   const handleAddToCart = () => {
     // Add to cart logic
     console.log('Adding bundle to cart:', bundle.bundle_id)
@@ -143,6 +145,15 @@ export function BundleDetailContent({ bundle, courses }: BundleDetailContentProp
                 <p className="text-lg text-gray-600 leading-relaxed">
                   {bundle.description?.short}
                 </p>
+
+                <div className="mt-6 overflow-hidden rounded-2xl border border-amber-200/50 shadow-lg bg-white/60">
+                  <img
+                    src={heroImageUrl}
+                    alt={`${bundle.title} bundle thumbnail`}
+                    className="w-full h-auto object-cover"
+                    loading="lazy"
+                  />
+                </div>
               </div>
 
               {/* Bundle Stats */}
