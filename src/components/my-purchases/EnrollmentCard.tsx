@@ -22,19 +22,12 @@ import { EnrollmentItem, CourseChild } from '@/lib/types/my-purchases';
 import { getBundleCourses, getMyCourseRating } from '@/app/actions/my-purchases';
 import { RatingModal } from './RatingModal';
 import { toast } from 'sonner';
+import { formatSeriesLabel } from '@/lib/utils/formatSeriesLabel';
 
 interface EnrollmentCardProps {
   enrollment: EnrollmentItem;
   courseSeries?: string | null;
 }
-
-const formatSeriesLabel = (series?: string | null) => {
-  if (!series) return null;
-  return series
-    .split('-')
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ');
-};
 
 export function EnrollmentCard({ enrollment, courseSeries }: EnrollmentCardProps) {
   const router = useRouter();

@@ -18,6 +18,7 @@ import { OrderHistoryTable } from '@/components/my-purchases/OrderHistoryItem';
 import { getMyEnrollments, getMyOrderHistory } from '@/app/actions/my-purchases';
 import { getCourseBasicsLookup } from '@/lib/data/course_lookup';
 import { groupCourseEnrollmentsByCategory } from '@/lib/utils/groupCourseEnrollments';
+import { formatSeriesLabel } from '@/lib/utils/formatSeriesLabel';
 
 export const metadata = {
   title: 'My Purchases - Immigreat.ai',
@@ -60,6 +61,74 @@ async function MyPurchasesContent() {
     return (enrollment.product_slug && courseLookup.bySlug[enrollment.product_slug])
       || courseLookup.byId[enrollment.item_id];
   };
+
+  type CourseEnrollment = typeof activeCourseEnrollments[number];
+
+  const NO_SERIES_KEY = '__no_series__';
+  const SERIES_FALLBACK_LABEL = 'Individual Courses';
+
+  const buildSeriesGroups = (enrollmentList: CourseEnrollment[]) => {
+    const seriesMap = new Map<string, {
+      series: string | null;
+      label: string;
+      enrollments: CourseEnrollment[];
+    }>();
+
+    enrollmentList.forEach((enrollment) => {
+      const rawSeries = resolveCourseBasics(enrollment)?.series;
+      const normalizedSeries = rawSeries && rawSeries.trim().length > 0 ? rawSeries.trim() : null;
+      const key = normalizedSeries ?? NO_SERIES_KEY;
+
+      if (!seriesMap.has(key)) {
+        const formattedLabel = normalizedSeries
+          ? formatSeriesLabel(normalizedSeries) ?? normalizedSeries
+          : SERIES_FALLBACK_LABEL;
+
+        seriesMap.set(key, {
+          series: normalizedSeries,
+          label: formattedLabel,
+          enrollments: [],
+        });
+      }
+
+      seriesMap.get(key)!.enrollments.push(enrollment);
+    });
+
+    const entries = Array.from(seriesMap.entries());
+    const sortedEntries = entries
+      .filter(([key]) => key !== NO_SERIES_KEY)
+      .concat(entries.filter(([key]) => key === NO_SERIES_KEY));
+
+    return sortedEntries.map(([key, group]) => ({
+      slug: key,
+      series: group.series,
+      label: group.label,
+      enrollments: group.enrollments,
+    }));
+  };
+
+  const getSeriesGridClass = (count: number) => {
+    if (count >= 4) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+    if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2';
+    return 'grid-cols-1';
+  };
+
+  const getEnrollmentGridClass = (count: number) => {
+    if (count >= 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    if (count === 2) return 'grid-cols-1 sm:grid-cols-2';
+    return 'grid-cols-1';
+  };
+
+  const activeCategoriesWithSeries = groupedActiveCourses.map((group) => ({
+    ...group,
+    seriesGroups: buildSeriesGroups(group.enrollments as CourseEnrollment[]),
+  }));
+
+  const expiredCategoriesWithSeries = groupedExpiredCourses.map((group) => ({
+    ...group,
+    seriesGroups: buildSeriesGroups(group.enrollments as CourseEnrollment[]),
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30">
@@ -120,7 +189,7 @@ async function MyPurchasesContent() {
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   </div>
                   <div className="space-y-6">
-                    {groupedActiveCourses.map((group) => (
+                    {activeCategoriesWithSeries.map((group) => (
                       <div key={`${group.slug}-${group.label}`}>
                         <div className="flex flex-wrap items-center gap-3 mb-4">
                           <span
@@ -133,13 +202,27 @@ async function MyPurchasesContent() {
                             {group.enrollments.length} {group.enrollments.length === 1 ? 'course' : 'courses'}
                           </Badge>
                         </div>
-                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                          {group.enrollments.map((enrollment) => (
-                            <EnrollmentCard
-                              key={enrollment.id}
-                              enrollment={enrollment}
-                              courseSeries={resolveCourseBasics(enrollment)?.series}
-                            />
+                        <div className={`grid gap-6 ${getSeriesGridClass(group.seriesGroups.length)}`}>
+                          {group.seriesGroups.map((seriesGroup) => (
+                            <div key={`${group.slug}-${seriesGroup.slug}`} className="space-y-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-semibold text-gray-900">
+                                  {seriesGroup.label}
+                                </span>
+                                <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                                  {seriesGroup.enrollments.length} {seriesGroup.enrollments.length === 1 ? 'course' : 'courses'}
+                                </Badge>
+                              </div>
+                              <div className={`grid gap-4 ${getEnrollmentGridClass(seriesGroup.enrollments.length)}`}>
+                                {seriesGroup.enrollments.map((enrollment) => (
+                                  <EnrollmentCard
+                                    key={enrollment.id}
+                                    enrollment={enrollment}
+                                    courseSeries={resolveCourseBasics(enrollment)?.series}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -180,7 +263,7 @@ async function MyPurchasesContent() {
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                   </div>
                   <div className="space-y-6">
-                    {groupedExpiredCourses.map((group) => (
+                    {expiredCategoriesWithSeries.map((group) => (
                       <div key={`${group.slug}-${group.label}`}>
                         <div className="flex flex-wrap items-center gap-3 mb-4">
                           <span
@@ -193,13 +276,27 @@ async function MyPurchasesContent() {
                             {group.enrollments.length} {group.enrollments.length === 1 ? 'course' : 'courses'}
                           </Badge>
                         </div>
-                        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 opacity-75">
-                          {group.enrollments.map((enrollment) => (
-                            <EnrollmentCard
-                              key={enrollment.id}
-                              enrollment={enrollment}
-                              courseSeries={resolveCourseBasics(enrollment)?.series}
-                            />
+                        <div className={`grid gap-6 ${getSeriesGridClass(group.seriesGroups.length)} opacity-75`}>
+                          {group.seriesGroups.map((seriesGroup) => (
+                            <div key={`${group.slug}-${seriesGroup.slug}`} className="space-y-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-semibold text-gray-800">
+                                  {seriesGroup.label}
+                                </span>
+                                <Badge className="bg-gray-100 text-gray-600 border-gray-200">
+                                  {seriesGroup.enrollments.length} {seriesGroup.enrollments.length === 1 ? 'course' : 'courses'}
+                                </Badge>
+                              </div>
+                              <div className={`grid gap-4 ${getEnrollmentGridClass(seriesGroup.enrollments.length)}`}>
+                                {seriesGroup.enrollments.map((enrollment) => (
+                                  <EnrollmentCard
+                                    key={enrollment.id}
+                                    enrollment={enrollment}
+                                    courseSeries={resolveCourseBasics(enrollment)?.series}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
