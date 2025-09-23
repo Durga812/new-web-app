@@ -142,6 +142,7 @@ async function MyPurchasesContent() {
   >
     sub3
   </a>
+  <br/>
   <a
     href="https://courses.greencardiy.com/program/test2-two-course-subscription"
     target="_blank"
@@ -150,6 +151,7 @@ async function MyPurchasesContent() {
   >
     sub2
   </a>
+  <br/>
   <a
     href="https://courses.greencardiy.com/program/test-one-course-subscription"
     target="_blank"
@@ -158,6 +160,7 @@ async function MyPurchasesContent() {
   >
     sub1
   </a>
+  <br/>
   <a
     href="https://courses.greencardiy.com/program/eb1a-self-petition-all-in-one-guide"
     target="_blank"
