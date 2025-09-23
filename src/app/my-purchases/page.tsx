@@ -133,6 +133,10 @@ async function MyPurchasesContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        <Link href="https://courses.greencardiy.com/program/test2-three-course-subscription">sub3</Link>
+        <Link href="https://courses.greencardiy.com/program/test2-two-course-subscription">sub2</Link>
+        <Link href="https://courses.greencardiy.com/program/test-one-course-subscription">sub1</Link>
+        <Link href="https://courses.greencardiy.com/program/eb1a-self-petition-all-in-one-guide">bundle1</Link>
         
         {/* Enhanced Header with Hero Section */}
         <div className="relative mb-10">
