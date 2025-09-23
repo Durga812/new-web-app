@@ -133,10 +133,41 @@ async function MyPurchasesContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/40 via-white to-orange-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-        <Link href="https://courses.greencardiy.com/program/test2-three-course-subscription">sub3</Link>
-        <Link href="https://courses.greencardiy.com/program/test2-two-course-subscription">sub2</Link>
-        <Link href="https://courses.greencardiy.com/program/test-one-course-subscription">sub1</Link>
-        <Link href="https://courses.greencardiy.com/program/eb1a-self-petition-all-in-one-guide">bundle1</Link>
+       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+  <a
+    href="https://courses.greencardiy.com/program/test2-three-course-subscription"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 underline"
+  >
+    sub3
+  </a>
+  <a
+    href="https://courses.greencardiy.com/program/test2-two-course-subscription"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 underline"
+  >
+    sub2
+  </a>
+  <a
+    href="https://courses.greencardiy.com/program/test-one-course-subscription"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 underline"
+  >
+    sub1
+  </a>
+  <a
+    href="https://courses.greencardiy.com/program/eb1a-self-petition-all-in-one-guide"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 underline"
+  >
+    bundle1
+  </a>
+</div>
+        
         
         {/* Enhanced Header with Hero Section */}
         <div className="relative mb-10">
