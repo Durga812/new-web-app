@@ -18,25 +18,22 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CartDrawer, type CartItem } from "./CartDrawer";
+import { CartDrawer } from "./CartDrawer";
+import { useCartStore } from "@/stores/cart-store";
 
 export function Navigation() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut, openUserProfile } = useClerk();
+  const { signOut } = useClerk();
 
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const cartCount = items.reduce((total, item) => total + Math.max(1, item.quantity), 0);
-
-  const removeFromCart = (id: string) => {
-    setItems((current) => current.filter((item) => item.id !== id));
-  };
+  const items = useCartStore(state => state.items);
+  const openCart = useCartStore(state => state.openCart);
+  const cartCount = items.length;
 
   const getInitials = () => {
     const fullName = user?.fullName?.trim();
@@ -64,15 +61,43 @@ export function Navigation() {
     router.push("/");
   };
 
-  const handleManageAccount = () => {
+  const handleViewEnrollments = () => {
     setIsProfileOpen(false);
-    openUserProfile?.();
+    setIsMobileMenuOpen(false);
+    router.push("/my-enrollments");
   };
+
+  const bannerMessages = [
+    "Add 5 twelve-month courses and save 6% ",
+    "Pick 10 long-access courses for an easy 11% off",
+    "Grab 20 and the discount jumps to 16%",
+    "Build a 40-course stack and lock in 27% off",
+    "All savings apply automatically to 12-month plans only",
+  ];
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-amber-100 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="fixed inset-x-0 top-0 z-40">
+        <div className="bg-gradient-to-r from-amber-600/90 via-amber-700/90 to-orange-600/90 text-amber-50">
+          <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 text-xs font-semibold sm:px-6 sm:text-sm lg:px-8">
+            <div className="relative flex-1 overflow-hidden whitespace-nowrap">
+              <div className="banner-marquee">
+                {[0, 1].map(track => (
+                  <div key={track} className="banner-marquee-track">
+                    {bannerMessages.map((message, index) => (
+                      <span key={`${track}-${index}`} className="banner-marquee-item text-amber-50">
+                        <span className="dot" aria-hidden="true" />
+                        {message}
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <header className="border-b border-amber-100 bg-white/95 backdrop-blur-md">
+          <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
             className="text-2xl font-bold uppercase tracking-tight text-transparent bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text"
@@ -110,7 +135,7 @@ export function Navigation() {
               size="icon"
               className="relative"
               aria-label="Open cart"
-              onClick={() => setIsCartOpen(true)}
+              onClick={openCart}
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
@@ -150,10 +175,10 @@ export function Navigation() {
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
-                        onClick={handleManageAccount}
+                        onClick={handleViewEnrollments}
                       >
                         <UserIcon className="mr-3 h-4 w-4" />
-                        Manage account
+                        My enrollments
                       </Button>
                       <Button
                         variant="ghost"
@@ -220,13 +245,10 @@ export function Navigation() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    handleManageAccount();
-                  }}
+                  onClick={handleViewEnrollments}
                 >
                   <UserIcon className="mr-2 h-4 w-4" />
-                  Manage account
+                  My enrollments
                 </Button>
                 <Button
                   variant="outline"
@@ -246,14 +268,10 @@ export function Navigation() {
             )}
           </div>
         )}
-      </header>
+        </header>
+      </div>
 
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={items}
-        onRemove={removeFromCart}
-      />
+      <CartDrawer />
     </>
   );
 }

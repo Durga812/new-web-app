@@ -25,7 +25,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -58,7 +58,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -91,7 +91,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -124,7 +124,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -157,7 +157,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -190,7 +190,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -223,7 +223,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -256,7 +256,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -289,7 +289,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -322,7 +322,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -356,7 +356,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -388,7 +388,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -420,7 +420,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -452,7 +452,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -484,7 +484,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -516,7 +516,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -548,7 +548,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -580,7 +580,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -612,7 +612,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -644,7 +644,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -677,7 +677,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -709,7 +709,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -741,7 +741,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -773,7 +773,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -805,7 +805,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -837,7 +837,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -869,7 +869,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -901,7 +901,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -933,7 +933,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -965,7 +965,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -998,7 +998,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1030,7 +1030,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1062,7 +1062,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1094,7 +1094,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1126,7 +1126,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1158,7 +1158,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1190,7 +1190,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1222,7 +1222,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1254,7 +1254,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },
@@ -1286,7 +1286,7 @@ export const courses = [
       price3: {
         price: 349,
         compared_price: 399,
-        validity_duration: 9,
+        validity_duration: 12,
         validity_type: "months",
       },
     },

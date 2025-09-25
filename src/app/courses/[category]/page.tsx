@@ -1,6 +1,7 @@
 // src/app/courses/[category]/page.tsx
-import { CategoryTabs, courseCategories } from "@/components/courses/CategoryTabs";
 import { courses, bundles } from "@/lib/data/courses-data";
+import { IndividualCoursesSection } from "@/components/courses/IndividualCoursesSection";
+import { CuratedBundlesSection } from "@/components/courses/CuratedBundlesSection";
 
 interface CategoryPageProps {
   params: {
@@ -26,16 +27,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     );
   }
 
-  // Filter data based on category and type
-  let filteredData: any[] = [];
-  
-  if (courseType === "curated-bundle-courses") {
-    // Get bundles for this category
-    filteredData = bundles.filter(bundle => bundle.category === category);
-  } else {
-    // Get individual courses for this category
-    filteredData = courses.filter(course => course.category === category);
-  }
+  const individualCourses = courses.filter(course => course.category === category);
+  const curatedBundles = bundles.filter(bundle => bundle.category === category);
+
+  const courseTypeLabel =
+    courseType === "curated-bundle-courses" ? "Curated Bundles" : "Individual Courses";
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -55,15 +51,15 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <CoursTypeTabs category={category} activeType={courseType} />
       </div>
 
-      {/* Display JSON Data for now */}
-      <div className="bg-gray-50 p-4 rounded-lg overflow-auto">
-        <p className="mb-2 font-semibold">
-          Category: {category} | Type: {courseType} | Count: {filteredData.length}
-        </p>
-        <pre className="text-xs">
-          {JSON.stringify(filteredData, null, 2)}
-        </pre>
-      </div>
+      {courseType === "curated-bundle-courses" ? (
+        <CuratedBundlesSection category={category} bundles={curatedBundles} />
+      ) : (
+        <IndividualCoursesSection
+          category={category}
+          courseTypeLabel={courseTypeLabel}
+          courses={individualCourses}
+        />
+      )}
     </div>
   );
 }

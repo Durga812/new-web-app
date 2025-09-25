@@ -1,0 +1,51 @@
+"use client";
+
+import { Suspense, useEffect } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+import { useCartStore } from "@/stores/cart-store";
+
+function SuccessContent() {
+  const searchParams = useSearchParams();
+  const clearCart = useCartStore(state => state.clearCart);
+  const sessionId = searchParams.get("session_id");
+
+  useEffect(() => {
+    if (sessionId) {
+      clearCart();
+    }
+  }, [clearCart, sessionId]);
+
+  return (
+    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-6 px-4 text-center">
+      <h1 className="text-3xl font-semibold text-gray-900">Payment successful!</h1>
+      <p className="text-base text-gray-600">
+        Thanks for enrolling with Immigreat. Your receipt has been emailed and your courses will be ready shortly.
+      </p>
+      <Link
+        href="/courses"
+        className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-orange-200/50 transition hover:opacity-90"
+      >
+        Browse more courses
+      </Link>
+    </main>
+  );
+}
+
+function SuccessFallback() {
+  return (
+    <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+      <h1 className="text-2xl font-semibold text-gray-900">Finalizing your order…</h1>
+      <p className="text-sm text-gray-600">Hang tight while we confirm your payment details.</p>
+    </main>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<SuccessFallback />}>
+      <SuccessContent />
+    </Suspense>
+  );
+}

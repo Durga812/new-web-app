@@ -1,4 +1,5 @@
-import type { HTMLAttributes, ImgHTMLAttributes } from "react";
+import Image, { type ImageProps } from "next/image";
+import type { HTMLAttributes } from "react";
 
 const cn = (...inputs: Array<string | false | null | undefined>) =>
   inputs.filter(Boolean).join(" ");
@@ -13,11 +14,18 @@ export function Avatar({ className, ...props }: HTMLAttributes<HTMLDivElement>) 
   );
 }
 
-export function AvatarImage({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+type AvatarImageProps = Omit<ImageProps, "fill">;
+
+export function AvatarImage({ className, alt, width = 40, height = 40, src, ...props }: AvatarImageProps) {
   return (
-    <img
+    <Image
       data-slot="avatar-image"
+      alt={alt}
       className={cn("h-full w-full object-cover", className)}
+      width={width}
+      height={height}
+      src={src}
+      sizes={props.sizes ?? "40px"}
       {...props}
     />
   );
