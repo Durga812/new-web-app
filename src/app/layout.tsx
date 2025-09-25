@@ -6,8 +6,6 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
-import { EnrollmentDataLoader } from "@/components/providers/EnrollmentDataLoader";
-import { CartDataLoader } from "@/components/providers/CartDataLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +19,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Immigreat - Immigration Course Platform",
-  description: "Master your immigration petition with expert-guided courses for EB1A, EB2-NIW and more.",
+  description:
+    "Master your immigration petition with expert-guided courses for EB1A, EB2-NIW and more.",
 };
 
 export default function RootLayout({
@@ -30,19 +29,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-    >
+    <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <Navigation />
           <main className="min-h-screen bg-gradient-to-b from-amber-50/80 to-white pt-16">
-          <EnrollmentDataLoader/>
-          <CartDataLoader/>
             {children}
           </main>
-          <Toaster 
-            position="top-right" 
+          <Toaster
+            position="top-right"
             expand={true}
             richColors
             closeButton

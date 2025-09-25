@@ -84,9 +84,9 @@ export default function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/bundles">
+              <Link href="/courses?category=eb1a">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white/60 backdrop-blur-md border-amber-300 text-amber-700 hover:bg-amber-50/80 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
-                  Explore Curated Bundles
+                  Explore EB1A Track
                   <Package className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
@@ -287,9 +287,9 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <Link href="/bundles" className="block">
+                  <Link href="/courses" className="block">
                     <Button className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                      Explore All Bundles
+                      Explore All Courses
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>

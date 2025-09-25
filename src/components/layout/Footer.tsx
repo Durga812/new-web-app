@@ -1,112 +1,79 @@
 // src/components/layout/Footer.tsx
-import React from 'react'
-import Link from 'next/link'
-import { Mail } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export function Footer() {
   return (
-    <footer className="bg-gradient-to-b from-white to-amber-50 border-t border-amber-200 mt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Main Footer Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link 
-              href="/" 
-              className="inline-block text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent font-[family-name:var(--font-pacifico)] mb-4"
+    <footer className="mt-20 border-t border-amber-200 bg-gradient-to-b from-white to-amber-50">
+      <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Link
+              href="/"
+              className="mb-4 inline-block text-3xl font-bold uppercase tracking-tight text-transparent bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text"
             >
               immigreat.ai
             </Link>
-            <p className="text-gray-600 text-sm">
-              Expert-guided immigration courses for your American dream.
+            <p className="text-sm text-gray-600">
+              Expert-guided immigration courses to support your journey to the United States.
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4">Quick Links</h4>
-            <ul className="space-y-2">
+            <h4 className="mb-4 font-semibold text-gray-900">Discover</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <Link href="/courses" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
+                <Link href="/" className="transition-colors hover:text-amber-600">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link href="/courses" className="transition-colors hover:text-amber-600">
                   Courses
                 </Link>
               </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="mb-4 font-semibold text-gray-900">Get Support</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <Link href="/bundles" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  Bundles
-                </Link>
+                <a href="mailto:hello@immigreat.ai" className="transition-colors hover:text-amber-600">
+                  hello@immigreat.ai
+                </a>
               </li>
               <li>
-                <Link href="/about" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  Contact
-                </Link>
+                <span className="text-gray-500">Mon–Fri · 9am to 5pm ET</span>
               </li>
             </ul>
           </div>
 
-          {/* Support */}
           <div>
-            <h4 className="font-semibold text-gray-900 mb-4">Support</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/help" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  FAQs
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="text-gray-600 hover:text-amber-600 text-sm transition-colors">
-                  Terms
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Newsletter */}
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-4">Stay Updated</h4>
-            <p className="text-gray-600 text-sm mb-3">Get immigration insights delivered to your inbox</p>
-            <div className="space-y-2">
-              <Input 
-                type="email" 
-                placeholder="Your email" 
-                className="border-amber-200 focus:border-amber-400 focus:ring-amber-400"
+            <h4 className="mb-4 font-semibold text-gray-900">Stay Updated</h4>
+            <p className="text-sm text-gray-600">Get immigration tips and product updates once a month.</p>
+            <form className="mt-3 space-y-2">
+              <input
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
               />
-              <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
+              <Button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                 Subscribe
               </Button>
-            </div>
+            </form>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-amber-200">
-          <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
-            <p className="text-gray-600 text-sm">
-              © {new Date().getFullYear()} Immigreat.ai. All rights reserved.
-            </p>
-            <p className="text-gray-600 text-sm">
-              Made with <span className="text-red-500">❤️</span> for immigrants
-            </p>
+        <div className="mt-10 border-t border-amber-200 pt-6 text-sm text-gray-600">
+          <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+            <p>© {new Date().getFullYear()} Immigreat.ai. All rights reserved.</p>
+            <p>Building clarity and confidence for aspiring immigrants.</p>
           </div>
         </div>
       </div>
     </footer>
-  )
+  );
 }

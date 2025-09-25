@@ -1,284 +1,259 @@
-// src/components/layout/Navigation.tsx 
-'use client'
-import React, { useState, useRef, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useUser, useClerk, SignInButton, UserButton } from '@clerk/nextjs'
-import { 
-  GraduationCap, 
-  LogOut,
+// src/components/layout/Navigation.tsx
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useUser, useClerk, SignInButton } from "@clerk/nextjs";
+import {
   BookOpen,
-  Package,
-  Phone,
-  Info,
+  ChevronDown,
+  Home as HomeIcon,
+  LifeBuoy,
+  LogOut,
   Menu,
-  X,
   ShoppingCart,
-  ChevronDown
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { CartDrawer } from './CartDrawer'
-import { useCartStore } from '@/lib/stores/useCartStore';
+  User as UserIcon,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CartDrawer, type CartItem } from "./CartDrawer";
 
 export function Navigation() {
-  const { isLoaded, isSignedIn, user } = useUser()
-  const { signOut } = useClerk()
-  const router = useRouter()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [isCartOpen, setIsCartOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const profileRef = useRef<HTMLDivElement>(null)
+  const router = useRouter();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut, openUserProfile } = useClerk();
 
-  // Cart state
-  const itemCount = useCartStore(state => state.getItemCount());
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // Sync authentication state with stores
- 
+  const profileRef = useRef<HTMLDivElement>(null);
 
-  const handleLogout = async () => {
-    await signOut()
-    router.push('/')
-    setIsProfileOpen(false)
-    setIsMobileMenuOpen(false)
-  }
+  const cartCount = items.reduce((total, item) => total + Math.max(1, item.quantity), 0);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
+  const removeFromCart = (id: string) => {
+    setItems((current) => current.filter((item) => item.id !== id));
+  };
 
-  // Close dropdowns when clicking outside
+  const getInitials = () => {
+    const fullName = user?.fullName?.trim();
+    if (!fullName) return "U";
+    const parts = fullName.split(" ");
+    if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+    return (parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "");
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      
-      if (profileRef.current && !profileRef.current.contains(target)) {
-        setIsProfileOpen(false)
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  // Ensure client-only UI (like persisted cart) renders after hydration
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const handleSignOut = async () => {
+    await signOut();
+    setIsProfileOpen(false);
+    setIsMobileMenuOpen(false);
+    router.push("/");
+  };
+
+  const handleManageAccount = () => {
+    setIsProfileOpen(false);
+    openUserProfile?.();
+  };
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-amber-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent"
-            >
-              immigreat.ai
-            </Link>
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-amber-100 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="text-2xl font-bold uppercase tracking-tight text-transparent bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text"
+          >
+            immigreat.ai
+          </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
-              <Link href="/courses">
-                <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Courses
-                </Button>
-              </Link>
-              <Link href="/contact">
-                <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
-                  <Phone className="h-4 w-4 mr-2" />
-                  Contact
-                </Button>
-              </Link>
-              <Link href="/about">
-                <Button variant="ghost" className="text-gray-700 hover:text-amber-600 hover:bg-amber-50">
-                  <Info className="h-4 w-4 mr-2" />
-                  About
-                </Button>
-              </Link>
-            </nav>
-
-            {/* Right Actions */}
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              {/* Cart Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                onClick={() => setIsCartOpen(true)}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {mounted && itemCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-amber-500 text-white text-xs">
-                    {itemCount}
-                  </Badge>
-                )}
+          <nav className="hidden items-center gap-1 md:flex">
+            <Link href="/">
+              <Button variant="ghost" className="text-gray-700 hover:bg-amber-50 hover:text-amber-600">
+                <HomeIcon className="mr-2 h-4 w-4" />
+                Home
               </Button>
+            </Link>
+            <Link href="/courses">
+              <Button variant="ghost" className="text-gray-700 hover:bg-amber-50 hover:text-amber-600">
+                <BookOpen className="mr-2 h-4 w-4" />
+                Courses
+              </Button>
+            </Link>
+            <a
+              href="mailto:hello@immigreat.ai"
+              className="rounded-lg"
+            >
+              <Button variant="ghost" className="text-gray-700 hover:bg-amber-50 hover:text-amber-600">
+                <LifeBuoy className="mr-2 h-4 w-4" />
+                Support
+              </Button>
+            </a>
+          </nav>
 
-              {/* Desktop Auth */}
-              <div className="hidden sm:block">
-                {!isLoaded ? (
-                  <div className="h-10 w-24 bg-gray-200 animate-pulse rounded-full" />
-                ) : isSignedIn ? (
-                  <div className="relative" ref={profileRef}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      className="flex items-center space-x-2"
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.imageUrl} />
-                        <AvatarFallback className="bg-amber-500 text-white">
-                          {getInitials(user?.fullName || 'U')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                    
-                    {isProfileOpen && (
-                      <div className="absolute right-0 top-12 w-72 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                        <div className="p-4 bg-amber-50">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarImage src={user?.imageUrl} />
-                              <AvatarFallback className="bg-amber-500 text-white">
-                                {getInitials(user?.fullName || 'U')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold">{user?.fullName}</p>
-                              <p className="text-sm text-gray-600">{user?.primaryEmailAddress?.emailAddress}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-2">
-                          <Link href="/my-purchases" onClick={() => setIsProfileOpen(false)}>
-                            <Button variant="ghost" className="w-full justify-start">
-                              <GraduationCap className="mr-3 h-4 w-4" />
-                              My Purchases
-                            </Button>
-                          </Link>
-                          <hr className="my-2" />
-                          <Button 
-                            variant="ghost" 
-                            className="w-full justify-start text-red-600 hover:bg-red-50"
-                            onClick={handleLogout}
-                          >
-                            <LogOut className="mr-3 h-4 w-4" />
-                            Sign Out
-                          </Button>
-                        </div>
-                      </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label="Open cart"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-xs font-semibold text-white">
+                  {cartCount}
+                </span>
+              )}
+            </Button>
+
+            {!isLoaded ? (
+              <div className="hidden h-10 w-24 animate-pulse rounded-full bg-gray-200 sm:block" />
+            ) : isSignedIn ? (
+              <div className="hidden sm:block" ref={profileRef}>
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsProfileOpen((open) => !open)}
+                  className="flex items-center gap-2"
+                  aria-expanded={isProfileOpen}
+                >
+                  <Avatar className="h-9 w-9">
+                    {user?.imageUrl ? (
+                      <AvatarImage src={user.imageUrl} alt={user.fullName ?? "Your avatar"} />
+                    ) : (
+                      <AvatarFallback initials={getInitials()} />
                     )}
+                  </Avatar>
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                </Button>
+
+                {isProfileOpen && (
+                  <div className="absolute right-6 mt-3 w-72 overflow-hidden rounded-lg border border-amber-100 bg-white shadow-xl">
+                    <div className="bg-amber-50 p-4">
+                      <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
+                      <p className="text-xs text-gray-600">{user?.primaryEmailAddress?.emailAddress}</p>
+                    </div>
+                    <div className="p-2">
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={handleManageAccount}
+                      >
+                        <UserIcon className="mr-3 h-4 w-4" />
+                        Manage account
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-red-600 hover:bg-red-50"
+                        onClick={handleSignOut}
+                      >
+                        <LogOut className="mr-3 h-4 w-4" />
+                        Sign out
+                      </Button>
+                    </div>
                   </div>
-                ) : (
-                  <SignInButton mode="modal">
-                    <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-full px-6">
-                      Sign In
-                    </Button>
-                  </SignInButton>
                 )}
               </div>
+            ) : (
+              <SignInButton mode="modal">
+                <Button className="hidden sm:inline-flex bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                  Sign in
+                </Button>
+              </SignInButton>
+            )}
 
-              {/* Mobile Menu Toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              >
-                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Toggle menu"
+              onClick={() => setIsMobileMenuOpen((open) => !open)}
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white border-b border-gray-200 shadow-lg">
-            <div className="px-4 py-4 space-y-2">
-              {/* Navigation Links */}
-              <Link href="/courses" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <BookOpen className="mr-3 h-4 w-4" />
-                  Courses
+          <div className="md:hidden border-t border-amber-100 bg-white/95 px-4 py-3">
+            <Link
+              href="/"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <HomeIcon className="h-4 w-4" />
+              Home
+            </Link>
+            <Link
+              href="/courses"
+              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <BookOpen className="h-4 w-4" />
+              Courses
+            </Link>
+            <a
+              href="mailto:hello@immigreat.ai"
+              className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <LifeBuoy className="h-4 w-4" />
+              Support
+            </a>
+            {!isLoaded ? (
+              <div className="mt-3 h-10 w-full animate-pulse rounded-lg bg-gray-200" />
+            ) : isSignedIn ? (
+              <div className="mt-3 space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleManageAccount();
+                  }}
+                >
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  Manage account
                 </Button>
-              </Link>
-            
-              <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Phone className="mr-3 h-4 w-4" />
-                  Contact
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 hover:bg-red-50"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
                 </Button>
-              </Link>
-              <Link href="/about" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <Info className="mr-3 h-4 w-4" />
-                  About
+              </div>
+            ) : (
+              <SignInButton mode="modal">
+                <Button className="mt-3 w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                  Sign in
                 </Button>
-              </Link>
-              
-              <hr className="my-3" />
-              
-              {/* Mobile Auth Section */}
-              {!isLoaded ? (
-                <div className="p-3 bg-gray-100 rounded animate-pulse h-12"></div>
-              ) : isSignedIn && user ? (
-                <>
-                  <div className="flex items-center space-x-3 p-3 bg-amber-50 rounded-lg">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.imageUrl} />
-                      <AvatarFallback className="bg-amber-500 text-white">
-                        {getInitials(user.fullName || 'U')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{user.fullName}</p>
-                      <p className="text-sm text-gray-600">{user.primaryEmailAddress?.emailAddress}</p>
-                    </div>
-                  </div>
-                  
-                  <Link href="/my-purchases" onClick={() => setIsMobileMenuOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start">
-                      <GraduationCap className="mr-3 h-4 w-4" />
-                      My Purchases
-                    </Button>
-                  </Link>
-                  
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-red-600"
-                    onClick={handleLogout}
-                  >
-                    <LogOut className="mr-3 h-4 w-4" />
-                    Sign Out
-                  </Button>
-                </>
-              ) : (
-                <SignInButton mode="modal">
-                  <Button className="w-full bg-amber-500 hover:bg-amber-600 text-white">
-                    Sign In
-                  </Button>
-                </SignInButton>
-              )}
-            </div>
+              </SignInButton>
+            )}
           </div>
         )}
       </header>
 
-      {/* Cart Drawer */}
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        items={items}
+        onRemove={removeFromCart}
+      />
     </>
-  )
+  );
 }

@@ -1,53 +1,43 @@
-"use client"
+import type { HTMLAttributes, ImgHTMLAttributes } from "react";
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+const cn = (...inputs: Array<string | false | null | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
-import { cn } from "@/lib/utils"
-
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+export function Avatar({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <AvatarPrimitive.Root
+    <div
       data-slot="avatar"
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
-        className
-      )}
+      className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-amber-200", className)}
       {...props}
     />
-  )
+  );
 }
 
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+export function AvatarImage({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   return (
-    <AvatarPrimitive.Image
+    <img
       data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
+      className={cn("h-full w-full object-cover", className)}
       {...props}
     />
-  )
+  );
 }
 
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+interface AvatarFallbackProps extends HTMLAttributes<HTMLSpanElement> {
+  initials?: string;
+}
+
+export function AvatarFallback({ className, initials, ...props }: AvatarFallbackProps) {
   return (
-    <AvatarPrimitive.Fallback
+    <span
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
+        "flex h-full w-full items-center justify-center text-sm font-semibold uppercase text-amber-700",
+        className,
       )}
       {...props}
-    />
-  )
+    >
+      {initials}
+    </span>
+  );
 }
-
-export { Avatar, AvatarImage, AvatarFallback }
