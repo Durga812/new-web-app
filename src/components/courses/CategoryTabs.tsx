@@ -11,7 +11,7 @@ export type CourseCategory = {
   description: string;
 };
 
-export const courseCategories: CourseCategory[] = [
+export const courseCategories = [
   {
     title: "EB1A",
     cat_slug: "eb1a",
@@ -36,7 +36,7 @@ export const courseCategories: CourseCategory[] = [
     color: "#34d399",
     description: "Investment-based green card pathways explained.",
   },
-];
+] as const satisfies CourseCategory[];
 
 interface CategoryTabsProps {
   activeSlug?: string;
@@ -46,15 +46,15 @@ export function CategoryTabs({ activeSlug }: CategoryTabsProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const isAllActive = pathname === "/courses" || !activeSlug;
+  const isAllActive = pathname === "/courses" && !activeSlug;
 
   const handleTabClick = (slug?: string) => {
     if (!slug) {
       router.push("/courses");
       return;
     }
-
-    router.push(`/courses?category=${slug}`);
+    // Navigate to /courses/[category] instead of using query params
+    router.push(`/courses/${slug}`);
   };
 
   return (
