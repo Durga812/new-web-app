@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Layers, ShoppingCart, Check } from "lucide-react";
@@ -27,6 +28,8 @@ type Bundle = {
 interface CuratedBundlesSectionProps {
   category: string;
   bundles: Bundle[];
+  purchasedProductIds?: string[];
+  purchasedEnrollIds?: string[];
 }
 
 const formatLabel = (value?: string) => {
@@ -46,7 +49,21 @@ const formatPrice = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-export function CuratedBundlesSection({ category, bundles }: CuratedBundlesSectionProps) {
+const createIdSet = (ids?: string[]) => {
+  if (!ids) return new Set<string>();
+  return new Set(
+    ids
+      .map(id => id.trim())
+      .filter((value): value is string => value.length > 0),
+  );
+};
+
+export function CuratedBundlesSection({
+  category,
+  bundles,
+  purchasedProductIds,
+  purchasedEnrollIds,
+}: CuratedBundlesSectionProps) {
   return (
     <section className="space-y-4">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -72,7 +89,12 @@ export function CuratedBundlesSection({ category, bundles }: CuratedBundlesSecti
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {bundles.map(bundle => (
-            <BundleCard key={bundle.bundle_id} bundle={bundle} />
+            <BundleCard
+              key={bundle.bundle_id}
+              bundle={bundle}
+              purchasedProductIds={purchasedProductIds}
+              purchasedEnrollIds={purchasedEnrollIds}
+            />
           ))}
         </div>
       )}
@@ -80,7 +102,15 @@ export function CuratedBundlesSection({ category, bundles }: CuratedBundlesSecti
   );
 }
 
-function BundleCard({ bundle }: { bundle: Bundle }) {
+function BundleCard({
+  bundle,
+  purchasedProductIds,
+  purchasedEnrollIds,
+}: {
+  bundle: Bundle;
+  purchasedProductIds?: string[];
+  purchasedEnrollIds?: string[];
+}) {
   const totalCourses = bundle.included_course_ids.length;
   const savings = bundle.pricing.compared_price
     ? bundle.pricing.compared_price - bundle.pricing.price
@@ -88,8 +118,16 @@ function BundleCard({ bundle }: { bundle: Bundle }) {
 
   const addItemToCart = useCartStore(state => state.addItem);
   const isInCart = useCartStore(state => state.items.some(item => item.id === bundle.bundle_id));
+  const purchasedProductSet = useMemo(() => createIdSet(purchasedProductIds), [purchasedProductIds]);
+  const purchasedEnrollSet = useMemo(() => createIdSet(purchasedEnrollIds), [purchasedEnrollIds]);
+  const bundleProductId = bundle.bundle_id?.trim();
+  const bundleEnrollId = bundle.enroll_id?.trim();
+  const isPurchased =
+    (bundleProductId ? purchasedProductSet.has(bundleProductId) : false) ||
+    (bundleEnrollId ? purchasedEnrollSet.has(bundleEnrollId) : false);
 
   const handleAddToCart = () => {
+    if (isInCart || isPurchased) return;
     addItemToCart({
       id: bundle.bundle_id,
       productId: bundle.bundle_id,
@@ -107,12 +145,23 @@ function BundleCard({ bundle }: { bundle: Bundle }) {
       category: bundle.category,
       enrollId: bundle.enroll_id,
     });
-
   };
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+    <article
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${
+        isPurchased ? "border-emerald-200" : "border-gray-100"
+      }`}
+    >
       <div className="flex items-center gap-2 p-4">
+        {isPurchased && (
+          <Badge
+            variant="outline"
+            className="inline-flex items-center gap-1 border-emerald-200 bg-emerald-50 text-emerald-700"
+          >
+            <Check className="h-3 w-3" /> Purchased
+          </Badge>
+        )}
         {bundle.series && (
           <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
             {formatLabel(bundle.series)} Series
@@ -171,15 +220,21 @@ function BundleCard({ bundle }: { bundle: Bundle }) {
                 Save {formatPrice(savings)} versus individual courses
               </p>
             )}
+            {isPurchased && (
+              <p className="mt-1 text-xs font-semibold text-emerald-600">
+                You already own this bundle.
+              </p>
+            )}
           </div>
 
           <Button
             type="button"
             onClick={handleAddToCart}
+            disabled={isInCart || isPurchased}
             className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-5 text-white shadow-lg shadow-orange-200/50 hover:from-amber-500 hover:to-orange-500"
           >
-            {isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-            {isInCart ? "In cart" : "Add to cart"}
+            {isPurchased || isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+            {isPurchased ? "Purchased" : isInCart ? "In cart" : "Add to cart"}
           </Button>
         </div>
       </div>

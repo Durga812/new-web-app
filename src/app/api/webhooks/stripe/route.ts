@@ -8,8 +8,11 @@ import { supabase } from "@/lib/supabase/server";
 const LEARNWORLDS_BASE_URL = process.env.LEARNWORLDS_BASE_URL ?? "https://courses.greencardiy.com";
 const LEARNWORLDS_API_TOKEN = process.env.LEARNWORLDS_API_TOKEN;
 const LEARNWORLDS_CLIENT_ID = process.env.LEARNWORLDS_CLIENT_ID;
-const parsedDelay = Number.parseInt(process.env.LEARNWORLDS_ENROLL_DELAY_MS ?? "500", 10);
-const LEARNWORLDS_ENROLL_DELAY_MS = Number.isFinite(parsedDelay) && parsedDelay >= 0 ? parsedDelay : 200;
+const parsedDelay = Number.parseInt(
+  process.env.LEARNWORLDS_API_DELAY_MS ?? process.env.LEARNWORLDS_ENROLL_DELAY_MS ?? "500",
+  10,
+);
+const LEARNWORLDS_API_DELAY_MS = Number.isFinite(parsedDelay) && parsedDelay >= 0 ? parsedDelay : 500;
 
 type LearnWorldsEnrollment = {
   productId: string;
@@ -45,6 +48,31 @@ const hasLearnWorldsConfig = Boolean(LEARNWORLDS_API_TOKEN && LEARNWORLDS_CLIENT
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+function normalizeError(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    const normalized: Record<string, unknown> = {
+      name: error.name,
+      message: error.message,
+    };
+
+    if (error.stack) {
+      normalized.stack = error.stack;
+    }
+
+    if ("cause" in error && error.cause) {
+      normalized.cause = (error as Error & { cause?: unknown }).cause;
+    }
+
+    return normalized;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    return error as Record<string, unknown>;
+  }
+
+  return { message: String(error) };
+}
+
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = (await headers()).get("stripe-signature");
@@ -62,7 +90,7 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error) {
-    console.error("Stripe webhook signature verification failed", error);
+    console.error("Stripe webhook signature verification failed", normalizeError(error));
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -79,7 +107,10 @@ export async function POST(req: NextRequest) {
     try {
       await processLearnWorldsEnrollment(session);
     } catch (error) {
-      console.error("Failed to process LearnWorlds enrollment", error);
+      console.error("Failed to process LearnWorlds enrollment", {
+        sessionId: session.id,
+        error: normalizeError(error),
+      });
     }
   } else {
     console.log(`Unhandled Stripe event type: ${event.type}`);
@@ -230,7 +261,7 @@ async function processLearnWorldsEnrollment(session: Stripe.Checkout.Session) {
       console.error("LearnWorlds user preparation failed", {
         email,
         sessionId: session.id,
-        error,
+        error: normalizeError(error),
       });
     }
   }
@@ -241,16 +272,13 @@ async function processLearnWorldsEnrollment(session: Stripe.Checkout.Session) {
     if (learnWorldsReady) {
       try {
         await enrollLearnWorldsProduct(email, enrollment.learnWorlds);
-        if (LEARNWORLDS_ENROLL_DELAY_MS > 0) {
-          await wait(LEARNWORLDS_ENROLL_DELAY_MS);
-        }
       } catch (error) {
         status = "fail";
         console.error("LearnWorlds enrollment failed", {
           email,
           sessionId: session.id,
           lineItemId: enrollment.lineItemId,
-          error,
+          error: normalizeError(error),
         });
       }
     }
@@ -285,6 +313,10 @@ async function learnWorldsRequest(path: string, init: RequestInit = {}) {
 
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  if (LEARNWORLDS_API_DELAY_MS > 0) {
+    await wait(LEARNWORLDS_API_DELAY_MS);
   }
 
   const response = await fetch(url.toString(), {
@@ -376,7 +408,18 @@ async function storeUserEnrollment(record: SupabaseEnrollmentInsert) {
     console.error("Failed to persist user enrollment in Supabase", {
       clerkId: record.clerk_id,
       enrollId: record.enroll_id,
-      error,
+      productId: record.product_id,
+      status: record.enrollment_status,
+      error: normalizeError(error),
+    });
+    return;
+  }
+
+  if (record.enrollment_status === "fail") {
+    console.error("Enrollment recorded with failed status", {
+      clerkId: record.clerk_id,
+      enrollId: record.enroll_id,
+      productId: record.product_id,
     });
   }
 }

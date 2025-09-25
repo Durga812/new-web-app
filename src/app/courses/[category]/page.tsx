@@ -1,7 +1,10 @@
 // src/app/courses/[category]/page.tsx
+import { auth } from "@clerk/nextjs/server";
+
 import { courses, bundles } from "@/lib/data/courses-data";
 import { IndividualCoursesSection } from "@/components/courses/IndividualCoursesSection";
 import { CuratedBundlesSection } from "@/components/courses/CuratedBundlesSection";
+import { supabase } from "@/lib/supabase/server";
 
 interface CategoryPageProps {
   params: {
@@ -16,7 +19,38 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const { category } = await params;
   const resolvedSearchParams = await searchParams;
   const courseType = resolvedSearchParams?.["course-type"] || "individual-courses";
-  
+  const { userId } = await auth();
+
+  let purchasedProductIds: string[] = [];
+  let purchasedEnrollIds: string[] = [];
+
+  if (userId) {
+    const { data, error } = await supabase
+      .from("user_enrollments_test")
+      .select("product_id,enroll_id,enrollment_status")
+      .eq("clerk_id", userId);
+
+    if (error) {
+      console.error("Failed to load purchased enrollments for catalog", { userId, error });
+    } else if (data) {
+      const successful = data.filter(record => record.enrollment_status === "success");
+      purchasedProductIds = Array.from(
+        new Set(
+          successful
+            .map(record => record.product_id)
+            .filter((value): value is string => Boolean(value && value.trim())),
+        ),
+      );
+      purchasedEnrollIds = Array.from(
+        new Set(
+          successful
+            .map(record => record.enroll_id)
+            .filter((value): value is string => Boolean(value && value.trim())),
+        ),
+      );
+    }
+  }
+
   // Validate category exists
   const validCategories = ['eb1a', 'eb2-niw', 'o-1', 'eb5'];
   if (!validCategories.includes(category)) {
@@ -52,12 +86,19 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       </div>
 
       {courseType === "curated-bundle-courses" ? (
-        <CuratedBundlesSection category={category} bundles={curatedBundles} />
+        <CuratedBundlesSection
+          category={category}
+          bundles={curatedBundles}
+          purchasedProductIds={purchasedProductIds}
+          purchasedEnrollIds={purchasedEnrollIds}
+        />
       ) : (
         <IndividualCoursesSection
           category={category}
           courseTypeLabel={courseTypeLabel}
           courses={individualCourses}
+          purchasedProductIds={purchasedProductIds}
+          purchasedEnrollIds={purchasedEnrollIds}
         />
       )}
     </div>

@@ -35,12 +35,16 @@ interface IndividualCoursesSectionProps {
   category: string;
   courseTypeLabel: string;
   courses: Course[];
+  purchasedProductIds?: string[];
+  purchasedEnrollIds?: string[];
 }
 
 export function IndividualCoursesSection({
   category,
   courseTypeLabel,
   courses,
+  purchasedProductIds,
+  purchasedEnrollIds,
 }: IndividualCoursesSectionProps) {
   const seriesOptions = useMemo(() => {
     const set = new Set<string>();
@@ -213,9 +217,14 @@ export function IndividualCoursesSection({
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCourses.map(course => (
-              <CourseCard key={course.course_id} course={course} />
-            ))}
+          {filteredCourses.map(course => (
+            <CourseCard
+              key={course.course_id}
+              course={course}
+              purchasedProductIds={purchasedProductIds}
+              purchasedEnrollIds={purchasedEnrollIds}
+            />
+          ))}
           </div>
         )}
       </section>
@@ -252,7 +261,24 @@ type CoursePricingOption = {
 
 const pricingKeys: PricingKey[] = ["price1", "price2", "price3"];
 
-function CourseCard({ course }: { course: Course }) {
+const createIdSet = (ids?: string[]) => {
+  if (!ids) return new Set<string>();
+  return new Set(
+    ids
+      .map(id => id.trim())
+      .filter((value): value is string => value.length > 0),
+  );
+};
+
+function CourseCard({
+  course,
+  purchasedProductIds,
+  purchasedEnrollIds,
+}: {
+  course: Course;
+  purchasedProductIds?: string[];
+  purchasedEnrollIds?: string[];
+}) {
   const pricingOptions = useMemo(() => {
     return pricingKeys
       .map(key => {
@@ -288,6 +314,14 @@ function CourseCard({ course }: { course: Course }) {
   const isInCart = Boolean(cartItem);
   const cartPricingKey = cartItem?.pricingKey;
 
+  const purchasedProductSet = useMemo(() => createIdSet(purchasedProductIds), [purchasedProductIds]);
+  const purchasedEnrollSet = useMemo(() => createIdSet(purchasedEnrollIds), [purchasedEnrollIds]);
+  const courseProductId = course.course_id?.trim();
+  const courseEnrollId = course.enroll_id?.trim();
+  const isPurchased =
+    (courseProductId ? purchasedProductSet.has(courseProductId) : false) ||
+    (courseEnrollId ? purchasedEnrollSet.has(courseEnrollId) : false);
+
   useEffect(() => {
     if (cartPricingKey) {
       const cartIndex = pricingOptions.findIndex(option => option.key === cartPricingKey);
@@ -298,7 +332,7 @@ function CourseCard({ course }: { course: Course }) {
   }, [cartPricingKey, pricingOptions, selectedOptionIndex]);
 
   const handleAddToCart = () => {
-    if (!selectedOption || isInCart) return;
+    if (!selectedOption || isInCart || isPurchased) return;
 
     addItemToCart({
       id: course.course_id,
@@ -320,8 +354,20 @@ function CourseCard({ course }: { course: Course }) {
   };
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+    <article
+      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${
+        isPurchased ? "border-emerald-200" : "border-gray-100"
+      }`}
+    >
       <div className="flex items-center gap-2 p-4">
+        {isPurchased && (
+          <Badge
+            variant="outline"
+            className="inline-flex items-center gap-1 border-emerald-200 bg-emerald-50 text-emerald-700"
+          >
+            <Check className="h-3 w-3" /> Purchased
+          </Badge>
+        )}
         {course.series && (
           <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
             {formatLabel(course.series)} Series
@@ -370,19 +416,22 @@ function CourseCard({ course }: { course: Course }) {
               {pricingOptions.map((option, index) => {
                 const isSelected = index === selectedOptionIndex;
                 const isOptionInCart = option.key === cartPricingKey;
+                const disableOption = (isInCart && !isOptionInCart) || isPurchased;
                 return (
                   <button
                     key={option.key}
                     type="button"
                     onClick={() => setSelectedOptionIndex(index)}
                     aria-pressed={isSelected}
-                    disabled={isInCart && !isOptionInCart}
+                    disabled={disableOption}
                     className={`relative rounded-lg border px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 ${
                       isOptionInCart
                         ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : isSelected
-                          ? "border-transparent bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow"
-                          : "border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        : isPurchased
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                          : isSelected
+                            ? "border-transparent bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
                     }`}
                   >
                     {isOptionInCart && (
@@ -390,10 +439,15 @@ function CourseCard({ course }: { course: Course }) {
                         <Check className="h-3 w-3" /> In cart
                       </span>
                     )}
+                    {isPurchased && index === 0 && (
+                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 shadow">
+                        <Check className="h-3 w-3" /> Purchased
+                      </span>
+                    )}
                     <span className="block text-sm font-semibold">
                       {option.validity_duration} {formatLabel(option.validity_type)}
                     </span>
-                    <span className={isOptionInCart ? "text-emerald-600" : isSelected ? "text-white/80" : "text-gray-400"}>
+                    <span className={isOptionInCart || isPurchased ? "text-emerald-600" : isSelected ? "text-white/80" : "text-gray-400"}>
                       {formatPrice(option.price)}
                     </span>
                   </button>
@@ -424,6 +478,11 @@ function CourseCard({ course }: { course: Course }) {
                   You save {formatPrice(selectedOption.compared_price - selectedOption.price)}
                 </p>
               )}
+              {isPurchased && (
+                <p className="mt-1 text-xs font-semibold text-emerald-600">
+                  You already own this course.
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-sm text-gray-500">Select an access option to see pricing.</p>
@@ -432,11 +491,11 @@ function CourseCard({ course }: { course: Course }) {
           <Button
             type="button"
             onClick={handleAddToCart}
-            disabled={!selectedOption || isInCart}
+            disabled={!selectedOption || isInCart || isPurchased}
             className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-5 text-white shadow-lg shadow-orange-200/50 hover:from-amber-500 hover:to-orange-500"
           >
-            {isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-            {isInCart ? "In cart" : "Add to cart"}
+            {isPurchased || isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+            {isPurchased ? "Purchased" : isInCart ? "In cart" : "Add to cart"}
           </Button>
         </div>
       </div>
