@@ -1,7 +1,7 @@
 // src/components/layout/Navigation.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, useClerk, SignInButton } from "@clerk/nextjs";
@@ -30,6 +30,7 @@ export function Navigation() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
+  const navContainerRef = useRef<HTMLDivElement>(null);
 
   const items = useCartStore(state => state.items);
   const openCart = useCartStore(state => state.openCart);
@@ -43,6 +44,16 @@ export function Navigation() {
     return (parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "");
   };
 
+  const updateNavOffset = useCallback(() => {
+    if (typeof window === "undefined" || !navContainerRef.current) {
+      return;
+    }
+
+    const height = navContainerRef.current.offsetHeight;
+    document.documentElement.style.setProperty("--nav-offset", `${height}px`);
+    window.dispatchEvent(new CustomEvent("immigreat:nav-resize"));
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -53,6 +64,23 @@ export function Navigation() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    updateNavOffset();
+  }, [updateNavOffset, isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    updateNavOffset();
+    window.addEventListener("resize", updateNavOffset);
+
+    return () => {
+      window.removeEventListener("resize", updateNavOffset);
+    };
+  }, [updateNavOffset]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -77,7 +105,7 @@ export function Navigation() {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-40">
+      <div ref={navContainerRef} className="fixed inset-x-0 top-0 z-40">
         <div className="bg-gradient-to-r from-amber-600/90 via-amber-700/90 to-orange-600/90 text-amber-50">
           <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 text-xs font-semibold sm:px-6 sm:text-sm lg:px-8">
             <div className="relative flex-1 overflow-hidden whitespace-nowrap">

@@ -1,11 +1,11 @@
+// src/components/courses/IndividualCoursesSection.tsx
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Clock, ShoppingCart, Star, Check } from "lucide-react";
-import { useCartStore } from "@/stores/cart-store";
+import { Info, Filter, Search } from "lucide-react";
+import { seriesMetadata } from "@/lib/data/series-metadata";
+import { SeriesColumn } from "./SeriesColumn";
 
 type CoursePricing = {
   price: number;
@@ -31,9 +31,9 @@ type Course = {
   };
   image_url?: string;
 };
+
 interface IndividualCoursesSectionProps {
   category: string;
-  courseTypeLabel: string;
   courses: Course[];
   purchasedProductIds?: string[];
   purchasedEnrollIds?: string[];
@@ -41,11 +41,14 @@ interface IndividualCoursesSectionProps {
 
 export function IndividualCoursesSection({
   category,
-  courseTypeLabel,
   courses,
   purchasedProductIds,
   purchasedEnrollIds,
 }: IndividualCoursesSectionProps) {
+  // Get series metadata for this category
+  const categorySeriesInfo = seriesMetadata[category] || {};
+  
+  // Extract unique series and tags from courses
   const seriesOptions = useMemo(() => {
     const set = new Set<string>();
     courses.forEach(course => {
@@ -53,452 +56,306 @@ export function IndividualCoursesSection({
         set.add(course.series);
       }
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [courses]);
+    return Array.from(set).sort((a, b) => {
+      const orderA = categorySeriesInfo[a]?.order || 999;
+      const orderB = categorySeriesInfo[b]?.order || 999;
+      return orderA - orderB;
+    });
+  }, [courses, categorySeriesInfo]);
 
   const tagOptions = useMemo(() => {
     const tags = new Set<string>();
     courses.forEach(course => {
-      const tag = course.tags?.[0];
-      if (tag) tags.add(tag);
+      course.tags?.forEach(tag => tags.add(tag));
     });
-    return Array.from(tags).sort((a, b) => a.localeCompare(b));
+    return Array.from(tags).sort();
   }, [courses]);
 
-  const [activeSeries, setActiveSeries] = useState<string[]>(() => [...seriesOptions]);
+  // State for filters and search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSeries, setActiveSeries] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  // Initialize with all series when component mounts
   useEffect(() => {
-    setActiveSeries(prev => {
-      if (seriesOptions.length === 0) return [];
-      if (prev.length === 0) return [...seriesOptions];
-      const valid = prev.filter(series => seriesOptions.includes(series));
-      const missing = seriesOptions.filter(series => !valid.includes(series));
-      return [...valid, ...missing];
-    });
+    if (activeSeries.length === 0 && seriesOptions.length > 0) {
+      setActiveSeries([...seriesOptions]);
+    }
   }, [seriesOptions]);
+
+  // Group and filter courses
+  const { coursesBySeries, totalFilteredCount } = useMemo(() => {
+    // First apply search filter
+    let filtered = courses;
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = courses.filter(course => 
+        course.title.toLowerCase().includes(query) ||
+        course.series?.toLowerCase().includes(query) ||
+        course.tags?.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply tag filter
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(course =>
+        course.tags?.some(tag => selectedTags.includes(tag))
+      );
+    }
+
+    // Group by series
+    const grouped: Record<string, Course[]> = {};
+    let count = 0;
+
+    filtered.forEach(course => {
+      if (course.series && activeSeries.includes(course.series)) {
+        if (!grouped[course.series]) {
+          grouped[course.series] = [];
+        }
+        grouped[course.series].push(course);
+        count++;
+      }
+    });
+
+    // Sort courses within each series by position
+    Object.keys(grouped).forEach(series => {
+      grouped[series].sort((a, b) => (a.position || 999) - (b.position || 999));
+    });
+
+    return { coursesBySeries: grouped, totalFilteredCount: count };
+  }, [courses, searchQuery, activeSeries, selectedTags]);
 
   const toggleSeries = (series: string) => {
     setActiveSeries(prev =>
-      prev.includes(series) ? prev.filter(item => item !== series) : [...prev, series]
+      prev.includes(series) 
+        ? prev.filter(s => s !== series)
+        : [...prev, series]
     );
   };
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(item => item !== tag) : [...prev, tag]
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
     );
   };
 
-  const filteredCourses = useMemo(() => {
-    return courses.filter(course => {
-      const matchesSeries =
-        seriesOptions.length === 0 || (course.series ? activeSeries.includes(course.series) : true);
-      const primaryTag = course.tags?.[0];
-      const matchesTag = selectedTags.length === 0 || (primaryTag && selectedTags.includes(primaryTag));
-      return matchesSeries && matchesTag;
-    });
-  }, [courses, activeSeries, selectedTags, seriesOptions]);
+  const resetFilters = () => {
+    setActiveSeries([...seriesOptions]);
+    setSelectedTags([]);
+    setSearchQuery("");
+  };
 
-  const hasActiveFilters =
-    (seriesOptions.length > 0 && activeSeries.length !== seriesOptions.length) || selectedTags.length > 0;
+  const hasActiveFilters = 
+    activeSeries.length !== seriesOptions.length || 
+    selectedTags.length > 0 ||
+    searchQuery.length > 0;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-gray-900">Filter courses</h2>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={() => {
-                setActiveSeries([...seriesOptions]);
-                setSelectedTags([]);
-              }}
-              className="text-xs font-medium text-orange-600 hover:text-orange-500"
-            >
-              Reset
-            </button>
-          )}
+    <div>
+      {/* Search and Filter Bar */}
+      <div className="mb-6 space-y-4">
+        {/* Search */}
+        <div className="relative mx-auto max-w-2xl">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search courses by title, series, or tags..."
+            className="w-full rounded-full border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200/50"
+          />
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">By series</p>
-            <div className="flex flex-wrap gap-2 md:flex-nowrap">
-              {seriesOptions.length === 0 ? (
-                <span className="text-sm text-gray-500">No series available</span>
-              ) : (
-                seriesOptions.map(series => {
+        {/* Filter Toggle */}
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">
+                Active
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Expandable Filters */}
+        {isFilterOpen && (
+          <div className="rounded-2xl border border-gray-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Filter courses</h3>
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="text-xs font-medium text-orange-600 hover:text-orange-700"
+                >
+                  Reset all
+                </button>
+              )}
+            </div>
+
+            {/* Series Filter */}
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-medium text-gray-700">By Series</p>
+              <div className="flex flex-wrap gap-2">
+                {seriesOptions.map(series => {
                   const isActive = activeSeries.includes(series);
+                  const metadata = categorySeriesInfo[series];
                   return (
                     <button
                       key={series}
-                      type="button"
                       onClick={() => toggleSeries(series)}
-                      aria-pressed={isActive}
-                      className={`flex h-9 flex-1 items-center justify-between rounded-full border px-4 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 md:flex-none md:w-auto ${
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
                         isActive
-                          ? "border-transparent bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                          ? "border-amber-400 bg-amber-50 text-amber-700"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                       }`}
                     >
-                      <span className="pr-2 text-sm font-medium">{series}</span>
-                      <span
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
-                          isActive ? "bg-white/80" : "bg-gray-200"
+                      {metadata?.displayName || series}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Tags Filter */}
+            {tagOptions.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-medium text-gray-700">By Criteia</p>
+                <div className="flex flex-wrap gap-2">
+                  {tagOptions.map(tag => {
+                    const isSelected = selectedTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                          isSelected
+                            ? "border-orange-400 bg-orange-50 text-orange-700"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                         }`}
                       >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                            isActive ? "translate-x-4" : "translate-x-1"
-                          }`}
-                        />
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+                        {tag.replace(/-/g, ' ').split(' ').map(w => 
+                          w.charAt(0).toUpperCase() + w.slice(1)
+                        ).join(' ')}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">By tags</p>
-            <div className="flex flex-wrap gap-2">
-              {tagOptions.length === 0 ? (
-                <span className="text-sm text-gray-500">No tags available</span>
-              ) : (
-                tagOptions.map(tag => {
-                  const isSelected = selectedTags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={`rounded-full border px-3 py-1 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 ${
-                        isSelected
-                          ? "border-orange-500 bg-orange-100 text-orange-700"
-                          : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                      }`}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
-      <section className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-              {formatCategoryName(category)} · {courseTypeLabel}
-            </p>
-            <p className="text-base font-semibold text-gray-900">
-              {filteredCourses.length} {filteredCourses.length === 1 ? "course" : "courses"} available now
-            </p>
-          </div>
+      {/* Results Summary */}
+      <div className="mb-4 text-center">
+        <p className="text-sm text-gray-600">
+          Showing <span className="font-semibold text-gray-900">{totalFilteredCount}</span> courses
+          {hasActiveFilters && " (filtered)"}
+        </p>
+      </div>
+
+      {/* Column Layout */}
+      {totalFilteredCount === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center">
+          <p className="text-base font-semibold text-gray-800">No courses found</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Try adjusting your filters or search query
+          </p>
           {hasActiveFilters && (
-            <p className="text-xs text-gray-500">
-              Filters applied: {activeSeries.length} series / {selectedTags.length} tags
-            </p>
+            <button
+              onClick={resetFilters}
+              className="mt-4 rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
+            >
+              Clear filters
+            </button>
           )}
         </div>
+      ) : (
+        <div className="relative">
+          {/* Desktop: Column Layout */}
+          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-2">
+            {seriesOptions
+              .filter(series => activeSeries.includes(series))
+              .map((series, index) => {
+                const metadata = categorySeriesInfo[series];
+                const seriesCourses = coursesBySeries[series] || [];
+                
+                if (seriesCourses.length === 0) return null;
 
-        {filteredCourses.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-            <p className="text-base font-semibold text-gray-800">No courses match the current filters</p>
-            <p className="mt-2 text-sm text-gray-500">
-              Try adjusting the series or tag filters to discover more learning paths.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {filteredCourses.map(course => (
-            <CourseCard
-              key={course.course_id}
-              course={course}
-              purchasedProductIds={purchasedProductIds}
-              purchasedEnrollIds={purchasedEnrollIds}
-            />
-          ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-const formatLabel = (value?: string) => {
-  if (!value) return "";
-  return value
-    .split("-")
-    .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
-};
-
-const formatCategoryName = (value: string) => value.replace(/-/g, " ").toUpperCase();
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-
-type PricingKey = keyof NonNullable<Course["pricing"]>;
-
-type CoursePricingOption = {
-  key: PricingKey;
-  price: number;
-  compared_price: number | undefined;
-  validity_duration: number;
-  validity_type: string;
-};
-
-const pricingKeys: PricingKey[] = ["price1", "price2", "price3"];
-
-const createIdSet = (ids?: string[]) => {
-  if (!ids) return new Set<string>();
-  return new Set(
-    ids
-      .map(id => id.trim())
-      .filter((value): value is string => value.length > 0),
-  );
-};
-
-function CourseCard({
-  course,
-  purchasedProductIds,
-  purchasedEnrollIds,
-}: {
-  course: Course;
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
-}) {
-  const pricingOptions = useMemo(() => {
-    return pricingKeys
-      .map(key => {
-        const pricing = course.pricing?.[key];
-        if (!pricing) return undefined;
-        return {
-          key,
-          price: pricing.price,
-          compared_price: pricing.compared_price,
-          validity_duration: pricing.validity_duration,
-          validity_type: pricing.validity_type,
-        } satisfies CoursePricingOption;
-      })
-      .filter((option): option is CoursePricingOption => Boolean(option));
-  }, [course.pricing]);
-
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
-
-  useEffect(() => {
-    if (selectedOptionIndex >= pricingOptions.length) {
-      setSelectedOptionIndex(0);
-    }
-  }, [pricingOptions, selectedOptionIndex]);
-
-  const selectedOption = pricingOptions[selectedOptionIndex];
-  const hasDiscount =
-    selectedOption && selectedOption.compared_price && selectedOption.compared_price > selectedOption.price;
-
-  const cartItem = useCartStore(state =>
-    state.items.find(item => item.productId === course.course_id && item.type === "course"),
-  );
-  const addItemToCart = useCartStore(state => state.addItem);
-  const isInCart = Boolean(cartItem);
-  const cartPricingKey = cartItem?.pricingKey;
-
-  const purchasedProductSet = useMemo(() => createIdSet(purchasedProductIds), [purchasedProductIds]);
-  const purchasedEnrollSet = useMemo(() => createIdSet(purchasedEnrollIds), [purchasedEnrollIds]);
-  const courseProductId = course.course_id?.trim();
-  const courseEnrollId = course.enroll_id?.trim();
-  const isPurchased =
-    (courseProductId ? purchasedProductSet.has(courseProductId) : false) ||
-    (courseEnrollId ? purchasedEnrollSet.has(courseEnrollId) : false);
-
-  useEffect(() => {
-    if (cartPricingKey) {
-      const cartIndex = pricingOptions.findIndex(option => option.key === cartPricingKey);
-      if (cartIndex >= 0 && cartIndex !== selectedOptionIndex) {
-        setSelectedOptionIndex(cartIndex);
-      }
-    }
-  }, [cartPricingKey, pricingOptions, selectedOptionIndex]);
-
-  const handleAddToCart = () => {
-    if (!selectedOption || isInCart || isPurchased) return;
-
-    addItemToCart({
-      id: course.course_id,
-      productId: course.course_id,
-      type: "course",
-      productType: course.type,
-      title: course.title,
-      price: selectedOption.price,
-      currency: "USD",
-      comparedPrice: selectedOption.compared_price,
-      imageUrl: course.image_url,
-      accessPeriodLabel: `${selectedOption.validity_duration} ${formatLabel(selectedOption.validity_type)} access`,
-      validityDuration: selectedOption.validity_duration,
-      validityType: selectedOption.validity_type,
-      category: course.category,
-      pricingKey: selectedOption.key,
-      enrollId: course.enroll_id,
-    });
-  };
-
-  return (
-    <article
-      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${
-        isPurchased ? "border-emerald-200" : "border-gray-100"
-      }`}
-    >
-      <div className="flex items-center gap-2 p-4">
-        {isPurchased && (
-          <Badge
-            variant="outline"
-            className="inline-flex items-center gap-1 border-emerald-200 bg-emerald-50 text-emerald-700"
-          >
-            <Check className="h-3 w-3" /> Purchased
-          </Badge>
-        )}
-        {course.series && (
-          <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-            {formatLabel(course.series)} Series
-          </Badge>
-        )}
-        {course.tags?.slice(0, 2).map(tag => (
-          <Badge key={tag} variant="outline" className="border-gray-200 text-gray-600">
-            #{formatLabel(tag)}
-          </Badge>
-        ))}
-      </div>
-
-      <div className="relative mx-4 h-40 overflow-hidden rounded-xl border border-gray-100 bg-gray-100">
-        {course.image_url ? (
-          <Image
-            src={course.image_url}
-            alt={course.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-            className="object-cover transition duration-500 group-hover:scale-105"
-            priority={false}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-amber-100 via-white to-orange-100 text-amber-600">
-            <span className="text-sm font-semibold">Immigreat Course</span>
-          </div>
-        )}
-
-        {course.ratings && (
-          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-amber-600 shadow">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            {course.ratings.toFixed(1)}
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col gap-5 px-5 pb-5 pt-4">
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <Clock className="h-3.5 w-3.5" />
-            Select access period
-          </p>
-          {pricingOptions.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {pricingOptions.map((option, index) => {
-                const isSelected = index === selectedOptionIndex;
-                const isOptionInCart = option.key === cartPricingKey;
-                const disableOption = (isInCart && !isOptionInCart) || isPurchased;
                 return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => setSelectedOptionIndex(index)}
-                    aria-pressed={isSelected}
-                    disabled={disableOption}
-                    className={`relative rounded-lg border px-3 py-2 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 ${
-                      isOptionInCart
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : isPurchased
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                          : isSelected
-                            ? "border-transparent bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow"
-                            : "border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    }`}
-                  >
-                    {isOptionInCart && (
-                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 shadow">
-                        <Check className="h-3 w-3" /> In cart
-                      </span>
+                  <div key={series} className="relative">
+                    {/* Column separator */}
+                    {index > 0 && (
+                      <div className="absolute -left-1 top-0 h-full w-px bg-gradient-to-b from-gray-200 to-transparent" />
                     )}
-                    {isPurchased && index === 0 && (
-                      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 shadow">
-                        <Check className="h-3 w-3" /> Purchased
-                      </span>
-                    )}
-                    <span className="block text-sm font-semibold">
-                      {option.validity_duration} {formatLabel(option.validity_type)}
-                    </span>
-                    <span className={isOptionInCart || isPurchased ? "text-emerald-600" : isSelected ? "text-white/80" : "text-gray-400"}>
-                      {formatPrice(option.price)}
-                    </span>
-                  </button>
+                    <SeriesColumn
+                      series={series}
+                      metadata={metadata}
+                      courses={seriesCourses}
+                      purchasedProductIds={purchasedProductIds}
+                      purchasedEnrollIds={purchasedEnrollIds}
+                    />
+                  </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
-              Pricing coming soon
-            </div>
-          )}
-        </div>
+          </div>
 
-        <div className="mt-auto flex items-end justify-between">
-          {selectedOption ? (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-400">Current plan</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">{formatPrice(selectedOption.price)}</span>
-                {selectedOption.compared_price && (
-                  <span className="text-sm font-medium text-gray-400 line-through">
-                    {formatPrice(selectedOption.compared_price)}
-                  </span>
-                )}
-              </div>
-              {hasDiscount && selectedOption.compared_price && (
-                <p className="text-xs font-semibold text-emerald-600">
-                  You save {formatPrice(selectedOption.compared_price - selectedOption.price)}
-                </p>
-              )}
-              {isPurchased && (
-                <p className="mt-1 text-xs font-semibold text-emerald-600">
-                  You already own this course.
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">Select an access option to see pricing.</p>
-          )}
+          {/* Tablet: 2 Columns */}
+          <div className="hidden md:grid md:grid-cols-2 md:gap-4 lg:hidden">
+            {seriesOptions
+              .filter(series => activeSeries.includes(series))
+              .map(series => {
+                const metadata = categorySeriesInfo[series];
+                const seriesCourses = coursesBySeries[series] || [];
+                
+                if (seriesCourses.length === 0) return null;
 
-          <Button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={!selectedOption || isInCart || isPurchased}
-            className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-5 text-white shadow-lg shadow-orange-200/50 hover:from-amber-500 hover:to-orange-500"
-          >
-            {isPurchased || isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-            {isPurchased ? "Purchased" : isInCart ? "In cart" : "Add to cart"}
-          </Button>
+                return (
+                  <SeriesColumn
+                    key={series}
+                    series={series}
+                    metadata={metadata}
+                    courses={seriesCourses}
+                    purchasedProductIds={purchasedProductIds}
+                    purchasedEnrollIds={purchasedEnrollIds}
+                  />
+                );
+              })}
+          </div>
+
+          {/* Mobile: Single Column */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {seriesOptions
+              .filter(series => activeSeries.includes(series))
+              .map(series => {
+                const metadata = categorySeriesInfo[series];
+                const seriesCourses = coursesBySeries[series] || [];
+                
+                if (seriesCourses.length === 0) return null;
+
+                return (
+                  <SeriesColumn
+                    key={series}
+                    series={series}
+                    metadata={metadata}
+                    courses={seriesCourses}
+                    purchasedProductIds={purchasedProductIds}
+                    purchasedEnrollIds={purchasedEnrollIds}
+                  />
+                );
+              })}
+          </div>
         </div>
-      </div>
-    </article>
+      )}
+    </div>
   );
 }

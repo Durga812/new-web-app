@@ -1,5 +1,6 @@
 // src/app/courses/[category]/page.tsx
 import { auth } from "@clerk/nextjs/server";
+import { Search } from "lucide-react";
 
 import { courses, bundles } from "@/lib/data/courses-data";
 import { IndividualCoursesSection } from "@/components/courses/IndividualCoursesSection";
@@ -7,12 +8,12 @@ import { CuratedBundlesSection } from "@/components/courses/CuratedBundlesSectio
 import { supabase } from "@/lib/supabase/server";
 
 interface CategoryPageProps {
-  params: {
+  params: Promise<{
     category: string;
-  };
-  searchParams?: {
+  }>;
+  searchParams?: Promise<{
     "course-type"?: string;
-  };
+  }>;
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
@@ -51,7 +52,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     }
   }
 
-  // Validate category exists
   const validCategories = ['eb1a', 'eb2-niw', 'o-1', 'eb5'];
   if (!validCategories.includes(category)) {
     return (
@@ -64,72 +64,87 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const individualCourses = courses.filter(course => course.category === category);
   const curatedBundles = bundles.filter(bundle => bundle.category === category);
 
-  const courseTypeLabel =
-    courseType === "curated-bundle-courses" ? "Curated Bundles" : "Individual Courses";
-
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <section className="mb-8 text-center">
-        <h1 className="mb-6 text-4xl font-bold text-transparent lg:text-5xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text">
-          Explore {category} courses
-        </h1>
-      </section>
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/20 to-white">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
+        {/* Header Section - More compact */}
+        <section className="mb-6 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-transparent lg:text-4xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text">
+            Explore {category.toUpperCase()} courses
+          </h1>
+          <p className="text-sm text-gray-600">
+            Master your immigration journey with comprehensive courses
+          </p>
+        </section>
 
-      {/* Category Tabs */}
-      {/* <div className="mb-12">
-        <CategoryTabs activeSlug={category} />
-      </div> */}
+        {/* Course Type Tabs - Refined design */}
+        <div className="mb-6 flex justify-center">
+          <CoursTypeTabs category={category} activeType={courseType} />
+        </div>
 
-      {/* Course Type Tabs */}
-      <div className="mb-8">
-        <CoursTypeTabs category={category} activeType={courseType} />
+        {/* Search Bar - Client Component Wrapper */}
+        {/* <SearchBarWrapper /> */}
+
+        {/* Content Section */}
+        {courseType === "curated-bundle-courses" ? (
+          <CuratedBundlesSection
+            category={category}
+            bundles={curatedBundles}
+            purchasedProductIds={purchasedProductIds}
+            purchasedEnrollIds={purchasedEnrollIds}
+          />
+        ) : (
+          <IndividualCoursesSection
+            category={category}
+            courses={individualCourses}
+            purchasedProductIds={purchasedProductIds}
+            purchasedEnrollIds={purchasedEnrollIds}
+          />
+        )}
       </div>
-
-      {courseType === "curated-bundle-courses" ? (
-        <CuratedBundlesSection
-          category={category}
-          bundles={curatedBundles}
-          purchasedProductIds={purchasedProductIds}
-          purchasedEnrollIds={purchasedEnrollIds}
-        />
-      ) : (
-        <IndividualCoursesSection
-          category={category}
-          courseTypeLabel={courseTypeLabel}
-          courses={individualCourses}
-          purchasedProductIds={purchasedProductIds}
-          purchasedEnrollIds={purchasedEnrollIds}
-        />
-      )}
     </div>
   );
 }
 
-// Simple Course Type Tabs Component
+// Course Type Tabs Component - Improved design
 function CoursTypeTabs({ category, activeType }: { category: string; activeType: string }) {
   return (
-    <div className="flex justify-center">
-      <div className="inline-flex gap-1 rounded-xl border border-gray-200 bg-white/80 p-1 shadow-lg">
-        <a
-          href={`/courses/${category}`}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            activeType === "individual-courses"
-              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-              : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-          Individual Courses
-        </a>
-        <a
-          href={`/courses/${category}?course-type=curated-bundle-courses`}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-            activeType === "curated-bundle-courses"
-              ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
-              : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-        Curated Bundle Courses
-        </a>
+    <div className="inline-flex items-center rounded-full border border-gray-200/80 bg-white/90 p-1 shadow-sm backdrop-blur-sm">
+      <a
+        href={`/courses/${category}`}
+        className={`relative px-6 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+          activeType === "individual-courses"
+            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
+            : "text-gray-600 hover:text-gray-900"
+        }`}
+      >
+        Individual Courses
+      </a>
+      <a
+        href={`/courses/${category}?course-type=curated-bundle-courses`}
+        className={`relative px-6 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+          activeType === "curated-bundle-courses"
+            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
+            : "text-gray-600 hover:text-gray-900"
+        }`}
+      >
+        Curated Bundles
+      </a>
+    </div>
+  );
+}
+
+// Client-side search component wrapper
+function SearchBarWrapper() {
+  return (
+    <div className="mx-auto mb-6 max-w-2xl">
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search courses by title, series, or tags..."
+          className="w-full rounded-full border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200/50"
+        />
       </div>
     </div>
   );
