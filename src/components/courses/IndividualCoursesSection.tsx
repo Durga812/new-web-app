@@ -2,8 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Info, Filter, Search } from "lucide-react";
+import { Filter, Search } from "lucide-react";
 import { seriesMetadata } from "@/lib/data/series-metadata";
 import { SeriesColumn } from "./SeriesColumn";
 
@@ -35,18 +34,14 @@ type Course = {
 interface IndividualCoursesSectionProps {
   category: string;
   courses: Course[];
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
 }
 
 export function IndividualCoursesSection({
   category,
   courses,
-  purchasedProductIds,
-  purchasedEnrollIds,
 }: IndividualCoursesSectionProps) {
   // Get series metadata for this category
-  const categorySeriesInfo = seriesMetadata[category] || {};
+  const categorySeriesInfo = useMemo(() => seriesMetadata[category] || {}, [category]);
   
   // Extract unique series and tags from courses
   const seriesOptions = useMemo(() => {
@@ -82,7 +77,7 @@ export function IndividualCoursesSection({
     if (activeSeries.length === 0 && seriesOptions.length > 0) {
       setActiveSeries([...seriesOptions]);
     }
-  }, [seriesOptions]);
+  }, [activeSeries.length, seriesOptions]);
 
   // Group and filter courses
   const { coursesBySeries, totalFilteredCount } = useMemo(() => {
@@ -301,8 +296,6 @@ export function IndividualCoursesSection({
                       series={series}
                       metadata={metadata}
                       courses={seriesCourses}
-                      purchasedProductIds={purchasedProductIds}
-                      purchasedEnrollIds={purchasedEnrollIds}
                     />
                   </div>
                 );
@@ -325,8 +318,6 @@ export function IndividualCoursesSection({
                     series={series}
                     metadata={metadata}
                     courses={seriesCourses}
-                    purchasedProductIds={purchasedProductIds}
-                    purchasedEnrollIds={purchasedEnrollIds}
                   />
                 );
               })}
@@ -348,8 +339,6 @@ export function IndividualCoursesSection({
                     series={series}
                     metadata={metadata}
                     courses={seriesCourses}
-                    purchasedProductIds={purchasedProductIds}
-                    purchasedEnrollIds={purchasedEnrollIds}
                   />
                 );
               })}

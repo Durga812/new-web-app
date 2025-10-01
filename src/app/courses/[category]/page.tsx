@@ -1,11 +1,11 @@
 // src/app/courses/[category]/page.tsx
 import { auth } from "@clerk/nextjs/server";
-import { Search } from "lucide-react";
 
 import { courses, bundles } from "@/lib/data/courses-data";
 import { IndividualCoursesSection } from "@/components/courses/IndividualCoursesSection";
 import { CuratedBundlesSection } from "@/components/courses/CuratedBundlesSection";
 import { supabase } from "@/lib/supabase/server";
+import { EnrollmentProvider } from "@/components/providers/EnrollmentProvider";
 
 interface CategoryPageProps {
   params: Promise<{
@@ -65,44 +65,42 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const curatedBundles = bundles.filter(bundle => bundle.category === category);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/20 to-white">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
-        {/* Header Section - More compact */}
-        <section className="mb-6 text-center">
-          <h1 className="mb-2 text-3xl font-bold text-transparent lg:text-4xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text">
-            Explore {category.toUpperCase()} courses
-          </h1>
-          <p className="text-sm text-gray-600">
-            Master your immigration journey with comprehensive courses
-          </p>
-        </section>
+    <EnrollmentProvider
+      productIds={purchasedProductIds}
+      enrollIds={purchasedEnrollIds}
+    >
+      <div className="min-h-screen bg-gradient-to-b from-amber-50/20 to-white">
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 xl:px-10">
+          {/* Header Section - More compact */}
+          <section className="mb-6 text-center">
+            <h1 className="mb-2 text-3xl font-bold text-transparent lg:text-4xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text">
+              Explore {category.toUpperCase()} courses
+            </h1>
+            <p className="text-sm text-gray-600">
+              Master your immigration journey with comprehensive courses
+            </p>
+          </section>
 
-        {/* Course Type Tabs - Refined design */}
-        <div className="mb-6 flex justify-center">
-          <CoursTypeTabs category={category} activeType={courseType} />
+          {/* Course Type Tabs - Refined design */}
+          <div className="mb-6 flex justify-center">
+            <CoursTypeTabs category={category} activeType={courseType} />
+          </div>
+
+          {/* Content Section */}
+          {courseType === "curated-bundle-courses" ? (
+            <CuratedBundlesSection
+              category={category}
+              bundles={curatedBundles}
+            />
+          ) : (
+            <IndividualCoursesSection
+              category={category}
+              courses={individualCourses}
+            />
+          )}
         </div>
-
-        {/* Search Bar - Client Component Wrapper */}
-        {/* <SearchBarWrapper /> */}
-
-        {/* Content Section */}
-        {courseType === "curated-bundle-courses" ? (
-          <CuratedBundlesSection
-            category={category}
-            bundles={curatedBundles}
-            purchasedProductIds={purchasedProductIds}
-            purchasedEnrollIds={purchasedEnrollIds}
-          />
-        ) : (
-          <IndividualCoursesSection
-            category={category}
-            courses={individualCourses}
-            purchasedProductIds={purchasedProductIds}
-            purchasedEnrollIds={purchasedEnrollIds}
-          />
-        )}
       </div>
-    </div>
+    </EnrollmentProvider>
   );
 }
 
@@ -130,22 +128,6 @@ function CoursTypeTabs({ category, activeType }: { category: string; activeType:
       >
         Curated Bundles
       </a>
-    </div>
-  );
-}
-
-// Client-side search component wrapper
-function SearchBarWrapper() {
-  return (
-    <div className="mx-auto mb-6 max-w-2xl">
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search courses by title, series, or tags..."
-          className="w-full rounded-full border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm transition-all placeholder:text-gray-400 hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200/50"
-        />
-      </div>
     </div>
   );
 }

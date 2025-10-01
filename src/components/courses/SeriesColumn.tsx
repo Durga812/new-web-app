@@ -35,16 +35,12 @@ interface SeriesColumnProps {
   series: string;
   metadata?: SeriesMetadata;
   courses: Course[];
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
 }
 
 export function SeriesColumn({
   series,
   metadata,
   courses,
-  purchasedProductIds,
-  purchasedEnrollIds,
 }: SeriesColumnProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -103,8 +99,6 @@ export function SeriesColumn({
             key={course.course_id}
             course={course}
             metadata={metadata}
-            purchasedProductIds={purchasedProductIds}
-            purchasedEnrollIds={purchasedEnrollIds}
           />
         ))}
       </div>

@@ -1,11 +1,13 @@
 // src/components/course-detail/PricingSidebar.tsx
 "use client";
 
+import { useMemo } from "react";
 import { Check, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/stores/cart-store";
+import { useEnrollmentStore } from "@/stores/enrollment-store";
 import type { CourseDetail } from "@/lib/data/course-details-data";
 
 interface PricingSidebarProps {
@@ -22,6 +24,12 @@ export default function PricingSidebar({
   const addItem = useCartStore((state) => state.addItem);
   const cartItems = useCartStore((state) => state.items);
   const isInCart = cartItems.some(item => item.id === course.course_id);
+  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
+  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+
+  const isPurchased = useMemo(() => {
+    return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
+  }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
   
   const pricingOptions = [
     { key: "price1" as const, ...course.pricing.price1, label: "3 months" },
@@ -32,7 +40,7 @@ export default function PricingSidebar({
   const selectedPrice = course.pricing[selectedPriceKey];
   
   const handleAddToCart = () => {
-    if (isInCart) return;
+    if (isInCart || isPurchased || !selectedPrice) return;
     
     addItem({
       id: course.course_id,
@@ -132,13 +140,24 @@ export default function PricingSidebar({
       
       {/* Action Button */}
       <div className="border-t border-gray-100 p-5">
+        {isPurchased && (
+          <Badge className="mb-3 inline-flex items-center gap-1 border-0 bg-emerald-500/90 text-xs text-white">
+            <Check className="h-3 w-3" />
+            Owned
+          </Badge>
+        )}
         <Button
           onClick={handleAddToCart}
-          disabled={isInCart}
+          disabled={isInCart || isPurchased || !selectedPrice}
           className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600 hover:shadow-lg transition-all"
           size="lg"
         >
-          {isInCart ? (
+          {isPurchased ? (
+            <>
+              <Check className="mr-2 h-5 w-5" />
+              Owned
+            </>
+          ) : isInCart ? (
             <>
               <Check className="mr-2 h-5 w-5" />
               Added to Cart

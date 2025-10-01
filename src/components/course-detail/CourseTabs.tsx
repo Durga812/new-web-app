@@ -1,12 +1,9 @@
 // src/components/course-detail/CourseTabs.tsx
 "use client";
 
-import { Button } from "@/components/ui/button";
-
 interface CourseTabsProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
-  isSticky?: boolean;
 }
 
 const tabs = [
@@ -19,7 +16,7 @@ const tabs = [
   { id: "reviews", label: "Reviews" },
 ];
 
-export default function CourseTabs({ activeTab, onTabChange, isSticky }: CourseTabsProps) {
+export default function CourseTabs({ activeTab, onTabChange }: CourseTabsProps) {
   return (
     <div className="overflow-x-auto">
       <div className="flex min-w-max border-b border-gray-200">

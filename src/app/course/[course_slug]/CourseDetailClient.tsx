@@ -109,7 +109,6 @@ export default function CourseDetailClient({
               <CourseTabs 
                 activeTab={activeTab} 
                 onTabChange={scrollToSection}
-                isSticky={isTabsSticky}
               />
             </div>
 

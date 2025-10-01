@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Check, Search, Package, Sparkles } from "lucide-react";
 import { useCartStore } from "@/stores/cart-store";
+import { useEnrollmentStore } from "@/stores/enrollment-store";
 
 type Bundle = {
   title: string;
@@ -29,8 +30,6 @@ type Bundle = {
 interface CuratedBundlesSectionProps {
   category: string;
   bundles: Bundle[];
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
 }
 
 const formatLabel = (value?: string) => {
@@ -48,20 +47,9 @@ const formatPrice = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
-const createIdSet = (ids?: string[]) => {
-  if (!ids) return new Set<string>();
-  return new Set(
-    ids
-      .map(id => id.trim())
-      .filter((value): value is string => value.length > 0),
-  );
-};
-
 export function CuratedBundlesSection({
   category,
   bundles,
-  purchasedProductIds,
-  purchasedEnrollIds,
 }: CuratedBundlesSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -130,8 +118,6 @@ export function CuratedBundlesSection({
             <BundleCard
               key={bundle.bundle_id}
               bundle={bundle}
-              purchasedProductIds={purchasedProductIds}
-              purchasedEnrollIds={purchasedEnrollIds}
             />
           ))}
         </div>
@@ -142,12 +128,8 @@ export function CuratedBundlesSection({
 
 function BundleCard({
   bundle,
-  purchasedProductIds,
-  purchasedEnrollIds,
 }: {
   bundle: Bundle;
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
 }) {
   const totalCourses = bundle.included_course_ids.length;
   const savingsPercent = bundle.pricing.compared_price
@@ -156,14 +138,14 @@ function BundleCard({
 
   const addItemToCart = useCartStore(state => state.addItem);
   const isInCart = useCartStore(state => state.items.some(item => item.id === bundle.bundle_id));
-  const purchasedProductSet = useMemo(() => createIdSet(purchasedProductIds), [purchasedProductIds]);
-  const purchasedEnrollSet = useMemo(() => createIdSet(purchasedEnrollIds), [purchasedEnrollIds]);
-  
+  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
+  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+
   const bundleProductId = bundle.bundle_id?.trim();
   const bundleEnrollId = bundle.enroll_id?.trim();
-  const isPurchased =
-    (bundleProductId ? purchasedProductSet.has(bundleProductId) : false) ||
-    (bundleEnrollId ? purchasedEnrollSet.has(bundleEnrollId) : false);
+  const isPurchased = useMemo(() => {
+    return isProductPurchased(bundleProductId) || isEnrollPurchased(bundleEnrollId);
+  }, [bundleEnrollId, bundleProductId, isEnrollPurchased, isProductPurchased]);
 
   const handleAddToCart = () => {
     if (isInCart || isPurchased) return;

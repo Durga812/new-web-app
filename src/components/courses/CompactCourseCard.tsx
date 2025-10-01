@@ -1,12 +1,13 @@
 // src/components/courses/CompactCourseCard.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import { ShoppingCart, Check, Star, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart-store";
+import { useEnrollmentStore } from "@/stores/enrollment-store";
 import { SeriesMetadata } from "@/lib/data/series-metadata";
 
 type CoursePricing = {
@@ -37,8 +38,6 @@ type Course = {
 interface CompactCourseCardProps {
   course: Course;
   metadata?: SeriesMetadata;
-  purchasedProductIds?: string[];
-  purchasedEnrollIds?: string[];
 }
 
 const formatPrice = (value: number) =>
@@ -62,8 +61,6 @@ const pricingKeys: PricingKey[] = ["price1", "price2", "price3"];
 export function CompactCourseCard({
   course,
   metadata,
-  purchasedProductIds,
-  purchasedEnrollIds,
 }: CompactCourseCardProps) {
   // Pricing options
   const pricingOptions = useMemo(() => {
@@ -99,11 +96,12 @@ export function CompactCourseCard({
   const isInCart = Boolean(cartItem);
 
   // Purchase state
+  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
+  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+
   const isPurchased = useMemo(() => {
-    const productSet = new Set(purchasedProductIds?.map(id => id.trim()) || []);
-    const enrollSet = new Set(purchasedEnrollIds?.map(id => id.trim()) || []);
-    return productSet.has(course.course_id) || enrollSet.has(course.enroll_id);
-  }, [course.course_id, course.enroll_id, purchasedProductIds, purchasedEnrollIds]);
+    return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
+  }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
 
   const handleAddToCart = () => {
     if (!selectedOption || isInCart || isPurchased) return;

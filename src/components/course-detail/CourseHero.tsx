@@ -1,10 +1,11 @@
 // src/components/course-detail/CourseHero.tsx
 "use client";
 
+import { useMemo, useState } from "react";
 import { Star, Share2, Clock, BookOpen, Award, Check, Twitter, Linkedin, Facebook, Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEnrollmentStore } from "@/stores/enrollment-store";
 import type { CourseDetail } from "@/lib/data/course-details-data";
 
 interface CourseHeroProps {
@@ -14,6 +15,12 @@ interface CourseHeroProps {
 export default function CourseHero({ course }: CourseHeroProps) {
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [copied, setCopied] = useState(false);
+  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
+  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+
+  const isPurchased = useMemo(() => {
+    return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
+  }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
 
   const courseUrl = typeof window !== "undefined" ? window.location.href : "";
 
@@ -70,6 +77,11 @@ export default function CourseHero({ course }: CourseHeroProps) {
           <Badge variant="outline" className="border-gray-300 text-xs">
             {course.series.charAt(0).toUpperCase() + course.series.slice(1)} Series
           </Badge>
+          {isPurchased && (
+            <Badge className="border-0 bg-emerald-500/90 text-xs text-white">
+              <Check className="mr-1 h-3 w-3" /> Owned
+            </Badge>
+          )}
           {course.tags.slice(0, 2).map((tag) => (
             <Badge key={tag} variant="outline" className="border-gray-200 text-gray-600 text-xs">
               #{tag}
