@@ -285,6 +285,8 @@ async function enrollUserInProducts(
   }
 }
 
+
+
 async function enrollInLearnWorlds(email: string, item: PurchasedItem, retryCount = 0): Promise<boolean> {
   try {
     if (!hasLearnWorldsConfig) {
@@ -299,8 +301,8 @@ async function enrollInLearnWorlds(email: string, item: PurchasedItem, retryCoun
       send_enrollment_email: false,
     };
 
-    // Add duration fields for all products
-    if (item.validity_duration && item.validity_type) {
+    // ONLY add duration fields for subscription product type
+    if (item.lw_product_type === 'subscription' && item.validity_duration && item.validity_type) {
       payload.duration = item.validity_duration;
       payload.duration_type = item.validity_type;
     }

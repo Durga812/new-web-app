@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     if (secret !== process.env.REVALIDATE_SECRET) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' }, 
-        { status: 401 }
+        { status: 402 }
       )
     }
 
