@@ -18,24 +18,7 @@ export async function ensureUserInDatabase() {
       return { success: false, error: 'User not found' };
     }
 
-    // Check if user exists in database
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('users')
-      .select('id, clerk_user_id')
-      .eq('clerk_user_id', userId)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error('Failed to check user existence:', fetchError);
-      return { success: false, error: 'Database error' };
-    }
-
-    // User exists, return success
-    if (existingUser) {
-      return { success: true, userId: existingUser.id };
-    }
-
-    // User doesn't exist, create new record
+    // Idempotent upsert by clerk_user_id to avoid duplicate-user errors
     const email = user.primaryEmailAddress?.emailAddress;
     const firstName = user.firstName || user.username || 'User';
     const lastName = user.lastName || null;
@@ -44,23 +27,26 @@ export async function ensureUserInDatabase() {
       return { success: false, error: 'Email not found' };
     }
 
-    const { data: newUser, error: insertError } = await supabase
+    const { data: upsertedUser, error: upsertError } = await supabase
       .from('users')
-      .insert({
-        clerk_user_id: userId,
-        email: email,
-        first_name: firstName,
-        last_name: lastName,
-      })
+      .upsert(
+        {
+          clerk_user_id: userId,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+        },
+        { onConflict: 'clerk_user_id' }
+      )
       .select('id')
       .single();
 
-    if (insertError) {
-      console.error('Failed to create user:', insertError);
-      return { success: false, error: 'Failed to create user account' };
+    if (upsertError) {
+      console.error('Failed to upsert user:', upsertError);
+      return { success: false, error: 'Failed to verify user account' };
     }
 
-    return { success: true, userId: newUser.id };
+    return { success: true, userId: upsertedUser.id };
     
   } catch (error) {
     console.error('Unexpected error in ensureUserInDatabase:', error);
