@@ -84,9 +84,18 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   toggleCart: () => set(state => ({ isOpen: !state.isOpen })),
   
   setAuthenticated: (isAuth: boolean) => {
-    set({ isAuthenticated: isAuth });
-    // Load cart when authentication status changes
-    get().loadCart();
+    const currentAuth = get().isAuthenticated;
+    
+    // Only update if authentication status actually changed
+    if (currentAuth !== isAuth) {
+      set({ isAuthenticated: isAuth });
+      
+      // Load cart when authentication status changes
+      // Use setTimeout to avoid race conditions with Clerk's state updates
+      setTimeout(() => {
+        get().loadCart();
+      }, 100);
+    }
   },
   
   /**
@@ -95,9 +104,16 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   syncCartFromStorage: () => {
     const { isAuthenticated } = get();
     if (!isAuthenticated && typeof window !== 'undefined') {
-      const guestCart = getGuestCart();
-      const items = guestCart.map(fromGuestCartItem);
-      set({ items });
+      try {
+        const guestCart = getGuestCart();
+        const items = guestCart.map(fromGuestCartItem);
+        set({ items });
+        console.log(`Synced ${items.length} items from localStorage`);
+      } catch (error) {
+        console.error('Failed to sync cart from storage:', error);
+        // Clear corrupted data and start fresh
+        set({ items: [] });
+      }
     }
   },
   
@@ -111,6 +127,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     try {
       if (isAuthenticated) {
         // Load from database for authenticated users
+        console.log('Loading cart from database for authenticated user');
         const dbCart = await getAuthenticatedCart();
         const items: CartItem[] = dbCart.map(dbItem => ({
           id: dbItem.product_id,
@@ -123,12 +140,16 @@ export const useCartStore = create<CartStore>()((set, get) => ({
           validityType: dbItem.validity_type,
         }));
         set({ items });
+        console.log(`Loaded ${items.length} items from database`);
       } else {
         // Load from localStorage for guest users
+        console.log('Loading cart from localStorage for guest user');
         get().syncCartFromStorage();
       }
     } catch (error) {
       console.error('Failed to load cart:', error);
+      // Don't clear the cart on error, just log it
+      // The user might have items in their local state that shouldn't be lost
     } finally {
       set({ isLoading: false });
     }

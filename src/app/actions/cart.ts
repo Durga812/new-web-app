@@ -13,7 +13,6 @@ type MergeResult = {
 
 type CartItemDB = {
   id: string;
-  user_id: string;
   clerk_user_id: string;
   product_id: string;
   product_type: 'course' | 'bundle';
@@ -60,7 +59,7 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
       return { success: true, added: 0 };
     }
 
-    // 3. Prepare the data for insertion using clerk_user_id
+    // 3. Prepare the data for insertion using clerk_user_id as primary identifier
     const newCartData = itemsToCreate.map(item => ({
       clerk_user_id: clerkUserId,
       product_id: item.productId,
@@ -103,7 +102,7 @@ export async function getAuthenticatedCart(): Promise<CartItemDB[]> {
       throw new Error('User not authenticated.');
     }
 
-    // Fetch cart items using clerk_user_id directly
+    // Fetch cart items using clerk_user_id as primary identifier
     const { data: cartItems, error: cartError } = await supabase
       .from('cart_items')
       .select('*')
@@ -132,7 +131,7 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
       return { success: false, error: 'User not authenticated.' };
     }
 
-    // Insert or update the cart item (upsert) using clerk_user_id
+    // Insert or update the cart item (upsert) using clerk_user_id as primary identifier
     const { error: insertError } = await supabase
       .from('cart_items')
       .upsert({
@@ -145,7 +144,7 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
         validity_type: item.validityType,
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: 'clerk_user_id,product_id'
+        onConflict: 'clerk_user_id,product_id' // Use clerk_user_id constraint
       });
 
     if (insertError) {
@@ -174,6 +173,7 @@ export async function removeFromAuthenticatedCart(productId: string): Promise<{ 
       return { success: false, error: 'User not authenticated.' };
     }
 
+    // Use clerk_user_id as primary identifier for deletion
     const { error: deleteError } = await supabase
       .from('cart_items')
       .delete()
@@ -206,6 +206,7 @@ export async function clearAuthenticatedCart(): Promise<{ success: boolean; erro
       return { success: false, error: 'User not authenticated.' };
     }
 
+    // Use clerk_user_id as primary identifier for deletion
     const { error: deleteError } = await supabase
       .from('cart_items')
       .delete()
