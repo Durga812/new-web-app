@@ -48,24 +48,27 @@ export async function POST(request: Request) {
 
     // Fetch courses
     if (courseIds.length > 0) {
+      console.log('Fetching courses for cart enrichment:', courseIds);
       const { data: courses, error: courseError } = await supabase
         .from('courses')
-        .select('course_id, title, subtitle, image_url, category, pricing, included_course_ids')
+        .select('course_id, title, subtitle, image_url, category, pricing')
         .in('course_id', courseIds);
 
       if (courseError) {
         console.error('Failed to fetch courses:', courseError);
       } else {
+        console.log('Found courses:', courses?.length || 0);
         courses?.forEach(course => {
+          console.log('Processing course:', course.course_id, course.title);
           results.push({
             id: course.course_id,
             type: 'course',
-            title: course.title,
+            title: course.title || `Course ${course.course_id}`, // Fallback title
             subtitle: course.subtitle,
             imageUrl: course.image_url,
-            category: course.category,
+            category: course.category || 'General',
             pricing: course.pricing,
-            includedCourseIds: course.included_course_ids || []
+            includedCourseIds: [] // Courses don't have included courses
           });
         });
       }
@@ -73,6 +76,7 @@ export async function POST(request: Request) {
 
     // Fetch bundles
     if (bundleIds.length > 0) {
+      console.log('Fetching bundles for cart enrichment:', bundleIds);
       const { data: bundles, error: bundleError } = await supabase
         .from('bundles')
         .select('bundle_id, title, subtitle, image_url, category, pricing, included_course_ids')
@@ -81,14 +85,16 @@ export async function POST(request: Request) {
       if (bundleError) {
         console.error('Failed to fetch bundles:', bundleError);
       } else {
+        console.log('Found bundles:', bundles?.length || 0);
         bundles?.forEach(bundle => {
+          console.log('Processing bundle:', bundle.bundle_id, bundle.title);
           results.push({
             id: bundle.bundle_id,
             type: 'bundle',
-            title: bundle.title,
+            title: bundle.title || `Bundle ${bundle.bundle_id}`, // Fallback title
             subtitle: bundle.subtitle,
             imageUrl: bundle.image_url,
-            category: bundle.category,
+            category: bundle.category || 'General',
             pricing: bundle.pricing,
             includedCourseIds: bundle.included_course_ids || []
           });

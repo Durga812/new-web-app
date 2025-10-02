@@ -79,6 +79,8 @@ function fromGuestCartItem(item: GuestCartItem): CartItem {
 async function enrichCartItems(items: CartItem[]): Promise<CartItem[]> {
   if (items.length === 0) return items;
 
+  console.log('Starting cart enrichment for items:', items.map(i => ({ id: i.productId, type: i.type, currentTitle: i.title })));
+
   try {
     const products = items.map(item => ({
       id: item.productId,
@@ -94,52 +96,83 @@ async function enrichCartItems(items: CartItem[]): Promise<CartItem[]> {
     });
 
     if (!response.ok) {
-      console.error('Failed to fetch product data for cart enrichment');
+      console.error('Failed to fetch product data for cart enrichment:', response.status, response.statusText);
       return items; // Return original items if enrichment fails
     }
 
     const data = await response.json();
+    console.log('Enrichment API response:', data);
+    
     const productMap = new Map();
     
     data.products?.forEach((product: { id: string; [key: string]: unknown }) => {
       productMap.set(product.id, product);
     });
 
+    console.log('Product map created:', Array.from(productMap.keys()));
+
     // Enrich items with fetched data
-    return items.map(item => {
+    const enrichedItems = items.map(item => {
       const productData = productMap.get(item.productId);
-      if (!productData) return item;
+      
+      if (!productData) {
+        console.warn(`No product data found for ${item.type} ${item.productId}, using fallbacks`);
+        // Create fallback data for missing products
+        return {
+          ...item,
+          title: item.title || `${item.type === 'course' ? 'Course' : 'Bundle'} ${item.productId}`,
+          accessPeriodLabel: item.accessPeriodLabel || createAccessPeriodLabel(item.validityDuration, item.validityType),
+        };
+      }
+
+      console.log(`Enriching ${item.type} ${item.productId} with:`, {
+        title: productData.title,
+        category: productData.category
+      });
 
       // Create access period label based on validity
-      let accessPeriodLabel = '';
-      if (item.validityDuration && item.validityType) {
-        if (item.validityType === 'days') {
-          if (item.validityDuration === 365) {
-            accessPeriodLabel = '12 months';
-          } else if (item.validityDuration === 30) {
-            accessPeriodLabel = '1 month';
-          } else {
-            accessPeriodLabel = `${item.validityDuration} days`;
-          }
-        } else {
-          accessPeriodLabel = `${item.validityDuration} ${item.validityType}`;
-        }
-      }
+      const accessPeriodLabel = createAccessPeriodLabel(item.validityDuration, item.validityType);
 
       return {
         ...item,
-        title: productData.title || item.title,
-        imageUrl: productData.imageUrl || item.imageUrl,
-        category: productData.category || item.category,
-        includedCourseIds: productData.includedCourseIds || item.includedCourseIds,
+        title: (productData.title as string) || item.title || `${item.type === 'course' ? 'Course' : 'Bundle'} ${item.productId}`,
+        category: (productData.category as string) || item.category || 'General',
+        includedCourseIds: (productData.includedCourseIds as string[]) || item.includedCourseIds || [],
         accessPeriodLabel: accessPeriodLabel || item.accessPeriodLabel,
         // Get compared price from pricing data if available
         comparedPrice: (productData.pricing as Record<string, { compared_price?: number }>)?.[item.pricingKey || 'price3']?.compared_price || item.comparedPrice,
       };
     });
+
+    console.log('Enrichment completed. Results:', enrichedItems.map(i => ({ id: i.productId, type: i.type, title: i.title })));
+    return enrichedItems;
   } catch (error) {
     console.error('Error enriching cart items:', error);
-    return items; // Return original items if enrichment fails
+    // Return items with fallback enrichment
+    return items.map(item => ({
+      ...item,
+      title: item.title || `${item.type === 'course' ? 'Course' : 'Bundle'} ${item.productId}`,
+      accessPeriodLabel: item.accessPeriodLabel || createAccessPeriodLabel(item.validityDuration, item.validityType),
+    }));
+  }
+}
+
+/**
+ * Helper function to create access period labels
+ */
+function createAccessPeriodLabel(validityDuration?: number, validityType?: string): string {
+  if (!validityDuration || !validityType) return '';
+  
+  if (validityType === 'days') {
+    if (validityDuration === 365) {
+      return '12 months';
+    } else if (validityDuration === 30) {
+      return '1 month';
+    } else {
+      return `${validityDuration} days`;
+    }
+  } else {
+    return `${validityDuration} ${validityType}`;
   }
 }
 
