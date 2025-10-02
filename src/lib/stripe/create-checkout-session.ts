@@ -1,9 +1,10 @@
+// src/lib/stripe/create-checkout-session.ts
 'use server';
 
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import type Stripe from 'stripe';
-
+import { supabase } from '@/lib/supabase/server';
 import { calculateCartDiscounts, getItemDiscountRate } from '@/lib/pricing/discounts';
 import stripe from '@/lib/stripe/stripe_client';
 import type { CartItem } from '@/types/cart';
@@ -28,10 +29,13 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
     throw new Error('Your cart is empty.');
   }
 
-  const discountSummary = calculateCartDiscounts(items);
-  const { discountRate, subtotal, discountAmount, total } = discountSummary;
+  // Enrich cart items with database data
+  const enrichedItems = await enrichCartItemsForCheckout(items);
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map(item => {
+  const discountSummary = calculateCartDiscounts(enrichedItems);
+  const { discountRate, subtotal, discountAmount, total, currentTier } = discountSummary;
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = enrichedItems.map(item => {
     const itemDiscountRate = getItemDiscountRate(item, discountRate);
     const baseCents = Math.round(item.price * 100);
     const discountedCents = Math.round(baseCents * (1 - itemDiscountRate));
@@ -43,8 +47,8 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
       item_title: item.title,
       product_id: item.productId,
       enroll_id: item.enrollId ?? '',
-      product_type: item.productType ?? item.type,
-      cart_item_type: item.type,
+      product_type: item.type,
+      lw_product_type: item.lwProductType ?? 'subscription',
       validity_duration: item.validityDuration?.toString() ?? '',
       validity_type: item.validityType ?? '',
       discounted_price: formatCurrency(appliedCents / 100),
@@ -90,6 +94,7 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
     metadata: {
       clerk_id: userId,
       discount_applied_percent: discountPercent.toString(),
+      discount_tier_name: currentTier?.name || '', // Add tier name
       subtotal: formatCurrency(subtotal),
       discount_amount: formatCurrency(discountAmount),
       total: formatCurrency(total),
@@ -105,3 +110,64 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
 
   redirect(session.url);
 };
+
+// Helper function to enrich cart items with database data
+async function enrichCartItemsForCheckout(items: CartItem[]): Promise<CartItem[]> {
+  const courseIds = items.filter(i => i.type === 'course').map(i => i.productId);
+  const bundleIds = items.filter(i => i.type === 'bundle').map(i => i.productId);
+
+  const enrichedItems: CartItem[] = [];
+
+  // Fetch courses data
+  if (courseIds.length > 0) {
+    const { data: courses } = await supabase
+      .from('courses')
+      .select('course_id, enroll_id, product_type, lw_product_type, title, pricing')
+      .in('course_id', courseIds);
+
+    for (const item of items.filter(i => i.type === 'course')) {
+      const courseData = courses?.find(c => c.course_id === item.productId);
+      if (courseData) {
+        const pricingKey = item.pricingKey || 'price3';
+        const pricingData = courseData.pricing?.[pricingKey];
+        
+        enrichedItems.push({
+          ...item,
+          enrollId: courseData.enroll_id,
+          lwProductType: courseData.lw_product_type || 'subscription',
+          title: courseData.title || item.title,
+          validityDuration: pricingData?.validity_duration || item.validityDuration,
+          validityType: pricingData?.validity_type || item.validityType,
+        });
+      } else {
+        enrichedItems.push(item);
+      }
+    }
+  }
+
+  // Fetch bundles data
+  if (bundleIds.length > 0) {
+    const { data: bundles } = await supabase
+      .from('bundles')
+      .select('bundle_id, enroll_id, product_type, lw_product_type, title, pricing')
+      .in('bundle_id', bundleIds);
+
+    for (const item of items.filter(i => i.type === 'bundle')) {
+      const bundleData = bundles?.find(b => b.bundle_id === item.productId);
+      if (bundleData) {
+        enrichedItems.push({
+          ...item,
+          enrollId: bundleData.enroll_id,
+          lwProductType: bundleData.lw_product_type || 'bundle',
+          title: bundleData.title || item.title,
+          validityDuration: bundleData.pricing?.validity_duration || item.validityDuration,
+          validityType: bundleData.pricing?.validity_type || item.validityType,
+        });
+      } else {
+        enrichedItems.push(item);
+      }
+    }
+  }
+
+  return enrichedItems;
+}

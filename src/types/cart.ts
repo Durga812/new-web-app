@@ -1,11 +1,12 @@
+// src/types/cart.ts
 export type CartItemType = "course" | "bundle";
 
 export type CartItem = {
   id: string;
   productId: string;
   type: CartItemType;
-  /** Product classification such as subscription or bundle */
   productType?: string;
+  lwProductType?: string; // Add this field
   title: string;
   price: number;
   currency?: string;

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 import { auth } from '@clerk/nextjs/server';
 import { revalidatePath } from 'next/cache';
 import { type GuestCartItem } from '@/lib/guest-cart';
+import { CartItem } from '@/types/cart';
 
 type MergeResult = {
   success: boolean;
@@ -220,7 +221,7 @@ export async function removeFromAuthenticatedCart(productId: string): Promise<{ 
       return { success: false, error: 'Failed to remove item from cart.' };
     }
 
-    revalidatePath('/cart');
+    revalidatePath('/cart');//here i have open up the cart drawer
     revalidatePath('/');
 
     return { success: true };
@@ -259,5 +260,76 @@ export async function clearAuthenticatedCart(): Promise<{ success: boolean; erro
   } catch (error) {
     console.error('Error clearing authenticated cart:', error);
     return { success: false, error: 'An unexpected error occurred.' };
+  }
+}
+
+
+
+export async function validateCartItems(items: CartItem[]) {
+  try {
+    const { userId: clerkUserId } = await auth();
+
+    if (!clerkUserId) {
+      return {
+        validItems: items,
+        removedItems: [],
+        error: 'Not authenticated'
+      };
+    }
+
+    // Get user's active enrollments
+    const { data: enrollments, error } = await supabase
+      .from('enrollments')
+      .select('product_id, expires_at, status')
+      .eq('clerk_user_id', clerkUserId)
+      .eq('enrollment_status', 'success')
+      .eq('status', 'active');
+
+    if (error) {
+      console.error('Failed to fetch enrollments:', error);
+      // Return all items if we can't validate
+      return {
+        validItems: items,
+        removedItems: [],
+        error: 'Failed to validate cart'
+      };
+    }
+
+    // Create set of enrolled product IDs that are still active
+    const enrolledProductIds = new Set(
+      (enrollments || [])
+        .filter(e => {
+          // Check if enrollment is still valid (not expired)
+          if (!e.expires_at) return true; // If no expiry, consider as active
+          return new Date(e.expires_at) > new Date();
+        })
+        .map(e => e.product_id)
+    );
+
+    // Separate valid and already-enrolled items
+    const validItems: CartItem[] = [];
+    const removedItems: CartItem[] = [];
+
+    for (const item of items) {
+      if (enrolledProductIds.has(item.productId)) {
+        removedItems.push(item);
+      } else {
+        validItems.push(item);
+      }
+    }
+
+    return {
+      validItems,
+      removedItems,
+      error: null
+    };
+    
+  } catch (error) {
+    console.error('Error validating cart items:', error);
+    return {
+      validItems: items,
+      removedItems: [],
+      error: 'Unexpected error'
+    };
   }
 }

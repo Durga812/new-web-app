@@ -5,73 +5,36 @@ import Stripe from "stripe";
 import stripe from "@/lib/stripe/stripe_client";
 import { supabase } from "@/lib/supabase/server";
 
-const LEARNWORLDS_BASE_URL = process.env.LEARNWORLDS_BASE_URL ?? "https://courses.greencardiy.com";
-const LEARNWORLDS_API_TOKEN = process.env.LEARNWORLDS_API_TOKEN;
-const LEARNWORLDS_CLIENT_ID = process.env.LEARNWORLDS_CLIENT_ID;
-const parsedDelay = Number.parseInt(
-  process.env.LEARNWORLDS_API_DELAY_MS ?? process.env.LEARNWORLDS_ENROLL_DELAY_MS ?? "500",
-  10,
-);
-const LEARNWORLDS_API_DELAY_MS = Number.isFinite(parsedDelay) && parsedDelay >= 0 ? parsedDelay : 500;
+type PurchasedItem = {
+  product_id: string;
+  enroll_id: string;
+  product_type: string; // 'course' | 'bundle'
+  lw_product_type: string;
+  title: string;
+  price: number;
+  validity_duration: number;
+  validity_type: string; // 'days' | 'months' | 'years' | string
+};
 
-type LearnWorldsEnrollment = {
+type LearnWorldsUser = { id: string } & Record<string, unknown>;
+
+type LwEnrollmentPayload = {
   productId: string;
   productType: string;
   price: number;
-  duration_type?: string;
+  justification: string;
+  send_enrollment_email: boolean;
   duration?: number;
+  duration_type?: string;
 };
 
-type SupabaseEnrollmentBase = {
-  clerk_id: string;
-  item_title: string;
-  product_id: string;
-  enroll_id: string;
-  product_type: string | null;
-  cart_item_type: string | null;
-  validity_duration: number | null;
-  validity_type: string | null;
-  price: number;
-};
-
-type SupabaseEnrollmentInsert = SupabaseEnrollmentBase & {
-  enrollment_status: "success" | "fail";
-};
-
-type ProcessedEnrollment = {
-  lineItemId: string;
-  learnWorlds: LearnWorldsEnrollment;
-  supabaseRecord: SupabaseEnrollmentBase | null;
-};
+const LEARNWORLDS_BASE_URL = process.env.LEARNWORLDS_BASE_URL ?? "https://courses.greencardiy.com";
+const LEARNWORLDS_API_TOKEN = process.env.LEARNWORLDS_API_TOKEN;
+const LEARNWORLDS_CLIENT_ID = process.env.LEARNWORLDS_CLIENT_ID;
 
 const hasLearnWorldsConfig = Boolean(LEARNWORLDS_API_TOKEN && LEARNWORLDS_CLIENT_ID);
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-function normalizeError(error: unknown): Record<string, unknown> {
-  if (error instanceof Error) {
-    const normalized: Record<string, unknown> = {
-      name: error.name,
-      message: error.message,
-    };
-
-    if (error.stack) {
-      normalized.stack = error.stack;
-    }
-
-    if ("cause" in error && error.cause) {
-      normalized.cause = (error as Error & { cause?: unknown }).cause;
-    }
-
-    return normalized;
-  }
-
-  if (typeof error === "object" && error !== null) {
-    return error as Record<string, unknown>;
-  }
-
-  return { message: String(error) };
-}
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
@@ -90,344 +53,421 @@ export async function POST(req: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error) {
-    console.error("Stripe webhook signature verification failed", normalizeError(error));
+    console.error("Stripe webhook signature verification failed:", error);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    console.log("Stripe checkout completed", {
-      id: session.id,
-      customer: session.customer,
-      email: session.customer_details?.email,
-      amount: session.amount_total,
-      currency: session.currency,
-    });
+    console.log("Processing checkout session:", session.id);
 
     try {
-      await processLearnWorldsEnrollment(session);
+      await processCheckoutSession(session);
     } catch (error) {
-      console.error("Failed to process LearnWorlds enrollment", {
-        sessionId: session.id,
-        error: normalizeError(error),
-      });
+      console.error("Failed to process checkout session:", error);
     }
-  } else {
-    console.log(`Unhandled Stripe event type: ${event.type}`);
   }
 
   return NextResponse.json({ received: true });
 }
 
-async function processLearnWorldsEnrollment(session: Stripe.Checkout.Session) {
+async function processCheckoutSession(session: Stripe.Checkout.Session) {
+  const clerkId = session.client_reference_id || session.metadata?.clerk_id;
   const email = session.customer_details?.email?.toLowerCase();
 
-  if (!email) {
-    console.error("Cannot process LearnWorlds enrollment without customer email", {
-      sessionId: session.id,
-    });
+  if (!clerkId || !email) {
+    console.error("Missing clerk ID or email in session");
     return;
   }
 
-  const clerkId = typeof session.client_reference_id === "string" && session.client_reference_id.length > 0
-    ? session.client_reference_id
-    : typeof session.metadata?.clerk_id === "string" && session.metadata.clerk_id.length > 0
-      ? session.metadata.clerk_id
-      : null;
-
-  if (!clerkId) {
-    console.warn("Stripe session missing Clerk user identifier; Supabase record will not include user reference", {
-      sessionId: session.id,
-    });
-  }
-
+  // Fetch line items
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
     expand: ["data.price.product"],
     limit: 100,
   });
 
-  const processedEnrollments = lineItems.data.flatMap<ProcessedEnrollment>(item => {
-    const product = item.price?.product as Stripe.Product | Stripe.DeletedProduct | string | null | undefined;
+  if (lineItems.data.length === 0) {
+    console.error("No line items found in session");
+    return;
+  }
 
-    if (!product || typeof product !== "object") {
-      console.warn("Missing product information for Stripe line item; skipping", {
-        sessionId: session.id,
-        lineItemId: item.id,
-      });
-      return [];
+  // Extract purchased items from line items
+  const purchasedItems = lineItems.data.map(item => {
+    const product = item.price?.product as Stripe.Product;
+    const metadata = product?.metadata || {};
+    
+    return {
+      product_id: metadata.product_id || '',
+      enroll_id: metadata.enroll_id || '',
+      product_type: metadata.product_type || '',
+      lw_product_type: metadata.lw_product_type || '',
+      title: product?.name || metadata.item_title || '',
+      price: parseFloat(metadata.discounted_price || '0'),
+      validity_duration: parseInt(metadata.validity_duration || '0'),
+      validity_type: metadata.validity_type || '',
+    };
+  });
+
+  // Step 1: Create order record
+  const orderId = await createOrder(session, clerkId, email, purchasedItems);
+  
+  if (!orderId) {
+    console.error("Failed to create order");
+    return;
+  }
+
+  // Step 2: Update user's stripe_customer_id if exists
+  if (session.customer) {
+    await updateStripeCustomerId(clerkId, session.customer as string);
+  }
+
+  // Step 3: Ensure user exists in LearnWorlds
+  const learnWorldsUserId = await ensureLearnWorldsUser(clerkId, email);
+  
+  if (!learnWorldsUserId) {
+    console.error("Failed to create/verify LearnWorlds user");
+    // Continue anyway, enrollments will fail but we'll track them
+  }
+
+  // Step 4: Enroll user in each product
+  await enrollUserInProducts(clerkId, email, orderId, purchasedItems);
+
+  // Step 5: Clear user's cart
+  await clearUserCart(clerkId);
+
+  console.log("Checkout processing completed successfully");
+}
+
+async function createOrder(
+  session: Stripe.Checkout.Session,
+  clerkId: string,
+  email: string,
+  purchasedItems: PurchasedItem[]
+) {
+  try {
+    const metadata = session.metadata || {};
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .insert({
+        clerk_user_id: clerkId,
+        order_number: '', // Will be auto-generated by SQL function
+        stripe_payment_intent_id: session.payment_intent as string,
+        payment_status: 'completed',
+        subtotal: parseFloat(metadata.subtotal || '0'),
+        discount: parseFloat(metadata.discount_amount || '0'),
+        discount_tier_name: metadata.discount_tier_name || null,
+        total_amount: parseFloat(metadata.total || '0'),
+        customer_email: email,
+        customer_name: session.customer_details?.name || null,
+        purchased_items: purchasedItems,
+        paid_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error("Failed to create order:", error);
+      return null;
     }
 
-    if ("deleted" in product && product.deleted) {
-      console.warn("Stripe product is deleted; skipping line item", {
-        sessionId: session.id,
-        lineItemId: item.id,
-      });
-      return [];
+    console.log("Order created:", data.id);
+    return data.id;
+    
+  } catch (error) {
+    console.error("Error creating order:", error);
+    return null;
+  }
+}
+
+async function updateStripeCustomerId(clerkId: string, stripeCustomerId: string) {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq('clerk_user_id', clerkId);
+
+    if (error) {
+      console.error("Failed to update stripe_customer_id:", error);
+    }
+  } catch (error) {
+    console.error("Error updating stripe_customer_id:", error);
+  }
+}
+
+async function ensureLearnWorldsUser(clerkId: string, email: string): Promise<string | null> {
+  try {
+    // Check if user already has learnworlds_user_id
+    const { data: userData } = await supabase
+      .from('users')
+      .select('learnworlds_user_id, first_name')
+      .eq('clerk_user_id', clerkId)
+      .single();
+
+    if (userData?.learnworlds_user_id) {
+      console.log("User already has LearnWorlds ID:", userData.learnworlds_user_id);
+      return userData.learnworlds_user_id;
     }
 
-    const metadata = product.metadata ?? {};
-
-    const enrollId = metadata.enroll_id || metadata.product_id || metadata.item_id;
-    if (!enrollId) {
-      console.warn("Missing enroll_id in product metadata; skipping item", {
-        sessionId: session.id,
-        lineItemId: item.id,
-      });
-      return [];
+    if (!hasLearnWorldsConfig) {
+      console.error("LearnWorlds credentials not configured");
+      return null;
     }
 
-    const productId = metadata.product_id || enrollId;
-    const productType = metadata.product_type || metadata.cart_item_type || "subscription";
-    const cartItemType = metadata.cart_item_type || null;
-    const durationRaw = typeof metadata.validity_duration === "string" ? metadata.validity_duration.trim() : "";
-    const parsedDuration = durationRaw ? Number.parseInt(durationRaw, 10) : NaN;
-    const validityDuration = Number.isNaN(parsedDuration) ? null : parsedDuration;
-    const validityTypeRaw = typeof metadata.validity_type === "string" ? metadata.validity_type.trim() : "";
-    const validityType = validityTypeRaw || null;
-    const metadataPrice = typeof metadata.discounted_price === "string" ? Number.parseFloat(metadata.discounted_price) : NaN;
-    const linePrice = typeof item.amount_total === "number" ? item.amount_total / 100 : NaN;
-    const resolvedPrice = Number.isFinite(metadataPrice) ? metadataPrice : Number.isFinite(linePrice) ? linePrice : 0;
-    const normalizedPrice = Number.isFinite(resolvedPrice) ? Number(resolvedPrice.toFixed(2)) : 0;
-    const itemTitleFromMetadata = typeof metadata.item_title === "string" ? metadata.item_title.trim() : "";
-    const itemTitle = itemTitleFromMetadata || product.name || item.description || enrollId;
+    // Check if user exists in LearnWorlds
+    await wait(400); // Rate limiting
+    const existingUser = await findLearnWorldsUser(email);
 
-    const learnWorlds: LearnWorldsEnrollment = {
-      productId: enrollId,
-      productType,
-      price: normalizedPrice,
+    if (existingUser) {
+      // User exists, store the ID
+      await supabase
+        .from('users')
+        .update({ learnworlds_user_id: existingUser.id })
+        .eq('clerk_user_id', clerkId);
+      
+      return existingUser.id;
+    }
+
+    // Create new user in LearnWorlds
+    await wait(400); // Rate limiting
+    const newUser = await createLearnWorldsUser(email, userData?.first_name || 'User');
+    
+    if (newUser) {
+      // Store the new LearnWorlds user ID
+      await supabase
+        .from('users')
+        .update({ learnworlds_user_id: newUser.id })
+        .eq('clerk_user_id', clerkId);
+      
+      return newUser.id;
+    }
+
+    return null;
+    
+  } catch (error) {
+    console.error("Error ensuring LearnWorlds user:", error);
+    return null;
+  }
+}
+
+async function enrollUserInProducts(
+  clerkId: string,
+  email: string,
+  orderId: string,
+  purchasedItems: PurchasedItem[]
+) {
+  for (const item of purchasedItems) {
+    try {
+      await wait(400); // Rate limiting between API calls
+      
+      // Call LearnWorlds enroll API
+      const enrolled = await enrollInLearnWorlds(email, item);
+      
+      if (enrolled) {
+        // Calculate expiry date
+        const enrolledAt = new Date();
+        const expiresAt = calculateExpiryDate(enrolledAt, item.validity_duration, item.validity_type);
+        
+        // Save enrollment record
+        await saveEnrollment(clerkId, orderId, item, enrolledAt, expiresAt, 'success');
+        
+        console.log(`Successfully enrolled in ${item.title}`);
+      } else {
+        // Save failed enrollment
+        await saveEnrollment(clerkId, orderId, item, null, null, 'failed');
+        console.error(`Failed to enroll in ${item.title}`);
+      }
+      
+    } catch (error) {
+      console.error(`Error enrolling in ${item.title}:`, error);
+      await saveEnrollment(clerkId, orderId, item, null, null, 'failed');
+    }
+  }
+}
+
+async function enrollInLearnWorlds(email: string, item: PurchasedItem, retryCount = 0): Promise<boolean> {
+  try {
+    if (!hasLearnWorldsConfig) {
+      return false;
+    }
+
+    const payload: LwEnrollmentPayload = {
+      productId: item.enroll_id,
+      productType: item.lw_product_type,
+      price: item.price,
+      justification: "Purchase via Immigreat",
+      send_enrollment_email: false,
     };
 
-    if (productType === "subscription") {
-      if (validityType && typeof validityDuration === "number" && validityDuration > 0) {
-        learnWorlds.duration_type = validityType;
-        learnWorlds.duration = validityDuration;
-      } else if (validityType) {
-        console.warn("Subscription item missing valid duration; sending duration_type only", {
-          sessionId: session.id,
-          lineItemId: item.id,
-        });
-        learnWorlds.duration_type = validityType;
-      }
+    // Add duration fields for all products
+    if (item.validity_duration && item.validity_type) {
+      payload.duration = item.validity_duration;
+      payload.duration_type = item.validity_type;
     }
 
-    const supabaseRecord: SupabaseEnrollmentBase | null = clerkId
-      ? {
-          clerk_id: clerkId,
-          item_title: itemTitle,
-          product_id: productId,
-          enroll_id: enrollId,
-          product_type: productType || null,
-          cart_item_type: cartItemType,
-          validity_duration: validityDuration,
-          validity_type: validityType,
-          price: normalizedPrice,
-        }
-      : null;
-
-    return [
+    const response = await fetch(
+      `${LEARNWORLDS_BASE_URL}/admin/api/v2/users/${encodeURIComponent(email)}/enrollment`,
       {
-        lineItemId: item.id,
-        learnWorlds,
-        supabaseRecord,
-      },
-    ];
-  });
-
-  if (processedEnrollments.length === 0) {
-    console.warn("No enrollments derived from Stripe session", {
-      sessionId: session.id,
-    });
-    return;
-  }
-
-  const shouldSyncWithLearnWorlds = hasLearnWorldsConfig;
-  if (!shouldSyncWithLearnWorlds) {
-    console.warn("LearnWorlds credentials missing; skipping remote enrollment sync", {
-      sessionId: session.id,
-    });
-  }
-
-  let learnWorldsReady = shouldSyncWithLearnWorlds;
-
-  if (shouldSyncWithLearnWorlds) {
-    try {
-      const existingUser = await findLearnWorldsUser(email);
-
-      if (!existingUser) {
-        await createLearnWorldsUser(email);
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LEARNWORLDS_API_TOKEN}`,
+          'Lw-Client': LEARNWORLDS_CLIENT_ID!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       }
-    } catch (error) {
-      learnWorldsReady = false;
-      console.error("LearnWorlds user preparation failed", {
-        email,
-        sessionId: session.id,
-        error: normalizeError(error),
-      });
-    }
-  }
+    );
 
-  for (const enrollment of processedEnrollments) {
-    let status: "success" | "fail" = learnWorldsReady || !shouldSyncWithLearnWorlds ? "success" : "fail";
-
-    if (learnWorldsReady) {
-      try {
-        await enrollLearnWorldsProduct(email, enrollment.learnWorlds);
-      } catch (error) {
-        status = "fail";
-        console.error("LearnWorlds enrollment failed", {
-          email,
-          sessionId: session.id,
-          lineItemId: enrollment.lineItemId,
-          error: normalizeError(error),
-        });
+    // Handle rate limiting
+    if (response.status === 429 || response.status === 503) {
+      if (retryCount < 3) {
+        console.log(`Rate limited, waiting 10 seconds before retry ${retryCount + 1}/3`);
+        await wait(10000); // Wait 10 seconds
+        return enrollInLearnWorlds(email, item, retryCount + 1);
       }
+      return false;
     }
 
-    if (enrollment.supabaseRecord) {
-      await storeUserEnrollment({
-        ...enrollment.supabaseRecord,
-        enrollment_status: status,
-      });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      console.error("LearnWorlds enrollment failed:", response.status, errorBody);
+      return false;
     }
-  }
 
-  console.log("Checkout enrollment processing completed", {
-    sessionId: session.id,
-    email,
-    enrolledProducts: processedEnrollments.map(item => item.learnWorlds.productId),
-    storedRecords: processedEnrollments.filter(item => item.supabaseRecord).length,
-    learnWorldsSynced: learnWorldsReady,
-  });
-}
-
-async function learnWorldsRequest(path: string, init: RequestInit = {}) {
-  if (!LEARNWORLDS_API_TOKEN || !LEARNWORLDS_CLIENT_ID) {
-    throw new Error("LearnWorlds credentials are not configured");
-  }
-
-  const url = new URL(path, LEARNWORLDS_BASE_URL);
-  const headers = new Headers(init.headers ?? {});
-  headers.set("Authorization", `Bearer ${LEARNWORLDS_API_TOKEN}`);
-  headers.set("Lw-Client", LEARNWORLDS_CLIENT_ID);
-  headers.set("Accept", "application/json");
-
-  if (init.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  if (LEARNWORLDS_API_DELAY_MS > 0) {
-    await wait(LEARNWORLDS_API_DELAY_MS);
-  }
-
-  const response = await fetch(url.toString(), {
-    ...init,
-    headers,
-  });
-
-  return response;
-}
-
-async function findLearnWorldsUser(email: string) {
-  const response = await learnWorldsRequest(`/admin/api/v2/users/${encodeURIComponent(email)}`);
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    const body = await safeReadJson(response);
-    console.error("LearnWorlds user lookup failed", { email, status: response.status, body });
-    throw new Error(`LearnWorlds user lookup failed with status ${response.status}`);
-  }
-
-  return response.json();
-}
-
-async function createLearnWorldsUser(email: string) {
-  const username = email.split("@")[0] ?? email;
-  const payload = {
-    email,
-    username,
-    send_registration_email: true,
-  };
-
-  const response = await learnWorldsRequest(`/admin/api/v2/users`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const body = await safeReadJson(response);
-    console.error("LearnWorlds user creation failed", { email, status: response.status, body });
-    throw new Error(`LearnWorlds user creation failed with status ${response.status}`);
-  }
-
-  return response.json();
-}
-
-async function enrollLearnWorldsProduct(email: string, enrollment: LearnWorldsEnrollment) {
-  const payload: Record<string, unknown> = {
-    productId: enrollment.productId,
-    productType: enrollment.productType,
-    justification: "Added via Immigreat checkout",
-    price: enrollment.price,
-  };
-
-  if (enrollment.productType === "subscription") {
-    if (enrollment.duration_type) {
-      payload.duration_type = enrollment.duration_type;
-    }
-    if (typeof enrollment.duration === "number") {
-      payload.duration = enrollment.duration;
-    }
-  }
-
-  const response = await learnWorldsRequest(`/admin/api/v2/users/${encodeURIComponent(email)}/enrollment`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const body = await safeReadJson(response);
-    console.error("LearnWorlds enrollment failed", {
-      email,
-      enrollment,
-      status: response.status,
-      body,
-    });
-    throw new Error(`LearnWorlds enrollment failed for ${enrollment.productId}`);
-  }
-
-  return response.json();
-}
-
-async function storeUserEnrollment(record: SupabaseEnrollmentInsert) {
-  const { error } = await supabase.from("user_enrollments_test").insert(record);
-
-  if (error) {
-    console.error("Failed to persist user enrollment in Supabase", {
-      clerkId: record.clerk_id,
-      enrollId: record.enroll_id,
-      productId: record.product_id,
-      status: record.enrollment_status,
-      error: normalizeError(error),
-    });
-    return;
-  }
-
-  if (record.enrollment_status === "fail") {
-    console.error("Enrollment recorded with failed status", {
-      clerkId: record.clerk_id,
-      enrollId: record.enroll_id,
-      productId: record.product_id,
-    });
+    return true;
+    
+  } catch (error) {
+    console.error("Error calling LearnWorlds API:", error);
+    return false;
   }
 }
 
-async function safeReadJson(response: Response) {
+async function saveEnrollment(
+  clerkId: string,
+  orderId: string,
+  item: PurchasedItem,
+  enrolledAt: Date | null,
+  expiresAt: Date | null,
+  status: 'success' | 'failed'
+) {
   try {
+    const { error } = await supabase
+      .from('enrollments')
+      .insert({
+        clerk_user_id: clerkId,
+        order_id: orderId,
+        product_id: item.product_id,
+        product_type: item.product_type,
+        lw_product_type: item.lw_product_type,
+        enroll_id: item.enroll_id,
+        product_title: item.title,
+        validity_duration: item.validity_duration,
+        validity_type: item.validity_type,
+        enrolled_at: enrolledAt?.toISOString() || null,
+        expires_at: expiresAt?.toISOString() || null,
+        enrollment_status: status,
+        status: status === 'success' ? 'active' : 'pending',
+      });
+
+    if (error) {
+      console.error("Failed to save enrollment:", error);
+    }
+  } catch (error) {
+    console.error("Error saving enrollment:", error);
+  }
+}
+
+function calculateExpiryDate(enrolledAt: Date, duration: number, durationType: string): Date {
+  const expiresAt = new Date(enrolledAt);
+  
+  switch (durationType.toLowerCase()) {
+    case 'days':
+      expiresAt.setDate(expiresAt.getDate() + duration);
+      break;
+    case 'months':
+      expiresAt.setMonth(expiresAt.getMonth() + duration);
+      break;
+    case 'years':
+      expiresAt.setFullYear(expiresAt.getFullYear() + duration);
+      break;
+    default:
+      expiresAt.setMonth(expiresAt.getMonth() + duration); // Default to months
+  }
+  
+  return expiresAt;
+}
+
+async function findLearnWorldsUser(email: string): Promise<LearnWorldsUser | null> {
+  try {
+    const response = await fetch(
+      `${LEARNWORLDS_BASE_URL}/admin/api/v2/users/${encodeURIComponent(email)}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${LEARNWORLDS_API_TOKEN}`,
+          'Lw-Client': LEARNWORLDS_CLIENT_ID!,
+        },
+      }
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error("Failed to find LearnWorlds user:", response.status);
+      return null;
+    }
+
     return await response.json();
-  } catch {
+  } catch (error) {
+    console.error("Error finding LearnWorlds user:", error);
     return null;
+  }
+}
+
+async function createLearnWorldsUser(email: string, firstName: string) {
+  try {
+    const response = await fetch(
+      `${LEARNWORLDS_BASE_URL}/admin/api/v2/users`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LEARNWORLDS_API_TOKEN}`,
+          'Lw-Client': LEARNWORLDS_CLIENT_ID!,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          username: firstName,
+          send_registration_email: false,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      console.error("Failed to create LearnWorlds user:", response.status, errorBody);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating LearnWorlds user:", error);
+    return null;
+  }
+}
+
+async function clearUserCart(clerkId: string) {
+  try {
+    const { error } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('clerk_user_id', clerkId);
+
+    if (error) {
+      console.error("Failed to clear cart:", error);
+    }
+  } catch (error) {
+    console.error("Error clearing cart:", error);
   }
 }

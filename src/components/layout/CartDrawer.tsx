@@ -9,6 +9,9 @@ import { useCartStore } from "@/stores/cart-store";
 import { useShallow } from "zustand/react/shallow";
 import { calculateCartDiscounts } from "@/lib/pricing/discounts";
 import { createCheckoutSession } from "@/lib/stripe/create-checkout-session";
+import { toast } from "sonner"; // Add this import
+import { ensureUserInDatabase } from "@/app/actions/user";
+import { validateCartItems } from "@/app/actions/cart";
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat("en-US", {
@@ -135,30 +138,71 @@ export function CartDrawer() {
     }));
   };
 
-  const handleCheckout = () => {
-    if (items.length === 0 || isProcessing) return;
+// src/components/layout/CartDrawer.tsx
+// Update the handleCheckout function
 
-    setErrorMessage(null);
-    if (!isSignedIn) {
-      setErrorMessage("Please sign in before proceeding to checkout.");
-      openSignIn?.();
-      return;
-    }
-    const payloadItems = items.map(item => ({ ...item }));
+const handleCheckout = async () => {
+  if (items.length === 0 || isProcessing) return;
 
-    startTransition(() => {
-      void createCheckoutSession({ items: payloadItems }).catch(error => {
-        console.error("Failed to start checkout", error);
-        const message = error instanceof Error ? error.message : undefined;
-        if (message === "You must be signed in to start checkout.") {
-          setErrorMessage("Please sign in before proceeding to checkout.");
-          openSignIn?.();
-          return;
+  setErrorMessage(null);
+  
+  // Check if user is signed in
+  if (!isSignedIn) {
+    setErrorMessage("Please sign in before proceeding to checkout.");
+    openSignIn?.();
+    return;
+  }
+
+  startTransition(async () => {
+    try {
+      // Step 1: Ensure user exists in database
+      const userResult = await ensureUserInDatabase();
+      if (!userResult.success) {
+        setErrorMessage(userResult.error || "Failed to verify user account.");
+        return;
+      }
+
+      // Step 2: Validate cart items (remove already enrolled)
+      const validationResult = await validateCartItems(items);
+      
+      if (validationResult.removedItems.length > 0) {
+        // Show toast for removed items
+        toast.warning(
+          `Removed ${validationResult.removedItems.length} item(s) you already own`,
+          {
+            description: validationResult.removedItems.map(item => item.title).join(", ")
+          }
+        );
+        
+        // Remove from cart store
+        for (const item of validationResult.removedItems) {
+          await removeItem(item.productId);
         }
-        setErrorMessage("We couldn't start checkout. Please try again.");
-      });
-    });
-  };
+      }
+
+      // Check if cart is empty after validation
+      if (validationResult.validItems.length === 0) {
+        setErrorMessage("Your cart is empty or contains only items you already own.");
+        return;
+      }
+
+      // Step 3: Enrich cart items and create checkout session
+      await createCheckoutSession({ items: validationResult.validItems });
+      
+    } catch (error) {
+      console.error("Checkout failed:", error);
+      const message = error instanceof Error ? error.message : undefined;
+      
+      if (message === "You must be signed in to start checkout.") {
+        setErrorMessage("Please sign in before proceeding to checkout.");
+        openSignIn?.();
+        return;
+      }
+      
+      setErrorMessage("We couldn't start checkout. Please try again.");
+    }
+  });
+};
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={closeCart}>
