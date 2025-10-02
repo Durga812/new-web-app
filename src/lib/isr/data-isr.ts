@@ -3,6 +3,7 @@ import 'server-only'
 import { supabase } from '../supabase/server'
 import { unstable_cache } from 'next/cache'
 import type { CourseDetail, CourseFAQ, CourseModule, CourseReview } from '@/types/course-detail'
+import type { BundleCourseSummary, BundleDetail } from '@/types/bundle-detail'
 import type { ReviewRow } from '@/types/reviews'
 
 const REVALIDATE_SECONDS = Number(process.env.REVALIDATE_TIME ?? 3600)
@@ -89,7 +90,35 @@ type SupabaseCourseRow = {
   updated_at?: string | null
 }
 
+type SupabaseBundleRow = {
+  bundle_id: string
+  enroll_id: string
+  slug: string
+  product_type?: string | null
+  lw_product_type?: string | null
+  category: string
+  series?: string | null
+  tags?: string[] | null
+  title: string
+  subtitle?: string | null
+  description?: string | null
+  image_url?: string | null
+  included_course_ids?: string[] | null
+  pricing?: Record<string, unknown> | null
+  position?: number | null
+  is_active?: boolean | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 const defaultPricingUnit = {
+  price: 0,
+  compared_price: undefined as number | undefined,
+  validity_duration: 0,
+  validity_type: 'months',
+}
+
+const defaultBundlePricingUnit = {
   price: 0,
   compared_price: undefined as number | undefined,
   validity_duration: 0,
@@ -329,6 +358,85 @@ function normalizeReviewRows(rows: ReviewRow[]): CourseReview[] {
     .filter((review): review is CourseReview => review !== null)
 }
 
+function normalizeBundleCourseSummary(record: Record<string, unknown> | null | undefined): BundleCourseSummary | null {
+  if (!record) {
+    return null
+  }
+
+  const courseId = typeof record['course_id'] === 'string' ? record['course_id'] : ''
+  if (!courseId) {
+    return null
+  }
+
+  const tags = toStringArray(record['tags'])
+  const pricing = toRecord(record['pricing'])
+
+  const price1 = normalizeCoursePricingSlot(toRecord(pricing['price1']))
+  const price2 = normalizeCoursePricingSlot(toRecord(pricing['price2']))
+  const price3 = normalizeCoursePricingSlot(toRecord(pricing['price3']))
+
+  const normalizedPricing = {
+    ...(price1 ? { price1 } : {}),
+    ...(price2 ? { price2 } : {}),
+    ...(price3 ? { price3 } : {}),
+  }
+
+  const hasPricing = Object.keys(normalizedPricing).length > 0
+
+  return {
+    course_id: courseId,
+    slug: typeof record['slug'] === 'string' && record['slug'] ? (record['slug'] as string) : courseId,
+    title: typeof record['title'] === 'string' ? (record['title'] as string) : courseId,
+    subtitle: typeof record['subtitle'] === 'string' ? (record['subtitle'] as string) : undefined,
+    category: typeof record['category'] === 'string' ? (record['category'] as string) : '',
+    series: typeof record['series'] === 'string' ? (record['series'] as string) : undefined,
+    tags,
+    image_url: typeof record['image_url'] === 'string' ? (record['image_url'] as string) : undefined,
+    pricing: hasPricing ? (normalizedPricing as BundleCourseSummary['pricing']) : undefined,
+    ratings: toNumber(record['ratings'], 0),
+  }
+}
+
+function normalizeBundleDetail(record: SupabaseBundleRow | null): BundleDetail | null {
+  if (!record) {
+    return null
+  }
+
+  const pricing = toRecord(record.pricing)
+
+  const includedCourseIds = Array.isArray(record.included_course_ids)
+    ? record.included_course_ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    : []
+
+  return {
+    bundle_id: record.bundle_id,
+    enroll_id: record.enroll_id,
+    slug: record.slug,
+    title: record.title,
+    subtitle: record.subtitle ?? undefined,
+    description: record.description ?? undefined,
+    image_url: record.image_url ?? undefined,
+    category: record.category,
+    series: record.series ?? undefined,
+    tags: Array.isArray(record.tags) ? record.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+    pricing: {
+      price: toNumber(pricing['price'], defaultBundlePricingUnit.price),
+      compared_price:
+        pricing['compared_price'] !== undefined
+          ? toNumber(pricing['compared_price'], defaultBundlePricingUnit.compared_price ?? 0)
+          : undefined,
+      validity_duration: toNumber(pricing['validity_duration'], defaultBundlePricingUnit.validity_duration),
+      validity_type:
+        typeof pricing['validity_type'] === 'string'
+          ? (pricing['validity_type'] as string)
+          : defaultBundlePricingUnit.validity_type,
+    },
+    includedCourseIds,
+    includedCourses: [],
+    lastUpdated: record.updated_at ?? record.created_at ?? '',
+  }
+}
+
 function normalizeCourseDetail(record: SupabaseCourseRow | null): CourseDetail | null {
   if (!record) {
     return null
@@ -422,6 +530,28 @@ function normalizeCourseDetail(record: SupabaseCourseRow | null): CourseDetail |
     relatedBundleIds,
 
     lastUpdated: record.updated_at ?? record.created_at ?? '',
+  }
+}
+
+function normalizeCoursePricingSlot(slot: Record<string, unknown> | undefined) {
+  if (!slot) {
+    return undefined
+  }
+
+  const price = toNumber(slot['price'], 0)
+  const compared = slot['compared_price'] !== undefined ? toNumber(slot['compared_price'], 0) : undefined
+  const validityDuration = toNumber(slot['validity_duration'], 0)
+  const validityType = typeof slot['validity_type'] === 'string' ? (slot['validity_type'] as string) : 'months'
+
+  if (price === 0 && compared === undefined && validityDuration === 0 && !slot['validity_type']) {
+    return undefined
+  }
+
+  return {
+    price,
+    compared_price: compared,
+    validity_duration: validityDuration,
+    validity_type: validityType,
   }
 }
 
@@ -549,7 +679,7 @@ export async function getBundlesByCategory(category: string) {
   return cached()
 }
 
-async function _fetchBundleBySlug(bundle_slug: string) {
+async function _fetchBundleBySlug(bundle_slug: string): Promise<BundleDetail | null> {
   const { data, error } = await supabase
     .from('bundles')
     .select('*')
@@ -558,10 +688,37 @@ async function _fetchBundleBySlug(bundle_slug: string) {
     .maybeSingle()
 
   if (error) throw new Error(`Failed to fetch bundle detail: ${error.message}`)
-  return data ?? null
+  const bundle = normalizeBundleDetail(data as SupabaseBundleRow | null)
+
+  if (!bundle) {
+    return null
+  }
+
+  let includedCourses: BundleCourseSummary[] = []
+
+  if (bundle.includedCourseIds.length > 0) {
+    const rawCourses = await _fetchRelatedCourses(bundle.includedCourseIds)
+    const courseMap = new Map<string, BundleCourseSummary>()
+
+    rawCourses.forEach((rawCourse) => {
+      const summary = normalizeBundleCourseSummary(rawCourse as Record<string, unknown>)
+      if (summary) {
+        courseMap.set(summary.course_id, summary)
+      }
+    })
+
+    includedCourses = bundle.includedCourseIds
+      .map((id) => courseMap.get(id))
+      .filter((course): course is BundleCourseSummary => Boolean(course))
+  }
+
+  return {
+    ...bundle,
+    includedCourses,
+  }
 }
 
-export async function getBundleBySlug(bundle_slug: string) {
+export async function getBundleBySlug(bundle_slug: string): Promise<BundleDetail | null> {
   const cached = unstable_cache(
     () => _fetchBundleBySlug(bundle_slug),
     ['bundle-detail', bundle_slug],
