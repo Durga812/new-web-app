@@ -96,11 +96,11 @@ export function Navigation() {
   };
 
   const bannerMessages = [
-    "Add 5 twelve-month courses and save 6% ",
-    "Pick 10 long-access courses for an easy 11% off",
-    "Grab 20 and the discount jumps to 16%",
-    "Build a 40-course stack and lock in 27% off",
-    "All savings apply automatically to 12-month plans only",
+    "Add 5 courses and save 6% (Foundation)",
+    "Pick 10 courses for an easy 11% off (Leader)",
+    "Grab 20 and the discount jumps to 16% (Visionary)",
+    "Build a 40-course stack and lock in 27% off (Extraordinary)",
+    "All savings apply automatically to eligible courses",
   ];
 
   return (

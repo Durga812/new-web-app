@@ -114,7 +114,7 @@ export function CartDrawer() {
   }, [isOpen, items, courseLookup]);
 
   const discountSummary = useMemo(() => calculateCartDiscounts(items), [items]);
-  const { subtotal, qualifyingCount, discountRate, discountAmount, total, upcomingTier } = discountSummary;
+  const { subtotal, qualifyingCount, discountRate, discountAmount, total, upcomingTier, currentTier } = discountSummary;
   const discountPercent = Math.round(discountRate * 100);
   const discountApplied = discountAmount > 0;
   const coursesNeededForNextTier = upcomingTier ? upcomingTier.threshold - qualifyingCount : 0;
@@ -292,8 +292,8 @@ export function CartDrawer() {
                 {discountApplied && (
                   <div className="flex items-center justify-between text-sm font-semibold text-emerald-600">
                     <span>
-                      12-month course savings
-                      <span className="ml-1 text-xs font-medium">({discountPercent}% off)</span>
+                      Course savings
+                      <span className="ml-1 text-xs font-medium">({discountPercent}% off{currentTier?.name ? ` — ${currentTier.name}` : ''})</span>
                     </span>
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
@@ -305,13 +305,13 @@ export function CartDrawer() {
               </div>
               <p className="mt-2 text-xs text-gray-500 sm:text-sm">
                 {discountApplied
-                  ? "Your discount applies automatically to eligible 12-month courses."
-                  : "Add 12-month courses to unlock automatic savings."}
+                  ? "Your discount applies automatically to eligible courses."
+                  : "Add courses to unlock automatic savings."}
               </p>
               {upcomingTier && coursesNeededForNextTier > 0 && (
                 <p className="mt-1 text-xs font-semibold text-amber-600 sm:text-sm">
-                  Add {coursesNeededForNextTier} more 12-month course
-                  {coursesNeededForNextTier === 1 ? "" : "s"} to unlock {nextTierPercent}% off.
+                  Add {coursesNeededForNextTier} more course
+                  {coursesNeededForNextTier === 1 ? "" : "s"} to unlock {nextTierPercent}% off{upcomingTier?.name ? ` (${upcomingTier.name})` : ''}.
                 </p>
               )}
               <div className="mt-4 space-y-3">

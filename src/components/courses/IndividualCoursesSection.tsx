@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Filter, Search } from "lucide-react";
 import { SeriesColumn } from "./SeriesColumn";
 import type { NormalizedSeriesMetadata } from "@/types/catalog";
+import { useCartStore } from "@/stores/cart-store";
+import { calculateCartDiscounts } from "@/lib/pricing/discounts";
 
 type CoursePricing = {
   price: number;
@@ -72,6 +74,12 @@ export function IndividualCoursesSection({
   const [activeSeries, setActiveSeries] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Cart-based discount summary for showing tier beside Filters button
+  const cartItems = useCartStore(state => state.items);
+  const discountSummary = useMemo(() => calculateCartDiscounts(cartItems), [cartItems]);
+  const { qualifyingCount, discountRate, currentTier } = discountSummary;
+  const discountPercent = Math.round(discountRate * 100);
 
   // Initialize with all series when component mounts
   useEffect(() => {
@@ -167,7 +175,7 @@ export function IndividualCoursesSection({
         </div>
 
         {/* Filter Toggle */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50"
@@ -180,6 +188,17 @@ export function IndividualCoursesSection({
               </span>
             )}
           </button>
+          {qualifyingCount > 0 && (
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {currentTier?.name ? `${currentTier.name}` : 'add 5 courses to get discount'}
+              <span className="text-emerald-600/80">•</span>
+              {qualifyingCount} {qualifyingCount === 1 ? 'course' : 'courses'}
+              {discountPercent > 0 && (
+                <span className="text-emerald-600/80">• {discountPercent}% off</span>
+              )}
+            </span>
+          )}
         </div>
 
         {/* Expandable Filters */}
