@@ -73,6 +73,76 @@ function fromGuestCartItem(item: GuestCartItem): CartItem {
   };
 }
 
+/**
+ * Enriches cart items with full product data from the database
+ */
+async function enrichCartItems(items: CartItem[]): Promise<CartItem[]> {
+  if (items.length === 0) return items;
+
+  try {
+    const products = items.map(item => ({
+      id: item.productId,
+      type: item.type
+    }));
+
+    const response = await fetch('/api/catalog/cart-products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ products }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch product data for cart enrichment');
+      return items; // Return original items if enrichment fails
+    }
+
+    const data = await response.json();
+    const productMap = new Map();
+    
+    data.products?.forEach((product: { id: string; [key: string]: unknown }) => {
+      productMap.set(product.id, product);
+    });
+
+    // Enrich items with fetched data
+    return items.map(item => {
+      const productData = productMap.get(item.productId);
+      if (!productData) return item;
+
+      // Create access period label based on validity
+      let accessPeriodLabel = '';
+      if (item.validityDuration && item.validityType) {
+        if (item.validityType === 'days') {
+          if (item.validityDuration === 365) {
+            accessPeriodLabel = '12 months';
+          } else if (item.validityDuration === 30) {
+            accessPeriodLabel = '1 month';
+          } else {
+            accessPeriodLabel = `${item.validityDuration} days`;
+          }
+        } else {
+          accessPeriodLabel = `${item.validityDuration} ${item.validityType}`;
+        }
+      }
+
+      return {
+        ...item,
+        title: productData.title || item.title,
+        imageUrl: productData.imageUrl || item.imageUrl,
+        category: productData.category || item.category,
+        includedCourseIds: productData.includedCourseIds || item.includedCourseIds,
+        accessPeriodLabel: accessPeriodLabel || item.accessPeriodLabel,
+        // Get compared price from pricing data if available
+        comparedPrice: (productData.pricing as Record<string, { compared_price?: number }>)?.[item.pricingKey || 'price3']?.compared_price || item.comparedPrice,
+      };
+    });
+  } catch (error) {
+    console.error('Error enriching cart items:', error);
+    return items; // Return original items if enrichment fails
+  }
+}
+
 export const useCartStore = create<CartStore>()((set, get) => ({
   items: [],
   isOpen: false,
@@ -101,14 +171,23 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   /**
    * Sync cart from localStorage (for guest users on page load)
    */
-  syncCartFromStorage: () => {
+  syncCartFromStorage: async () => {
     const { isAuthenticated } = get();
     if (!isAuthenticated && typeof window !== 'undefined') {
       try {
         const guestCart = getGuestCart();
-        const items = guestCart.map(fromGuestCartItem);
-        set({ items });
-        console.log(`Synced ${items.length} items from localStorage`);
+        const basicItems = guestCart.map(fromGuestCartItem);
+        
+        // Enrich guest cart items with product data
+        if (basicItems.length > 0) {
+          console.log('Enriching guest cart items with product data...');
+          const enrichedItems = await enrichCartItems(basicItems);
+          set({ items: enrichedItems });
+          console.log(`Synced and enriched ${enrichedItems.length} items from localStorage`);
+        } else {
+          set({ items: [] });
+          console.log('No items in localStorage to sync');
+        }
       } catch (error) {
         console.error('Failed to sync cart from storage:', error);
         // Clear corrupted data and start fresh
@@ -129,22 +208,26 @@ export const useCartStore = create<CartStore>()((set, get) => ({
         // Load from database for authenticated users
         console.log('Loading cart from database for authenticated user');
         const dbCart = await getAuthenticatedCart();
-        const items: CartItem[] = dbCart.map(dbItem => ({
+        const basicItems: CartItem[] = dbCart.map(dbItem => ({
           id: dbItem.product_id,
           productId: dbItem.product_id,
           type: dbItem.product_type,
-          title: '', // Will need to be populated from product data
+          title: '', // Will be enriched
           price: Number(dbItem.price),
           pricingKey: dbItem.pricing_key,
           validityDuration: dbItem.validity_duration,
           validityType: dbItem.validity_type,
         }));
-        set({ items });
-        console.log(`Loaded ${items.length} items from database`);
+        
+        // Enrich items with full product data
+        console.log('Enriching cart items with product data...');
+        const enrichedItems = await enrichCartItems(basicItems);
+        set({ items: enrichedItems });
+        console.log(`Loaded and enriched ${enrichedItems.length} items from database`);
       } else {
         // Load from localStorage for guest users
         console.log('Loading cart from localStorage for guest user');
-        get().syncCartFromStorage();
+        await get().syncCartFromStorage();
       }
     } catch (error) {
       console.error('Failed to load cart:', error);
@@ -167,12 +250,16 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       const result = await addToAuthenticatedCart(guestItem);
       
       if (result.success) {
-        // Update local state
+        // Enrich the item before adding to state
+        const enrichedItems = await enrichCartItems([item]);
+        const enrichedItem = enrichedItems[0] || item;
+        
+        // Update local state with enriched item
         set(state => {
           const existingIndex = state.items.findIndex(existing => existing.productId === item.productId);
           const items = existingIndex >= 0
-            ? state.items.map(existing => (existing.productId === item.productId ? { ...existing, ...item } : existing))
-            : [...state.items, item];
+            ? state.items.map(existing => (existing.productId === item.productId ? enrichedItem : existing))
+            : [...state.items, enrichedItem];
           return { items };
         });
         
@@ -189,7 +276,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       const guestItem = toGuestCartItem(item);
       addToGuestCart(guestItem);
       
-      // Update local state
+      // Update local state (guest items are already enriched when added)
       set(state => {
         const existingIndex = state.items.findIndex(existing => existing.productId === item.productId);
         const items = existingIndex >= 0
