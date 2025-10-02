@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, Check, Clock, Link2, Share2, Star, Users, Twitter, Linkedin, Facebook } from "lucide-react";
+import { BookOpen, Check, Clock, Link2, Share2, Star, Twitter, Linkedin, Facebook } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEnrollmentStore } from "@/stores/enrollment-store";

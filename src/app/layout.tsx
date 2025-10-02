@@ -5,6 +5,8 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
+import { CartSyncProvider } from "@/components/providers/cart-sync-provider";
+import { CartAuthProvider } from "@/components/providers/cart-auth-provider";
 
 export const metadata: Metadata = {
   title: "Immigreat - Immigration Course Platform",
@@ -21,6 +23,8 @@ export default function RootLayout({
     <ClerkProvider publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <html lang="en">
         <body className="antialiased font-sans">
+          <CartAuthProvider />
+          <CartSyncProvider />
           <Navigation />
           <main className="min-h-screen bg-gradient-to-b from-amber-50/80 to-white pt-16">
             {children}
