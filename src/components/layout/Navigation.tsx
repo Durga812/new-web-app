@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useUser, useClerk, SignInButton } from "@clerk/nextjs";
 import {
@@ -126,11 +127,15 @@ export function Navigation() {
         </div>
         <header className="border-b border-amber-100 bg-white/95 backdrop-blur-md">
           <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="text-2xl font-bold uppercase tracking-tight text-transparent bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text"
-          >
-            immigreat.ai
+          <Link href="/" aria-label="Home" className="flex items-center">
+            <Image
+              src="https://ehyddwnabgcolqicgouo.supabase.co/storage/v1/object/public/site%20assets/Green%20Card%20Logo.png"
+              alt="Immigreat logo"
+              width={180}
+              height={36}
+              priority
+              className="h-8 sm:h-9 w-auto"
+            />
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
@@ -271,12 +276,12 @@ export function Navigation() {
             ) : isSignedIn ? (
               <div className="mt-3 space-y-2">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   className="w-full justify-start"
                   onClick={handleViewEnrollments}
                 >
-                  <UserIcon className="mr-2 h-4 w-4" />
-                  My enrollments
+                  <UserIcon className="mr-3 h-4 w-4" />
+                  My Enrollments  {/* Update this text */}
                 </Button>
                 <Button
                   variant="outline"

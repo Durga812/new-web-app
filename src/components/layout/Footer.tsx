@@ -1,5 +1,6 @@
 // src/components/layout/Footer.tsx
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 export function Footer() {
@@ -8,11 +9,14 @@ export function Footer() {
       <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Link
-              href="/"
-              className="mb-4 inline-block text-3xl font-bold uppercase tracking-tight text-transparent bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text"
-            >
-              immigreat.ai
+            <Link href="/" aria-label="Home" className="mb-4 inline-block">
+              <Image
+                src="https://ehyddwnabgcolqicgouo.supabase.co/storage/v1/object/public/site%20assets/Green%20Card%20Logo.png"
+                alt="Immigreat logo"
+                width={200}
+                height={40}
+                className="h-9 w-auto"
+              />
             </Link>
             <p className="text-sm text-gray-600">
               Expert-guided immigration courses to support your journey to the United States.

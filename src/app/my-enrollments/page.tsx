@@ -1,51 +1,50 @@
+// src/app/my-enrollments/page.tsx
 import { auth } from "@clerk/nextjs/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-
 import { supabase } from "@/lib/supabase/server";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowUpRight, CalendarClock, ShoppingBag } from "lucide-react";
+import Link from "next/link";
+import MyEnrollmentsClient from "./MyEnrollmentsClient";
 
-type UserEnrollmentRow = {
-  id: number;
-  clerk_id: string;
-  item_title: string;
+type EnrollmentRow = {
+  id: string;
+  clerk_user_id: string;
+  order_id: string;
   product_id: string;
+  product_type: 'course' | 'bundle';
+  lw_product_type: string;
   enroll_id: string;
-  product_type: string | null;
-  cart_item_type: string | null;
-  validity_duration: number | null;
-  validity_type: string | null;
-  price: number | string | null;
-  is_active: boolean | null;
+  product_title: string;
+  validity_duration: number;
+  validity_type: string;
+  enrolled_at: string;
+  expires_at: string;
   enrollment_status: string;
-  created_at: string | null;
-  updated_at: string | null;
+  status: string;
+  created_at: string;
 };
 
-const priceFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-});
-
-const formatValidity = (duration: number | null, type: string | null) => {
-  if (!duration || !type) return null;
-  const normalizedType = duration === 1 ? type : `${type}${type.endsWith("s") ? "" : "s"}`;
-  return `${duration} ${normalizedType}`;
+type EnrichedEnrollment = EnrollmentRow & {
+  category?: string;
+  image_url?: string;
+  total_lessons?: number;
+  total_duration?: number;
+  tags?: string[];
+  included_course_ids?: string[];
+  included_courses?: Array<{
+    course_id: string;
+    title: string;
+    image_url?: string;
+  }>;
+  has_reviewed?: boolean;
+  user_review?: {
+    rating: number;
+    feedback?: string;
+  };
 };
 
-const normalizePrice = (price: number | string | null | undefined) => {
-  if (typeof price === "number") return price;
-  if (typeof price === "string") {
-    const parsed = Number.parseFloat(price);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
+export const metadata = {
+  title: "My Enrollments - Immigreat.ai",
+  description: "View and access your enrolled courses and bundles",
 };
 
 export default async function MyEnrollmentsPage() {
@@ -55,131 +54,148 @@ export default async function MyEnrollmentsPage() {
     redirect("/sign-in?redirect_url=/my-enrollments");
   }
 
-  const { data, error } = await supabase
-    .from("user_enrollments_test")
-    .select("*")
-    .eq("clerk_id", userId)
-    .order("created_at", { ascending: false });
+  const { data: enrollments, error } = await supabase
+    .from('enrollments')
+    .select('*')
+    .eq('clerk_user_id', userId)
+    .eq('enrollment_status', 'success')
+    .eq('status', 'active')
+    .order('enrolled_at', { ascending: false });
 
   if (error) {
-    console.error("Failed to load user enrollments", { userId, error });
-    throw new Error("We could not load your enrollments. Please try again later.");
+    console.error("Failed to fetch enrollments:", error);
+    throw new Error("Failed to load enrollments");
   }
 
-  const enrollments = (data ?? []) as UserEnrollmentRow[];
+  if (!enrollments || enrollments.length === 0) {
+    return <EmptyState />;
+  }
 
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('product_id, rating, feedback')
+    .eq('clerk_user_id', userId);
+
+  const reviewsMap = new Map(
+    (reviews || []).map(r => [r.product_id, { rating: r.rating, feedback: r.feedback }])
+  );
+
+  const enrichedEnrollments = await enrichEnrollments(
+    enrollments as EnrollmentRow[],
+    reviewsMap
+  );
+
+  return <MyEnrollmentsClient enrollments={enrichedEnrollments} />;
+}
+
+async function enrichEnrollments(
+  enrollments: EnrollmentRow[],
+  reviewsMap: Map<string, { rating: number; feedback?: string }>
+): Promise<EnrichedEnrollment[]> {
+  const courseIds = enrollments
+    .filter(e => e.product_type === 'course')
+    .map(e => e.product_id);
+  
+  const bundleIds = enrollments
+    .filter(e => e.product_type === 'bundle')
+    .map(e => e.product_id);
+
+  const enriched: EnrichedEnrollment[] = [];
+
+  if (courseIds.length > 0) {
+    const { data: courses } = await supabase
+      .from('courses')
+      .select('course_id, title, category, image_url, tags, details')
+      .in('course_id', courseIds);
+
+    for (const enrollment of enrollments.filter(e => e.product_type === 'course')) {
+      const courseData = courses?.find(c => c.course_id === enrollment.product_id);
+      const userReview = reviewsMap.get(enrollment.product_id);
+      
+      if (courseData) {
+        type CourseDetails = {
+          curriculum?: {
+            totalLessons?: number;
+            totalDuration?: number;
+          }
+        } | null;
+        const details = (courseData.details as CourseDetails) || null;
+        const curriculum = details?.curriculum || {};
+        
+        enriched.push({
+          ...enrollment,
+          category: courseData.category,
+          image_url: courseData.image_url,
+          total_lessons: curriculum.totalLessons || 0,
+          total_duration: curriculum.totalDuration || 0,
+          tags: courseData.tags || [],
+          has_reviewed: !!userReview,
+          user_review: userReview,
+        });
+      } else {
+        enriched.push({
+          ...enrollment,
+          has_reviewed: !!userReview,
+          user_review: userReview,
+        });
+      }
+    }
+  }
+
+  if (bundleIds.length > 0) {
+    const { data: bundles } = await supabase
+      .from('bundles')
+      .select('bundle_id, title, category, image_url, tags, included_course_ids')
+      .in('bundle_id', bundleIds);
+
+    for (const enrollment of enrollments.filter(e => e.product_type === 'bundle')) {
+      const bundleData = bundles?.find(b => b.bundle_id === enrollment.product_id);
+      
+      if (bundleData) {
+        let includedCourses: Array<{ course_id: string; title: string; image_url?: string }> = [];
+        
+        if (bundleData.included_course_ids && bundleData.included_course_ids.length > 0) {
+          const { data: coursesData } = await supabase
+            .from('courses')
+            .select('course_id, title, image_url')
+            .in('course_id', bundleData.included_course_ids);
+          
+          includedCourses = coursesData || [];
+        }
+        
+        enriched.push({
+          ...enrollment,
+          category: bundleData.category,
+          image_url: bundleData.image_url,
+          tags: bundleData.tags || [],
+          included_course_ids: bundleData.included_course_ids || [],
+          included_courses: includedCourses,
+        });
+      } else {
+        enriched.push(enrollment);
+      }
+    }
+  }
+
+  return enriched;
+}
+
+function EmptyState() {
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16 pt-32 sm:px-6 lg:px-8">
-      <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">My enrollments</h1>
-          <p className="mt-2 max-w-2xl text-sm text-gray-600">
-            Access every program you have purchased. Select a card to open the course in LearnWorlds.
-          </p>
-        </div>
-        <Badge className="border-amber-200 bg-amber-50 text-amber-700">
-          <ShoppingBag className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
-          {enrollments.length} {enrollments.length === 1 ? "enrollment" : "enrollments"}
-        </Badge>
-      </header>
-
-      {enrollments.length === 0 ? (
-        <section className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-amber-200 bg-amber-50/60 px-8 py-20 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-            <ShoppingBag className="h-8 w-8" aria-hidden="true" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-gray-900">You have not enrolled in any programs yet</h2>
-            <p className="text-sm text-gray-600">Browse the catalog and add courses to your cart to see them listed here.</p>
-          </div>
-          <Button asChild variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-100/80">
-            <Link href="/courses">Explore courses</Link>
-          </Button>
-        </section>
-      ) : (
-        <section className="space-y-4">
-          {enrollments.map(enrollment => {
-            const price = normalizePrice(enrollment.price);
-            const formattedPrice = priceFormatter.format(price);
-            const purchaseDate = enrollment.created_at ? dateFormatter.format(new Date(enrollment.created_at)) : null;
-            const validity = formatValidity(enrollment.validity_duration, enrollment.validity_type);
-            const status = enrollment.enrollment_status?.toLowerCase() === "success" ? "success" : "fail";
-            const statusBadgeClass =
-              status === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-red-200 bg-red-50 text-red-600";
-            const statusLabel = status === "success" ? "Enrolled" : "Attention needed";
-            const programUrl = enrollment.enroll_id
-              ? `https://courses.greencardiy.com/program/${encodeURIComponent(enrollment.enroll_id)}`
-              : null;
-
-            return (
-              <article
-                key={enrollment.id}
-                className="rounded-3xl border border-amber-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm transition hover:shadow-lg sm:p-8"
-              >
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={statusBadgeClass}>{statusLabel}</Badge>
-                      {enrollment.cart_item_type && (
-                        <Badge variant="outline" className="border-amber-200 text-amber-700">
-                          {enrollment.cart_item_type === "bundle" ? "Bundle" : "Course"}
-                        </Badge>
-                      )}
-                      {enrollment.product_type && (
-                        <Badge variant="outline" className="border-gray-200 text-gray-600">
-                          {enrollment.product_type}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900 sm:text-2xl">{enrollment.item_title}</h2>
-                      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                        {purchaseDate && (
-                          <span className="inline-flex items-center gap-1.5">
-                            <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                            Purchased on {purchaseDate}
-                          </span>
-                        )}
-                        {validity && <span className="inline-flex items-center gap-1.5">Access: {validity}</span>}
-                        {enrollment.is_active === false && <span className="text-red-500">Inactive</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-stretch gap-4 sm:items-end">
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-amber-600 sm:text-2xl">{formattedPrice}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-400">Order #{enrollment.id}</p>
-                    </div>
-
-                    <Button
-                      asChild
-                      variant="default"
-                      className="bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600"
-                      disabled={!programUrl || status !== "success"}
-                    >
-                      {programUrl ? (
-                        <Link href={programUrl} prefetch={false}>
-                          Continue to program
-                          <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                        </Link>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          Continue to program
-                          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      )}
+    <div className="mx-auto max-w-5xl px-4 py-32 text-center">
+      <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600 mb-6">
+        <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">No enrollments yet</h1>
+      <p className="text-gray-600 mb-8">Start your immigration journey by enrolling in courses</p>
+      <Link
+        href="/courses"
+        className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3 text-sm font-semibold text-white hover:from-amber-600 hover:to-orange-600"
+      >
+        Browse Courses
+      </Link>
     </div>
   );
 }

@@ -1,9 +1,12 @@
+// src/middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Protect only specific app routes
-const isProtectedRoute = createRouteMatcher(['/my-purchases(.*)'])
+// Protect specific app routes
+const isProtectedRoute = createRouteMatcher([
+  '/my-enrollments(.*)',  // Add this line
+])
 
 // Public API routes (no auth)
 const isPublicApiRoute = createRouteMatcher([
@@ -31,9 +34,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 }
