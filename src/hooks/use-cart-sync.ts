@@ -1,15 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { getGuestCart, clearGuestCart } from '@/lib/guest-cart';
 import { mergeAndSyncCart } from '@/app/actions/cart';
 import { toast } from 'sonner';
 
+const MAX_RETRIES = 2;
+
 export function useCartSync() {
   const { isSignedIn, isLoaded } = useUser();
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasSynced, setHasSynced] = useState(false);
+  const retryCount = useRef(0);
+  const hasShownError = useRef(false);
 
   useEffect(() => {
     // Only run this logic once the user's status is loaded
@@ -39,15 +43,45 @@ export function useCartSync() {
               window.dispatchEvent(new Event('cartUpdated'));
               
               setHasSynced(true);
+              retryCount.current = 0;
+              hasShownError.current = false;
             } else {
-              toast.error('Could not sync your cart. Please try again.');
-              console.error('Cart sync error:', result.error);
+              // Retry logic
+              if (retryCount.current < MAX_RETRIES) {
+                retryCount.current += 1;
+                console.log(`Cart sync failed. Retry ${retryCount.current}/${MAX_RETRIES}`);
+                setIsSyncing(false);
+                // Will retry on next effect run
+              } else {
+                // Max retries reached, show error only once
+                if (!hasShownError.current) {
+                  toast.error('Could not sync your cart. Please refresh the page.');
+                  hasShownError.current = true;
+                }
+                console.error('Cart sync error (max retries reached):', result.error);
+                setHasSynced(true); // Stop trying
+              }
             }
           } catch (error) {
             console.error('Cart sync failed:', error);
-            toast.error('An error occurred while syncing your cart.');
+            
+            // Retry logic for exceptions
+            if (retryCount.current < MAX_RETRIES) {
+              retryCount.current += 1;
+              console.log(`Cart sync exception. Retry ${retryCount.current}/${MAX_RETRIES}`);
+              setIsSyncing(false);
+            } else {
+              // Max retries reached, show error only once
+              if (!hasShownError.current) {
+                toast.error('An error occurred while syncing your cart. Please refresh the page.');
+                hasShownError.current = true;
+              }
+              setHasSynced(true); // Stop trying
+            }
           } finally {
-            setIsSyncing(false);
+            if (retryCount.current >= MAX_RETRIES || hasSynced) {
+              setIsSyncing(false);
+            }
           }
         };
 
@@ -61,6 +95,8 @@ export function useCartSync() {
     // Reset sync status when user signs out
     if (!isSignedIn && hasSynced) {
       setHasSynced(false);
+      retryCount.current = 0;
+      hasShownError.current = false;
     }
   }, [isSignedIn, isLoaded, isSyncing, hasSynced]);
 

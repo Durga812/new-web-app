@@ -31,31 +31,17 @@ type CartItemDB = {
  */
 export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise<MergeResult> {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
     }
 
-    // 1. Get the current user's database ID from your `users` table
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !user) {
-      console.error('User lookup error:', userError);
-      return { success: false, error: 'User not found in the database.' };
-    }
-
-    const internalUserId = user.id;
-
-    // 2. Fetch the user's current cart from the database
+    // 1. Fetch the user's current cart from the database using clerk_user_id
     const { data: dbCartItems, error: cartFetchError } = await supabase
       .from('cart_items')
       .select('product_id')
-      .eq('user_id', internalUserId);
+      .eq('clerk_user_id', clerkUserId);
 
     if (cartFetchError) {
       console.error('Cart fetch error:', cartFetchError);
@@ -64,7 +50,7 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
 
     const dbProductIds = new Set((dbCartItems || []).map(item => item.product_id));
 
-    // 3. Filter out guest items that are *already* in the user's database cart
+    // 2. Filter out guest items that are *already* in the user's database cart
     const itemsToCreate = guestCartItems.filter(
       guestItem => !dbProductIds.has(guestItem.productId)
     );
@@ -74,9 +60,8 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
       return { success: true, added: 0 };
     }
 
-    // 4. Prepare the data for insertion, linking to the user
+    // 3. Prepare the data for insertion using clerk_user_id
     const newCartData = itemsToCreate.map(item => ({
-      user_id: internalUserId,
       clerk_user_id: clerkUserId,
       product_id: item.productId,
       product_type: item.productType,
@@ -86,7 +71,7 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
       validity_type: item.validityType,
     }));
 
-    // 5. Insert the new items into the database
+    // 4. Insert the new items into the database
     const { error: insertError } = await supabase
       .from('cart_items')
       .insert(newCartData);
@@ -112,28 +97,17 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
  */
 export async function getAuthenticatedCart(): Promise<CartItemDB[]> {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = auth();
 
     if (!clerkUserId) {
       throw new Error('User not authenticated.');
     }
 
-    // Get the user's database ID
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !user) {
-      throw new Error('User not found in the database.');
-    }
-
-    // Fetch cart items
+    // Fetch cart items using clerk_user_id directly
     const { data: cartItems, error: cartError } = await supabase
       .from('cart_items')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('clerk_user_id', clerkUserId)
       .order('created_at', { ascending: false });
 
     if (cartError) {
@@ -152,28 +126,16 @@ export async function getAuthenticatedCart(): Promise<CartItemDB[]> {
  */
 export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
     }
 
-    // Get the user's database ID
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !user) {
-      return { success: false, error: 'User not found in the database.' };
-    }
-
-    // Insert or update the cart item (upsert)
+    // Insert or update the cart item (upsert) using clerk_user_id
     const { error: insertError } = await supabase
       .from('cart_items')
       .upsert({
-        user_id: user.id,
         clerk_user_id: clerkUserId,
         product_id: item.productId,
         product_type: item.productType,
@@ -183,7 +145,7 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
         validity_type: item.validityType,
         updated_at: new Date().toISOString(),
       }, {
-        onConflict: 'user_id,product_id'
+        onConflict: 'clerk_user_id,product_id'
       });
 
     if (insertError) {
@@ -206,27 +168,16 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
  */
 export async function removeFromAuthenticatedCart(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
     }
 
-    // Get the user's database ID
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !user) {
-      return { success: false, error: 'User not found in the database.' };
-    }
-
     const { error: deleteError } = await supabase
       .from('cart_items')
       .delete()
-      .eq('user_id', user.id)
+      .eq('clerk_user_id', clerkUserId)
       .eq('product_id', productId);
 
     if (deleteError) {
@@ -249,27 +200,16 @@ export async function removeFromAuthenticatedCart(productId: string): Promise<{ 
  */
 export async function clearAuthenticatedCart(): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
     }
 
-    // Get the user's database ID
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !user) {
-      return { success: false, error: 'User not found in the database.' };
-    }
-
     const { error: deleteError } = await supabase
       .from('cart_items')
       .delete()
-      .eq('user_id', user.id);
+      .eq('clerk_user_id', clerkUserId);
 
     if (deleteError) {
       console.error('Failed to clear cart:', deleteError);
