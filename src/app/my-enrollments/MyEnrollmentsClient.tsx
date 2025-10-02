@@ -367,8 +367,6 @@ function EnrollmentCard({
         <div className="mt-auto space-y-2">
           <a
             href={courseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-amber-600 hover:to-orange-600"
           >
             Access Course
