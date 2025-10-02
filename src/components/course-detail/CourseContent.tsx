@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import type { CourseDetail } from "@/lib/data/course-details-data";
+import type { CourseDetail } from "@/types/course-detail";
 
 interface CourseContentProps {
   course: CourseDetail;
@@ -15,6 +15,17 @@ interface CourseContentProps {
 export default function CourseContent({ course, sectionRefs }: CourseContentProps) {
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [expandedFAQs, setExpandedFAQs] = useState<string[]>([]);
+
+  const safeArray = <T,>(value: T[] | undefined | null): T[] => (Array.isArray(value) ? value : []);
+
+  const whoIsFor = safeArray(course.whoIsFor);
+  const whoIsNotFor = safeArray(course.whoIsNotFor);
+  const highlights = safeArray(course.highlights);
+  const requirements = safeArray(course.requirements);
+  const learningOutcomes = safeArray(course.learningOutcomes);
+  const faqs = safeArray(course.faqs);
+  const modules = safeArray(course.modules);
+  const reviews = safeArray(course.reviews);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev =>
@@ -46,16 +57,23 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
         <h2 className="mb-5 text-2xl font-bold text-gray-900">Course Preview</h2>
         <Card className="overflow-hidden">
           <div className="aspect-video w-full bg-black">
-            <video 
-              controls 
-              className="h-full w-full"
-            >
-              <source 
-                src="https://uutgcpvxpdgmnfdudods.supabase.co/storage/v1/object/public/Immigreat%20site%20assets/Chapter%202%20Final.mp4" 
-                type="video/mp4" 
-              />
-              Your browser does not support the video tag.
-            </video>
+            {course.previewVideoUrl ? (
+              <video 
+                controls 
+                className="h-full w-full"
+                poster={course.previewThumbnail}
+              >
+                <source 
+                  src={course.previewVideoUrl} 
+                  type="video/mp4" 
+                />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="flex h-full items-center justify-center bg-gradient-to-br from-amber-50 via-white to-orange-50 text-center">
+                <p className="px-4 text-sm text-gray-600">Preview coming soon</p>
+              </div>
+            )}
           </div>
         </Card>
       </section>
@@ -77,7 +95,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
                 <h4 className="font-medium">Perfect for</h4>
               </div>
               <ul className="space-y-2">
-                {course.whoIsFor.map((item, idx) => (
+                {whoIsFor.map((item, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
                     <span className="text-gray-400">•</span>
                     <span>{item}</span>
@@ -91,7 +109,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
                 <h4 className="font-medium">Not for</h4>
               </div>
               <ul className="space-y-2">
-                {course.whoIsNotFor.map((item, idx) => (
+                {whoIsNotFor.map((item, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
                     <span className="text-gray-400">•</span>
                     <span>{item}</span>
@@ -105,7 +123,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
         <Card className="p-6">
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Course highlights</h3>
           <div className="grid gap-2.5 sm:grid-cols-2">
-            {course.highlights.map((highlight, idx) => (
+            {highlights.map((highlight, idx) => (
               <div key={idx} className="flex items-start gap-2.5">
                 <div className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500" />
                 <span className="text-sm text-gray-700 leading-relaxed">{highlight}</span>
@@ -127,50 +145,54 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
         </div>
 
         <div className="space-y-3">
-          {course.modules.map((module) => (
-            <Card key={module.id} className="overflow-hidden">
-              <button
-                onClick={() => toggleModule(module.id)}
-                className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-50"
-              >
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{module.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {module.lessons.length} lessons • {formatDuration(module.totalDuration)}
-                  </p>
-                </div>
-                {expandedModules.includes(module.id) ? (
-                  <ChevronUp className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                )}
-              </button>
+          {modules.map((module) => {
+            const moduleLessons = safeArray(module.lessons);
 
-              {expandedModules.includes(module.id) && (
-                <div className="border-t bg-gray-50/50 p-4">
-                  <p className="mb-4 text-sm text-gray-600 leading-relaxed">{module.description}</p>
-                  <div className="space-y-2">
-                    {module.lessons.map((lesson) => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-center justify-between rounded-lg bg-white p-3 hover:shadow-sm transition"
-                      >
-                        <span className="text-sm text-gray-700">{lesson.title}</span>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <Clock className="h-3 w-3" />
-                          {lesson.duration}m
-                        </span>
-                      </div>
-                    ))}
+            return (
+              <Card key={module.id} className="overflow-hidden">
+                <button
+                  onClick={() => toggleModule(module.id)}
+                  className="flex w-full items-center justify-between p-4 text-left transition hover:bg-gray-50"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{module.title}</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {moduleLessons.length} lessons • {formatDuration(module.totalDuration)}
+                    </p>
                   </div>
-                  <div className="mt-4 rounded-lg bg-amber-50 p-3 border border-amber-100">
-                    <p className="text-sm font-medium text-amber-900">Learning Outcome</p>
-                    <p className="mt-1 text-sm text-amber-800 leading-relaxed">{module.outcome}</p>
+                  {expandedModules.includes(module.id) ? (
+                    <ChevronUp className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                  )}
+                </button>
+
+                {expandedModules.includes(module.id) && (
+                  <div className="border-t bg-gray-50/50 p-4">
+                    <p className="mb-4 text-sm text-gray-600 leading-relaxed">{module.description}</p>
+                    <div className="space-y-2">
+                      {moduleLessons.map((lesson) => (
+                        <div
+                          key={lesson.id}
+                          className="flex items-center justify-between rounded-lg bg-white p-3 hover:shadow-sm transition"
+                        >
+                          <span className="text-sm text-gray-700">{lesson.title}</span>
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="h-3 w-3" />
+                            {lesson.duration}m
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 rounded-lg bg-amber-50 p-3 border border-amber-100">
+                      <p className="text-sm font-medium text-amber-900">Learning Outcome</p>
+                      <p className="mt-1 text-sm text-amber-800 leading-relaxed">{module.outcome}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </Card>
-          ))}
+                )}
+              </Card>
+            );
+          })}
         </div>
       </section>
 
@@ -179,7 +201,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
         <h2 className="mb-5 text-2xl font-bold text-gray-900">What you&apos;ll learn</h2>
         <Card className="p-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            {course.learningOutcomes.map((outcome, idx) => (
+            {learningOutcomes.map((outcome, idx) => (
               <div key={idx} className="flex items-start gap-3">
                 <div className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-green-100">
                   <span className="text-sm text-green-600 font-semibold">✓</span>
@@ -196,7 +218,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
         <h2 className="mb-5 text-2xl font-bold text-gray-900">Requirements</h2>
         <Card className="p-6">
           <ul className="space-y-3">
-            {course.requirements.map((req, idx) => (
+            {requirements.map((req, idx) => (
               <li key={idx} className="flex items-start gap-3">
                 <div className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-gray-400" />
                 <span className="text-gray-700 leading-relaxed">{req}</span>
@@ -210,7 +232,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
       <section ref={(el) => { sectionRefs.current.faq = el; }} id="faq">
         <h2 className="mb-5 text-2xl font-bold text-gray-900">Frequently asked questions</h2>
         <div className="space-y-3">
-          {course.faqs.map((faq) => (
+          {faqs.map((faq) => (
             <Card key={faq.id} className="overflow-hidden">
               <button
                 onClick={() => toggleFAQ(faq.id)}
@@ -242,9 +264,9 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
           </Badge>
         </div>
         
-        {course.reviews && course.reviews.length > 0 ? (
+        {reviews.length > 0 ? (
           <div className="space-y-4">
-            {course.reviews.map((review) => (
+            {reviews.slice(0, 5).map((review) => (
               <Card key={review.id} className="p-5">
                 <div className="mb-3 flex items-start justify-between">
                   <div className="flex-1">

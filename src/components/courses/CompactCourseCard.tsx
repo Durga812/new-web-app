@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart-store";
 import { useEnrollmentStore } from "@/stores/enrollment-store";
-import { SeriesMetadata } from "@/lib/data/series-metadata";
+import type { NormalizedSeriesMetadata } from "@/types/catalog";
 
 type CoursePricing = {
   price: number;
@@ -37,7 +37,7 @@ type Course = {
 
 interface CompactCourseCardProps {
   course: Course;
-  metadata?: SeriesMetadata;
+  metadata?: NormalizedSeriesMetadata;
 }
 
 const formatPrice = (value: number) =>

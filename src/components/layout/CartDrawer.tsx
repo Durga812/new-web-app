@@ -1,13 +1,12 @@
 // src/components/layout/CartDrawer.tsx
 "use client";
 
-import { useMemo, useState, useTransition, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, useTransition, type MouseEvent } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { X, ShoppingCart, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart-store";
 import { useShallow } from "zustand/react/shallow";
-import { courses as courseCatalog } from "@/lib/data/courses-data";
 import { calculateCartDiscounts } from "@/lib/pricing/discounts";
 import { createCheckoutSession } from "@/lib/stripe/create-checkout-session";
 
@@ -33,13 +32,86 @@ export function CartDrawer() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, startTransition] = useTransition();
 
-  const courseTitleLookup = useMemo(() => {
-    const lookup = new Map<string, string>();
-    courseCatalog.forEach(course => {
-      lookup.set(course.course_id, course.title);
+  const [courseLookup, setCourseLookup] = useState<Record<string, { title: string }>>({});
+
+  const normalizeId = (value?: string | null) => {
+    if (!value) return '';
+    const trimmed = value.trim();
+    return trimmed;
+  };
+
+  useEffect(() => {
+    if (!isOpen || items.length === 0) {
+      return;
+    }
+
+    const courseIds = new Set<string>();
+    items.forEach(item => {
+      if (item.type === "course") {
+        const normalized = normalizeId(item.productId);
+        if (normalized) {
+          courseIds.add(normalized);
+        }
+      }
+      item.includedCourseIds?.forEach(courseId => {
+        const normalized = normalizeId(courseId);
+        if (normalized) {
+          courseIds.add(normalized);
+        }
+      });
     });
-    return lookup;
-  }, []);
+
+    const missingIds = Array.from(courseIds).filter(id => !courseLookup[id]);
+
+    if (missingIds.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetch('/api/catalog/course-titles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: missingIds }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch course titles: ${response.status}`)
+        }
+        return response.json() as Promise<{ courses?: Array<{ course_id?: string; title?: string }> }>
+      })
+      .then((payload) => {
+        if (isCancelled || !payload?.courses) {
+          return
+        }
+
+        setCourseLookup((prev) => {
+          const next = { ...prev }
+          for (const course of payload.courses ?? []) {
+            if (!course) continue
+            const rawId = typeof course.course_id === 'string' ? course.course_id : ''
+            const normalized = normalizeId(rawId)
+            if (!normalized) continue
+            const title = typeof course.title === 'string' && course.title.trim().length > 0
+              ? course.title.trim()
+              : normalized
+            next[normalized] = { title }
+          }
+          return next
+        })
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          console.error('Failed to load course data for cart', error)
+        }
+      })
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, items, courseLookup]);
 
   const discountSummary = useMemo(() => calculateCartDiscounts(items), [items]);
   const { subtotal, qualifyingCount, discountRate, discountAmount, total, upcomingTier } = discountSummary;
@@ -130,10 +202,13 @@ export function CartDrawer() {
                 const isBundle = item.type === "bundle";
                 const bundleExpanded = expandedBundles[item.id] ?? false;
                 const includedCourses = isBundle
-                  ? item.includedCourseIds?.map(courseId => ({
-                      id: courseId,
-                      title: courseTitleLookup.get(courseId) ?? courseId,
-                    }))
+                  ? item.includedCourseIds?.map(courseId => {
+                      const normalized = normalizeId(courseId);
+                      return {
+                        id: courseId,
+                        title: normalized ? (courseLookup[normalized]?.title ?? normalized) : courseId ?? '',
+                      };
+                    })
                   : undefined;
 
                 return (

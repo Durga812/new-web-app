@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 export type RelatedCourse = {
   course_id: string;
   course_slug?: string;
+  slug?: string;
   title: string;
   image_url?: string;
   series: string;
@@ -25,6 +26,7 @@ export type RelatedCourse = {
 export type RelatedBundle = {
   bundle_id: string;
   bundle_slug?: string;
+  slug?: string;
   title: string;
   image_url?: string;
   included_course_ids: string[];
@@ -74,7 +76,7 @@ export default function RelatedSection({
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {relatedBundles.slice(0, 3).map((bundle) => (
                 <Card key={bundle.bundle_id} className="group overflow-hidden hover:shadow-md transition-shadow">
-                  <Link href={`/bundles/${bundle.bundle_slug || bundle.bundle_id}`}>
+                  <Link href={`/bundle/${bundle.bundle_slug || bundle.slug || bundle.bundle_id}`}>
                     <div className="relative h-36 overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
                       {bundle.image_url ? (
                         <Image
@@ -142,7 +144,7 @@ export default function RelatedSection({
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {relatedCourses.slice(0, 3).map((course) => (
                 <Card key={course.course_id} className="group overflow-hidden hover:shadow-md transition-shadow">
-                  <Link href={`/courses/${course.course_slug || course.course_id}`}>
+                  <Link href={`/course/${course.course_slug || course.slug || course.course_id}`}>
                     <div className="relative h-36 overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50">
                       {course.image_url ? (
                         <Image

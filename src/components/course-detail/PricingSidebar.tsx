@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/stores/cart-store";
 import { useEnrollmentStore } from "@/stores/enrollment-store";
-import type { CourseDetail } from "@/lib/data/course-details-data";
+import type { CourseDetail } from "@/types/course-detail";
 
 interface PricingSidebarProps {
   course: CourseDetail;

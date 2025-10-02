@@ -41,3 +41,25 @@ export type RelatedBundle = {
     validity_type: string;
   };
 };
+
+export type RawSeriesMetadata = {
+  slug: string;
+  display_name?: string | null;
+  subtitle?: string | null;
+  tooltip_content?: string | null;
+  display_order?: number | null;
+  bg_color?: string | null;
+  accent_color?: string | null;
+};
+
+export type NormalizedSeriesMetadata = {
+  slug: string;
+  displayName: string;
+  subtitle?: string;
+  tooltipContent?: string;
+  order: number;
+  bgColor?: string;
+  accentColor?: string;
+};
+
+export type SeriesMetadataMap = Record<string, NormalizedSeriesMetadata>;

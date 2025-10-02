@@ -1,65 +1,69 @@
 // src/app/course/[course_slug]/page.tsx
-import { notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { getCourseDetailBySlug } from "@/lib/data/course-details-data";
-import { courses, bundles } from "@/lib/data/courses-data";
-import { supabase } from "@/lib/supabase/server";
-import { EnrollmentProvider } from "@/components/providers/EnrollmentProvider";
-import CourseDetailClient from "./CourseDetailClient";
+import { notFound } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
+import { getCourseBySlug, getRelatedCourses, getRelatedBundles } from '@/lib/isr/data-isr'
+import { supabase } from '@/lib/supabase/server'
+import { EnrollmentProvider } from '@/components/providers/EnrollmentProvider'
+import CourseDetailClient from './CourseDetailClient'
 
 interface CourseDetailPageProps {
   params: Promise<{
-    course_slug: string;
-  }>;
+    course_slug: string
+  }>
+}
+
+export async function generateMetadata({ params }: CourseDetailPageProps) {
+  const { course_slug } = await params
+  const course = await getCourseBySlug(course_slug)
+
+  if (!course) {
+    return { title: 'Course Not Found - Immigreat.ai' }
+  }
+
+  return {
+    title: `${course.title} - Immigreat.ai`,
+    description: course.subtitle || course.description,
+  }
 }
 
 export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
-  const { course_slug } = await params;
-  const courseDetail = getCourseDetailBySlug(course_slug);
+  const { course_slug } = await params
+  const course = await getCourseBySlug(course_slug)
 
-  if (!courseDetail) {
-    notFound();
+  if (!course) {
+    notFound()
   }
 
-  const { userId } = await auth();
+  // Fetch related content
+  const relatedCourseIds = course.relatedCourseIds || []
+  const relatedBundleIds = course.relatedBundleIds || []
 
-  let purchasedProductIds: string[] = [];
-  let purchasedEnrollIds: string[] = [];
+  const [relatedCourses, relatedBundles] = await Promise.all([
+    getRelatedCourses(relatedCourseIds),
+    getRelatedBundles(relatedBundleIds)
+  ])
+
+  // Get user enrollments
+  const { userId } = await auth()
+  let purchasedProductIds: string[] = []
+  let purchasedEnrollIds: string[] = []
 
   if (userId) {
-    const { data, error } = await supabase
-      .from("user_enrollments_test")
-      .select("product_id,enroll_id,enrollment_status")
-      .eq("clerk_id", userId);
+    const { data } = await supabase
+      .from('user_enrollments_test')
+      .select('product_id,enroll_id,enrollment_status')
+      .eq('clerk_id', userId)
 
-    if (error) {
-      console.error("Failed to load purchased enrollments for course detail", { userId, error });
-    } else if (data) {
-      const successful = data.filter(record => record.enrollment_status === "success");
-      purchasedProductIds = Array.from(
-        new Set(
-          successful
-            .map(record => record.product_id)
-            .filter((value): value is string => Boolean(value && value.trim())),
-        ),
-      );
-      purchasedEnrollIds = Array.from(
-        new Set(
-          successful
-            .map(record => record.enroll_id)
-            .filter((value): value is string => Boolean(value && value.trim())),
-        ),
-      );
+    if (data) {
+      const successful = data.filter(r => r.enrollment_status === 'success')
+      purchasedProductIds = Array.from(new Set(
+        successful.map(r => r.product_id).filter(Boolean)
+      ))
+      purchasedEnrollIds = Array.from(new Set(
+        successful.map(r => r.enroll_id).filter(Boolean)
+      ))
     }
   }
-
-  // Get related courses and bundles
-  const relatedCourses = courses.filter(c => 
-    courseDetail.relatedCourseIds.includes(c.course_id)
-  );
-  const relatedBundles = bundles.filter(b => 
-    courseDetail.relatedBundleIds.includes(b.bundle_id)
-  );
 
   return (
     <EnrollmentProvider
@@ -67,10 +71,10 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
       enrollIds={purchasedEnrollIds}
     >
       <CourseDetailClient 
-        course={courseDetail} 
+        course={course}
         relatedCourses={relatedCourses}
         relatedBundles={relatedBundles}
       />
     </EnrollmentProvider>
-  );
+  )
 }

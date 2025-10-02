@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CourseDetail } from "@/lib/data/course-details-data";
+import type { CourseDetail } from "@/types/course-detail";
 import CourseHero from "@/components/course-detail/CourseHero";
 import PricingSidebar from "@/components/course-detail/PricingSidebar";
 import CourseTabs from "@/components/course-detail/CourseTabs";

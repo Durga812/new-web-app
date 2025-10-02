@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Info } from "lucide-react";
-import { SeriesMetadata } from "@/lib/data/series-metadata";
+import type { NormalizedSeriesMetadata } from "@/types/catalog";
 import { CompactCourseCard } from "./CompactCourseCard";
 
 type CoursePricing = {
@@ -33,7 +33,7 @@ type Course = {
 
 interface SeriesColumnProps {
   series: string;
-  metadata?: SeriesMetadata;
+  metadata?: NormalizedSeriesMetadata;
   courses: Course[];
 }
 

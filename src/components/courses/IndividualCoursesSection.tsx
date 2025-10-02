@@ -3,8 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Filter, Search } from "lucide-react";
-import { seriesMetadata } from "@/lib/data/series-metadata";
 import { SeriesColumn } from "./SeriesColumn";
+import type { NormalizedSeriesMetadata } from "@/types/catalog";
 
 type CoursePricing = {
   price: number;
@@ -34,14 +34,15 @@ type Course = {
 interface IndividualCoursesSectionProps {
   category: string;
   courses: Course[];
+  seriesMetadata: Record<string, NormalizedSeriesMetadata>;
 }
 
 export function IndividualCoursesSection({
-  category,
   courses,
+  seriesMetadata: seriesMetadataMap,
 }: IndividualCoursesSectionProps) {
   // Get series metadata for this category
-  const categorySeriesInfo = useMemo(() => seriesMetadata[category] || {}, [category]);
+  const categorySeriesInfo = seriesMetadataMap;
   
   // Extract unique series and tags from courses
   const seriesOptions = useMemo(() => {
@@ -52,8 +53,8 @@ export function IndividualCoursesSection({
       }
     });
     return Array.from(set).sort((a, b) => {
-      const orderA = categorySeriesInfo[a]?.order || 999;
-      const orderB = categorySeriesInfo[b]?.order || 999;
+      const orderA = categorySeriesInfo[a]?.order ?? 999;
+      const orderB = categorySeriesInfo[b]?.order ?? 999;
       return orderA - orderB;
     });
   }, [courses, categorySeriesInfo]);

@@ -6,7 +6,7 @@ import { Star, Share2, Clock, BookOpen, Award, Check, Twitter, Linkedin, Faceboo
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useEnrollmentStore } from "@/stores/enrollment-store";
-import type { CourseDetail } from "@/lib/data/course-details-data";
+import type { CourseDetail } from "@/types/course-detail";
 
 interface CourseHeroProps {
   course: CourseDetail;
@@ -21,6 +21,9 @@ export default function CourseHero({ course }: CourseHeroProps) {
   const isPurchased = useMemo(() => {
     return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
   }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
+
+  const tags = Array.isArray(course.tags) ? course.tags : [];
+  const keyBenefits = Array.isArray(course.keyBenefits) ? course.keyBenefits : [];
 
   const courseUrl = typeof window !== "undefined" ? window.location.href : "";
 
@@ -82,11 +85,11 @@ export default function CourseHero({ course }: CourseHeroProps) {
               <Check className="mr-1 h-3 w-3" /> Owned
             </Badge>
           )}
-          {course.tags.slice(0, 2).map((tag) => (
-            <Badge key={tag} variant="outline" className="border-gray-200 text-gray-600 text-xs">
-              #{tag}
-            </Badge>
-          ))}
+        {tags.slice(0, 2).map((tag: string) => (
+          <Badge key={tag} variant="outline" className="border-gray-200 text-gray-600 text-xs">
+            #{tag}
+          </Badge>
+        ))}
         </div>
 
         {/* Title Section with Share */}
@@ -155,7 +158,7 @@ export default function CourseHero({ course }: CourseHeroProps) {
         
         {/* Key Benefits */}
         <ul className="mb-5 space-y-2">
-          {course.keyBenefits.slice(0, 3).map((benefit, idx) => (
+          {keyBenefits.slice(0, 3).map((benefit: string, idx: number) => (
             <li key={idx} className="flex items-start gap-2 text-gray-700">
               <Award className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
               <span className="text-sm">{benefit}</span>
