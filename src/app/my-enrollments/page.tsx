@@ -28,6 +28,7 @@ type EnrichedEnrollment = EnrollmentRow & {
   image_url?: string;
   total_lessons?: number;
   total_duration?: number;
+  slug?: string;
   tags?: string[];
   included_course_ids?: string[];
   included_courses?: Array<{
@@ -40,6 +41,26 @@ type EnrichedEnrollment = EnrollmentRow & {
     rating: number;
     feedback?: string;
   };
+};
+
+type RawCourseRow = {
+  course_id: string;
+  title: string;
+  category?: string | null;
+  image_url?: string | null;
+  tags?: string[] | null;
+  details?: unknown;
+  slug?: string | null;
+};
+
+type RawBundleRow = {
+  bundle_id: string;
+  title: string;
+  category?: string | null;
+  image_url?: string | null;
+  tags?: string[] | null;
+  included_course_ids?: string[] | null;
+  slug?: string | null;
 };
 
 export const metadata = {
@@ -105,11 +126,13 @@ async function enrichEnrollments(
   if (courseIds.length > 0) {
     const { data: courses } = await supabase
       .from('courses')
-      .select('course_id, title, category, image_url, tags, details')
+      .select('course_id, title, category, image_url, tags, details, slug')
       .in('course_id', courseIds);
 
+    const typedCourses: RawCourseRow[] = Array.isArray(courses) ? (courses as RawCourseRow[]) : [];
+
     for (const enrollment of enrollments.filter(e => e.product_type === 'course')) {
-      const courseData = courses?.find(c => c.course_id === enrollment.product_id);
+      const courseData = typedCourses.find(c => c.course_id === enrollment.product_id);
       const userReview = reviewsMap.get(enrollment.product_id);
       
       if (courseData) {
@@ -124,10 +147,11 @@ async function enrichEnrollments(
         
         enriched.push({
           ...enrollment,
-          category: courseData.category,
-          image_url: courseData.image_url,
+          category: courseData.category ?? undefined,
+          image_url: courseData.image_url ?? undefined,
           total_lessons: curriculum.totalLessons || 0,
           total_duration: curriculum.totalDuration || 0,
+          slug: courseData.slug || undefined,
           tags: courseData.tags || [],
           has_reviewed: !!userReview,
           user_review: userReview,
@@ -145,11 +169,13 @@ async function enrichEnrollments(
   if (bundleIds.length > 0) {
     const { data: bundles } = await supabase
       .from('bundles')
-      .select('bundle_id, title, category, image_url, tags, included_course_ids')
+      .select('bundle_id, title, category, image_url, tags, included_course_ids, slug')
       .in('bundle_id', bundleIds);
 
+    const typedBundles: RawBundleRow[] = Array.isArray(bundles) ? (bundles as RawBundleRow[]) : [];
+
     for (const enrollment of enrollments.filter(e => e.product_type === 'bundle')) {
-      const bundleData = bundles?.find(b => b.bundle_id === enrollment.product_id);
+      const bundleData = typedBundles.find(b => b.bundle_id === enrollment.product_id);
       
       if (bundleData) {
         let includedCourses: Array<{ course_id: string; title: string; image_url?: string }> = [];
@@ -165,8 +191,9 @@ async function enrichEnrollments(
         
         enriched.push({
           ...enrollment,
-          category: bundleData.category,
-          image_url: bundleData.image_url,
+          category: bundleData.category ?? undefined,
+          image_url: bundleData.image_url ?? undefined,
+          slug: bundleData.slug || undefined,
           tags: bundleData.tags || [],
           included_course_ids: bundleData.included_course_ids || [],
           included_courses: includedCourses,

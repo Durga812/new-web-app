@@ -49,10 +49,18 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
   let purchasedEnrollIds: string[] = []
 
   if (userId) {
+    type EnrollmentIdRow = {
+      product_id: string | null
+      enroll_id: string | null
+      enrollment_status: string | null
+      status: string | null
+    }
+
     const { data } = await supabase
-      .from('user_enrollments_test')
-      .select('product_id,enroll_id,enrollment_status')
-      .eq('clerk_id', userId)
+      .from('enrollments')
+      .select('product_id,enroll_id,enrollment_status,status')
+      .eq('clerk_user_id', userId)
+      .eq('status', 'active')
 
     if (data) {
       const successful = data.filter(r => r.enrollment_status === 'success')

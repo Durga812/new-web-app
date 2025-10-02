@@ -12,11 +12,9 @@ import {
   ChevronDown,
   Sparkles,
   Zap,
-  Users,
-  ChartBar,
   Star,
   Crown,
-  X
+  ChartBar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +22,20 @@ import { Badge } from '@/components/ui/badge';
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const discountTiers = [
+    { threshold: 40, rate: 0.27, name: "Extraordinary" },
+    { threshold: 20, rate: 0.16, name: "Visionary" },
+    { threshold: 10, rate: 0.11, name: "Leader" },
+    { threshold: 5, rate: 0.06, name: "Foundation" }
+  ];
+
+  const bundleCategories = [
+    { name: "EB-1A", path: "/courses/eb1a" },
+    { name: "EB2-NIW", path: "/courses/eb2-niw" },
+    { name: "EB-5", path: "/courses/eb5" },
+    { name: "O-1", path: "/courses/o1" }
+  ];
 
   const faqs = [
     {
@@ -95,64 +107,79 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Offerings Section with more spacing */}
+      {/* Offerings Section - Updated with Two Cards */}
       <section className="py-24 lg:py-32 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-50/20 to-transparent" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-5xl font-bold mb-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold mb-4 sm:mb-6 px-4">
               <span className="bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
                 Our Offerings
               </span>
             </h2>
-            <p className="text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-4">
               Choose the perfect learning path for your immigration journey
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 max-w-6xl mx-auto">
             {/* Individual Course Card */}
-            <Card className="relative bg-white/70 backdrop-blur-lg border border-gray-200/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 group">
-              <CardContent className="p-6 lg:p-8">
+            <Card className="relative bg-white/80 backdrop-blur-lg border border-gray-200/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 lg:hover:-translate-y-3 group">
+              <CardContent className="p-5 sm:p-6 lg:p-8">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <Zap className="h-7 w-7 text-gray-600" />
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Zap className="h-6 w-6 sm:h-7 sm:w-7 text-gray-600" />
                   </div>
-                  <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Individual Course</h3>
-                  <p className="text-gray-600 mb-6">Perfect for focused learning</p>
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Individual Course</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Perfect for focused learning</p>
                   
-                  <div className="mb-8">
+                  <div className="mb-6 sm:mb-8">
                     <div className="flex items-baseline justify-center gap-2">
-                      <span className="text-4xl lg:text-5xl font-bold text-gray-700">$299</span>
+                      <span className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-700">$299</span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">per course • 3 months</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-2">per course</p>
                   </div>
 
-                  <div className="space-y-3 mb-8 text-left">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">1 Course Access</span>
+                  <div className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 text-left">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-600">Single course access</span>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">3 Months Validity</span>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-600">Multiple validity options (3, 6, 9 months)</span>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">Self-paced learning</span>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-600">Self-paced learning</span>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <X className="h-5 w-5 text-gray-300 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-400">No bundle discount</span>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-600">Auto discounts at checkout (5+ courses)</span>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <X className="h-5 w-5 text-gray-300 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-400">Limited support</span>
+                  </div>
+
+                  {/* Discount Tiers */}
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 border border-gray-200">
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 sm:mb-4">Volume Discounts</p>
+                    <div className="space-y-2">
+                      {discountTiers.map((tier) => (
+                        <div key={tier.threshold} className="flex items-center justify-between text-xs sm:text-sm">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 flex-shrink-0" />
+                            <span className="text-gray-700 font-medium">{tier.threshold}+ courses</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="text-green-600 font-bold">{(tier.rate * 100).toFixed(0)}% OFF</span>
+                            <span className="text-xs text-gray-500 hidden sm:inline">({tier.name})</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <Link href="/courses" className="block">
-                    <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white">
+                    <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white text-sm sm:text-base">
                       Get Started
                     </Button>
                   </Link>
@@ -160,139 +187,67 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Build Your Own Bundle Card */}
-            <Card className="relative bg-white/80 backdrop-blur-lg border border-amber-300/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 group">
-              <CardContent className="p-6 lg:p-8">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
-                    <Users className="h-7 w-7 text-amber-700" />
-                  </div>
-                  <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Build Your Bundle</h3>
-                  <p className="text-gray-600 mb-6">Flexible multi-course packages</p>
-                  
-                  {/* Bundle Options */}
-                  <div className="space-y-3 mb-6">
-                    <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 backdrop-blur rounded-lg p-3 border border-amber-200/50">
-                      <div className="flex items-center justify-between">
-                        <div className="text-left">
-                          <p className="font-bold text-gray-900 text-sm">5 Courses</p>
-                          <p className="text-xs text-gray-500">6 months</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-bold text-amber-600">$1,299</p>
-                          <p className="text-xs text-green-600 font-medium">Save 13%</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gradient-to-r from-amber-50/80 to-orange-50/80 backdrop-blur rounded-lg p-3 border border-amber-200/50">
-                      <div className="flex items-center justify-between">
-                        <div className="text-left">
-                          <p className="font-bold text-gray-900 text-sm">10 Courses</p>
-                          <p className="text-xs text-gray-500">9 months</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-bold text-amber-600">$2,499</p>
-                          <p className="text-xs text-green-600 font-medium">Save 16%</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 mb-8 text-left">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">Choose any courses</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">Extended validity</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">Bundle discounts</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-600">Priority support</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <X className="h-5 w-5 text-gray-300 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-400">No expert curation</span>
-                    </div>
-                  </div>
-
-                  <Link href="/courses/eb1a/build-your-bundle" className="block">
-                    <Button className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white">
-                      Build EB1A Bundle
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Curated Bundle Card - MOST VALUED */}
-            <Card className="relative bg-gradient-to-br from-amber-50/90 via-orange-50/90 to-amber-50/90 backdrop-blur-lg border-2 border-amber-400 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:-translate-y-3 group transform scale-105 lg:scale-110">
+            {/* Curated Bundles Card - MOST VALUED */}
+            <Card className="relative bg-gradient-to-br from-amber-50/90 via-orange-50/90 to-amber-50/90 backdrop-blur-lg border-2 border-amber-400 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:-translate-y-2 lg:hover:-translate-y-3 group">
               {/* Best Value Badge */}
-              <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
-                <Badge className="px-6 py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-white border-0 shadow-lg animate-pulse">
-                  <Crown className="mr-2 h-4 w-4" />
+              <div className="absolute -top-4 sm:-top-5 left-1/2 transform -translate-x-1/2 z-10">
+                <Badge className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-white border-0 shadow-lg animate-pulse text-xs sm:text-sm">
+                  <Crown className="mr-1.5 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                   BEST VALUE
                 </Badge>
               </div>
               
-              <CardContent className="p-6 lg:p-8 pt-10">
+              <CardContent className="p-5 sm:p-6 lg:p-8 pt-8 sm:pt-10">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <Star className="h-7 w-7 text-white" />
+                  <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <Star className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
                   </div>
-                  <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Curated Bundles</h3>
-                  <p className="text-gray-600 mb-6">Expert-designed complete paths</p>
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Curated Bundles</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">Expert-designed complete paths</p>
                   
-                  {/* Featured Bundle */}
-                  <div className="bg-white/80 backdrop-blur rounded-xl p-4 mb-6 border border-amber-300/50 shadow-inner">
-                    <p className="text-xs text-amber-600 font-bold mb-1 uppercase tracking-wide">Featured: EB-1A PATH</p>
-                    <div className="mb-3">
-                      <div className="flex items-baseline justify-center gap-2">
-                        <span className="text-3xl lg:text-4xl font-bold text-amber-600">$2,999</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">15 courses • 12 months</p>
-                      <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-green-100 rounded-full">
-                        <Sparkles className="h-3 w-3 text-green-600" />
-                        <p className="text-sm text-green-700 font-bold">Save $1,500 (33%)</p>
-                      </div>
+                  {/* Discount Highlight */}
+                  <div className="bg-white/80 backdrop-blur rounded-xl p-3 sm:p-4 mb-6 sm:mb-8 border border-amber-300/50 shadow-inner">
+                    <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full mb-2">
+                      <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                      <p className="text-base sm:text-lg text-green-700 font-bold">Save up to 33%</p>
+                    </div>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-2">On complete pathway bundles</p>
+                  </div>
+
+                  <div className="space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 text-left">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 font-medium">Complete pathway coverage</span>
+                    </div>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 font-medium">Expert-curated sequence</span>
+                    </div>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 font-medium">Maximum savings (33%)</span>
+                    </div>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 font-medium">12-month validity</span>
+                    </div>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 font-medium">Premium support included</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-8 text-left">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 font-medium">Complete pathway coverage</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 font-medium">Expert-curated sequence</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 font-medium">Maximum savings (33%)</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 font-medium">12 months validity</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-gray-700 font-medium">Premium support included</span>
-                    </div>
+                  {/* Category CTAs */}
+                  <div className="space-y-2.5 sm:space-y-3">
+                    {bundleCategories.map((category) => (
+                      <Link key={category.name} href={category.path} className="block">
+                        <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center text-sm sm:text-base">
+                          Explore {category.name} Bundles
+                          <ArrowRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                      </Link>
+                    ))}
                   </div>
-
-                  <Link href="/courses" className="block">
-                    <Button className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 hover:from-amber-600 hover:via-orange-600 hover:to-amber-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                      Explore All Courses
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
                 </div>
               </CardContent>
             </Card>

@@ -1,6 +1,7 @@
 // src/components/courses/CuratedBundlesSection.tsx
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,8 @@ import { useEnrollmentStore } from "@/stores/enrollment-store";
 
 type Bundle = {
   title: string;
+  slug?: string;
+  bundle_slug?: string;
   bundle_id: string;
   enroll_id: string;
   included_course_ids: string[];
@@ -135,6 +138,7 @@ function BundleCard({
   const savingsPercent = bundle.pricing.compared_price
     ? Math.round((1 - bundle.pricing.price / bundle.pricing.compared_price) * 100)
     : 0;
+  const bundleHref = `/bundle/${bundle.bundle_slug || bundle.slug || bundle.bundle_id}`;
 
   const addItemToCart = useCartStore(state => state.addItem);
   const isInCart = useCartStore(state => state.items.some(item => item.id === bundle.bundle_id));
@@ -173,7 +177,11 @@ function BundleCard({
       isPurchased ? 'border-emerald-200' : 'border-gray-200'
     }`}>
       {/* Media & Badges */}
-      <div className="relative h-36 overflow-hidden bg-gradient-to-br from-amber-100 via-white to-orange-100">
+      <Link
+        href={bundleHref}
+        className="relative block h-36 overflow-hidden bg-gradient-to-br from-amber-100 via-white to-orange-100"
+        aria-label={`View ${bundle.title}`}
+      >
         {bundle.image_url ? (
           <Image
             src={bundle.image_url}
@@ -220,12 +228,17 @@ function BundleCard({
           )}
         </div>
 
-      </div>
+      </Link>
 
       {/* Content */}
       <div className="flex flex-1 flex-col gap-4 p-4">
         <h3 className="text-base font-semibold text-gray-900 line-clamp-2">
-          {bundle.title}
+          <Link
+            href={bundleHref}
+            className="transition-colors duration-200 hover:text-amber-600"
+          >
+            {bundle.title}
+          </Link>
         </h3>
 
         {/* Bundle Details */}

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Check, Star, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,8 @@ type CoursePricing = {
 
 type Course = {
   title: string;
+  slug?: string;
+  course_slug?: string;
   course_id: string;
   enroll_id: string;
   type: string;
@@ -103,6 +106,8 @@ export function CompactCourseCard({
     return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
   }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
 
+  const detailHref = `/course/${course.course_slug || course.slug || course.course_id}`;
+
   const handleAddToCart = () => {
     if (!selectedOption || isInCart || isPurchased) return;
 
@@ -150,7 +155,11 @@ export function CompactCourseCard({
       isPurchased ? 'border-emerald-200' : 'border-gray-200'
     }`}>
       {/* Card Header with Image */}
-      <div className="relative h-36 overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-100 to-gray-50">
+      <Link
+        href={detailHref}
+        className="relative block h-36 overflow-hidden rounded-t-lg bg-gradient-to-br from-gray-100 to-gray-50"
+        aria-label={`View ${course.title}`}
+      >
         {course.image_url ? (
           <Image
             src={course.image_url}
@@ -194,13 +203,18 @@ export function CompactCourseCard({
             </Badge>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Card Body */}
       <div className="p-3">
         {/* Title */}
-        <h3 className="mb-2 text-sm h-10 font-semibold text-gray-900 line-clamp-2">
-          {course.title}
+        <h3 className="mb-2 h-10 text-sm font-semibold text-gray-900">
+          <Link
+            href={detailHref}
+            className="line-clamp-2 transition-colors duration-200 hover:text-amber-600"
+          >
+            {course.title}
+          </Link>
         </h3>
 
         {/* Pricing Options */}

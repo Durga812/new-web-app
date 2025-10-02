@@ -19,6 +19,7 @@ type EnrichedEnrollment = {
   image_url?: string;
   total_lessons?: number;
   total_duration?: number;
+  slug?: string;
   tags?: string[];
   enrolled_at: string;
   expires_at: string;
@@ -226,11 +227,11 @@ function EnrollmentCard({
 
   const courseUrl = `https://courses.greencardiy.com/program/${enrollment.enroll_id}`;
   const detailPageUrl = isBundle 
-    ? `/bundle/${enrollment.product_id}` 
-    : `/course/${enrollment.product_id}`;
+    ? `/bundle/${enrollment.slug || enrollment.product_id}` 
+    : `/course/${enrollment.slug || enrollment.product_id}`;
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:shadow-lg">
+    <Card className="group flex h-full pt-0 flex-col overflow-hidden transition-all hover:shadow-lg">
       {/* Image */}
       <div className="relative h-40 overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
         {enrollment.image_url ? (

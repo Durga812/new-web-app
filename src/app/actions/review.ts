@@ -18,22 +18,11 @@ export async function submitReview(productId: string, rating: number, feedback?:
       return { success: false, error: 'Rating must be between 1 and 5' };
     }
 
-    // Get user's database ID
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_user_id', clerkUserId)
-      .single();
-
-    if (userError || !userData) {
-      return { success: false, error: 'User not found' };
-    }
-
     // Check if user has already reviewed this product
     const { data: existingReview } = await supabase
       .from('reviews')
       .select('id')
-      .eq('user_id', userData.id)
+      .eq('clerk_user_id', clerkUserId)
       .eq('product_id', productId)
       .maybeSingle();
 
@@ -45,7 +34,6 @@ export async function submitReview(productId: string, rating: number, feedback?:
     const { error: insertError } = await supabase
       .from('reviews')
       .insert({
-        user_id: userData.id,
         clerk_user_id: clerkUserId,
         product_id: productId,
         product_type: 'course',
