@@ -31,7 +31,7 @@ type CartItemDB = {
  */
 export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise<MergeResult> {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
@@ -97,7 +97,7 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
  */
 export async function getAuthenticatedCart(): Promise<CartItemDB[]> {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
       throw new Error('User not authenticated.');
@@ -126,7 +126,7 @@ export async function getAuthenticatedCart(): Promise<CartItemDB[]> {
  */
 export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
@@ -168,7 +168,7 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
  */
 export async function removeFromAuthenticatedCart(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
@@ -200,7 +200,7 @@ export async function removeFromAuthenticatedCart(productId: string): Promise<{ 
  */
 export async function clearAuthenticatedCart(): Promise<{ success: boolean; error?: string }> {
   try {
-    const { userId: clerkUserId } = auth();
+    const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
       return { success: false, error: 'User not authenticated.' };
