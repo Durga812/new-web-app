@@ -75,7 +75,6 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
 
     // 3. Prepare the data for insertion using clerk_user_id as primary identifier
     const newCartData = itemsToCreate.map(item => ({
-      user_id: null, // Set to null since you removed this field but constraint might still exist
       clerk_user_id: clerkUserId,
       product_id: item.productId,
       product_type: item.productType,
@@ -159,7 +158,6 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
 
     // Insert or update the cart item (upsert) using clerk_user_id as primary identifier
     const upsertData = {
-      user_id: null, // Set to null since you removed this field but constraint might still exist
       clerk_user_id: clerkUserId,
       product_id: item.productId,
       product_type: item.productType,
@@ -173,7 +171,9 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
     console.log('Attempting to upsert cart item:', upsertData);
     const { error: insertError } = await supabase
       .from('cart_items')
-      .upsert(upsertData); // Let database handle conflicts naturally
+      .upsert(upsertData, {
+        onConflict: 'clerk_user_id,product_id'
+      });
 
     if (insertError) {
       console.error('Failed to add item to cart - Detailed error:', {
