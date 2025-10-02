@@ -30,22 +30,36 @@ type CartItemDB = {
  */
 export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise<MergeResult> {
   try {
+    console.log('Starting cart merge with guest items:', guestCartItems);
     const { userId: clerkUserId } = await auth();
 
     if (!clerkUserId) {
+      console.log('User not authenticated during cart merge');
       return { success: false, error: 'User not authenticated.' };
     }
 
+    console.log('Authenticated user ID:', clerkUserId);
+
     // 1. Fetch the user's current cart from the database using clerk_user_id
+    console.log('Fetching existing cart for user:', clerkUserId);
     const { data: dbCartItems, error: cartFetchError } = await supabase
       .from('cart_items')
       .select('product_id')
       .eq('clerk_user_id', clerkUserId);
 
     if (cartFetchError) {
-      console.error('Cart fetch error:', cartFetchError);
-      return { success: false, error: 'Failed to fetch existing cart.' };
+      console.error('Cart fetch error - Detailed error:', {
+        error: cartFetchError,
+        code: cartFetchError.code,
+        message: cartFetchError.message,
+        details: cartFetchError.details,
+        hint: cartFetchError.hint,
+        clerkUserId
+      });
+      return { success: false, error: `Failed to fetch existing cart: ${cartFetchError.message}` };
     }
+
+    console.log('Existing cart items found:', dbCartItems?.length || 0);
 
     const dbProductIds = new Set((dbCartItems || []).map(item => item.product_id));
 
@@ -61,6 +75,7 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
 
     // 3. Prepare the data for insertion using clerk_user_id as primary identifier
     const newCartData = itemsToCreate.map(item => ({
+      user_id: null, // Set to null since you removed this field but constraint might still exist
       clerk_user_id: clerkUserId,
       product_id: item.productId,
       product_type: item.productType,
@@ -70,15 +85,26 @@ export async function mergeAndSyncCart(guestCartItems: GuestCartItem[]): Promise
       validity_type: item.validityType,
     }));
 
-    // 4. Insert the new items into the database
-    const { error: insertError } = await supabase
+    // 4. Insert the new items into the database (using insert since we filtered duplicates)
+    console.log('Attempting to insert cart data:', newCartData);
+    const { data: insertResult, error: insertError } = await supabase
       .from('cart_items')
-      .insert(newCartData);
+      .insert(newCartData)
+      .select(); // Return the inserted data for debugging
 
     if (insertError) {
-      console.error('Failed to merge cart:', insertError);
-      return { success: false, error: 'Database operation failed.' };
+      console.error('Failed to merge cart - Detailed error:', {
+        error: insertError,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        data: newCartData
+      });
+      return { success: false, error: `Database operation failed: ${insertError.message}` };
     }
+
+    console.log('Successfully inserted cart items:', insertResult);
 
     // Invalidate caches for pages that display cart info
     revalidatePath('/cart');
@@ -132,24 +158,33 @@ export async function addToAuthenticatedCart(item: GuestCartItem): Promise<{ suc
     }
 
     // Insert or update the cart item (upsert) using clerk_user_id as primary identifier
+    const upsertData = {
+      user_id: null, // Set to null since you removed this field but constraint might still exist
+      clerk_user_id: clerkUserId,
+      product_id: item.productId,
+      product_type: item.productType,
+      pricing_key: item.pricingKey || 'price3',
+      price: item.price,
+      validity_duration: item.validityDuration,
+      validity_type: item.validityType,
+      updated_at: new Date().toISOString(),
+    };
+    
+    console.log('Attempting to upsert cart item:', upsertData);
     const { error: insertError } = await supabase
       .from('cart_items')
-      .upsert({
-        clerk_user_id: clerkUserId,
-        product_id: item.productId,
-        product_type: item.productType,
-        pricing_key: item.pricingKey || 'price3',
-        price: item.price,
-        validity_duration: item.validityDuration,
-        validity_type: item.validityType,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'clerk_user_id,product_id' // Use clerk_user_id constraint
-      });
+      .upsert(upsertData); // Let database handle conflicts naturally
 
     if (insertError) {
-      console.error('Failed to add item to cart:', insertError);
-      return { success: false, error: 'Failed to add item to cart.' };
+      console.error('Failed to add item to cart - Detailed error:', {
+        error: insertError,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        data: upsertData
+      });
+      return { success: false, error: `Failed to add item to cart: ${insertError.message}` };
     }
 
     revalidatePath('/cart');
