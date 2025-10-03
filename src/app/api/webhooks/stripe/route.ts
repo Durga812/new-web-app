@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import stripe from "@/lib/stripe/stripe_client";
 import { supabase } from "@/lib/supabase/server";
+import { sendOrderConfirmationEmail, sendEnrollmentCompleteEmail } from "@/app/actions/email";
 
 type PurchasedItem = {
   product_id: string;
@@ -109,19 +110,41 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
   });
 
   // Step 1: Create order record
-  const orderId = await createOrder(session, clerkId, email, purchasedItems);
+  const orderResult = await createOrder(session, clerkId, email, purchasedItems);
   
-  if (!orderId) {
+  if (!orderResult) {
     console.error("Failed to create order");
     return;
   }
+
+  const { orderId, orderNumber } = orderResult;
 
   // Step 2: Update user's stripe_customer_id if exists
   if (session.customer) {
     await updateStripeCustomerId(clerkId, session.customer as string);
   }
 
-  // Step 3: Ensure user exists in LearnWorlds
+  // Step 3: Send order confirmation email
+  const metadata = session.metadata || {};
+  await sendOrderConfirmationEmail({
+    orderId,
+    orderNumber,
+    customerEmail: email,
+    customerName: session.customer_details?.name || null,
+    subtotal: parseFloat(metadata.subtotal || '0'),
+    discount: parseFloat(metadata.discount_amount || '0'),
+    total: parseFloat(metadata.total || '0'),
+    discountTierName: metadata.discount_tier_name || null,
+    purchasedItems: purchasedItems.map(item => ({
+      title: item.title,
+      price: item.price,
+      product_type: item.product_type,
+      validity_duration: item.validity_duration,
+      validity_type: item.validity_type,
+    })),
+  });
+
+  // Step 4: Ensure user exists in LearnWorlds
   const learnWorldsUserId = await ensureLearnWorldsUser(clerkId, email);
   
   if (!learnWorldsUserId) {
@@ -129,10 +152,17 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
     // Continue anyway, enrollments will fail but we'll track them
   }
 
-  // Step 4: Enroll user in each product
+  // Step 5: Enroll user in each product
   await enrollUserInProducts(clerkId, email, orderId, purchasedItems);
 
-  // Step 5: Clear user's cart
+  // Step 6: Send enrollment complete email
+  await sendEnrollmentCompleteEmail(
+    email,
+    session.customer_details?.name || null,
+    purchasedItems.length
+  );
+
+  // Step 7: Clear user's cart
   await clearUserCart(clerkId);
 
   console.log("Checkout processing completed successfully");
@@ -147,6 +177,9 @@ async function createOrder(
   try {
     const metadata = session.metadata || {};
     
+    // Extract country from customer details
+    const country = session.customer_details?.address?.country || null;
+    
     const { data, error } = await supabase
       .from('orders')
       .insert({
@@ -160,10 +193,11 @@ async function createOrder(
         total_amount: parseFloat(metadata.total || '0'),
         customer_email: email,
         customer_name: session.customer_details?.name || null,
+        country: country,
         purchased_items: purchasedItems,
         paid_at: new Date().toISOString(),
       })
-      .select('id')
+      .select('id, order_number')
       .single();
 
     if (error) {
@@ -171,8 +205,8 @@ async function createOrder(
       return null;
     }
 
-    console.log("Order created:", data.id);
-    return data.id;
+    console.log("Order created:", data.id, "Order number:", data.order_number);
+    return { orderId: data.id, orderNumber: data.order_number };
     
   } catch (error) {
     console.error("Error creating order:", error);
@@ -189,6 +223,8 @@ async function updateStripeCustomerId(clerkId: string, stripeCustomerId: string)
 
     if (error) {
       console.error("Failed to update stripe_customer_id:", error);
+    } else {
+      console.log("Updated stripe_customer_id for user:", clerkId);
     }
   } catch (error) {
     console.error("Error updating stripe_customer_id:", error);
@@ -260,37 +296,71 @@ async function enrollUserInProducts(
     try {
       await wait(400); // Rate limiting between API calls
       
-      // Call LearnWorlds enroll API
-      const enrolled = await enrollInLearnWorlds(email, item);
+      // Call LearnWorlds enroll API with retry tracking
+      const enrollmentResult = await enrollInLearnWorlds(email, item);
       
-      if (enrolled) {
+      if (enrollmentResult.success) {
         // Calculate expiry date
         const enrolledAt = new Date();
         const expiresAt = calculateExpiryDate(enrolledAt, item.validity_duration, item.validity_type);
         
-        // Save enrollment record
-        await saveEnrollment(clerkId, orderId, item, enrolledAt, expiresAt, 'success');
+        // Save successful enrollment
+        await saveEnrollment(
+          clerkId, 
+          orderId, 
+          item, 
+          enrolledAt, 
+          expiresAt, 
+          'success',
+          null, // no error
+          enrollmentResult.retryCount
+        );
         
         console.log(`Successfully enrolled in ${item.title}`);
       } else {
-        // Save failed enrollment
-        await saveEnrollment(clerkId, orderId, item, null, null, 'failed');
-        console.error(`Failed to enroll in ${item.title}`);
+        // Save failed enrollment with error details
+        await saveEnrollment(
+          clerkId, 
+          orderId, 
+          item, 
+          null, 
+          null, 
+          'failed',
+          enrollmentResult.error,
+          enrollmentResult.retryCount
+        );
+        console.error(`Failed to enroll in ${item.title}:`, enrollmentResult.error);
       }
       
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Error enrolling in ${item.title}:`, error);
-      await saveEnrollment(clerkId, orderId, item, null, null, 'failed');
+      await saveEnrollment(
+        clerkId, 
+        orderId, 
+        item, 
+        null, 
+        null, 
+        'failed',
+        errorMessage,
+        0
+      );
     }
   }
 }
 
-
-
-async function enrollInLearnWorlds(email: string, item: PurchasedItem, retryCount = 0): Promise<boolean> {
+async function enrollInLearnWorlds(
+  email: string, 
+  item: PurchasedItem, 
+  retryCount = 0
+): Promise<{ success: boolean; error: string | null; retryCount: number }> {
   try {
     if (!hasLearnWorldsConfig) {
-      return false;
+      return { 
+        success: false, 
+        error: 'LearnWorlds credentials not configured',
+        retryCount: 0
+      };
     }
 
     const payload: LwEnrollmentPayload = {
@@ -327,20 +397,34 @@ async function enrollInLearnWorlds(email: string, item: PurchasedItem, retryCoun
         await wait(10000); // Wait 10 seconds
         return enrollInLearnWorlds(email, item, retryCount + 1);
       }
-      return false;
+      return { 
+        success: false, 
+        error: `Rate limit exceeded after ${retryCount + 1} retries`,
+        retryCount: retryCount + 1
+      };
     }
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => null);
+      const errorMessage = errorBody?.message || `HTTP ${response.status}: ${response.statusText}`;
       console.error("LearnWorlds enrollment failed:", response.status, errorBody);
-      return false;
+      return { 
+        success: false, 
+        error: errorMessage,
+        retryCount
+      };
     }
 
-    return true;
+    return { success: true, error: null, retryCount };
     
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error during enrollment';
     console.error("Error calling LearnWorlds API:", error);
-    return false;
+    return { 
+      success: false, 
+      error: errorMessage,
+      retryCount
+    };
   }
 }
 
@@ -350,7 +434,9 @@ async function saveEnrollment(
   item: PurchasedItem,
   enrolledAt: Date | null,
   expiresAt: Date | null,
-  status: 'success' | 'failed'
+  status: 'success' | 'failed',
+  errorMessage: string | null,
+  retryCount: number
 ) {
   try {
     const { error } = await supabase
@@ -369,6 +455,8 @@ async function saveEnrollment(
         expires_at: expiresAt?.toISOString() || null,
         enrollment_status: status,
         status: status === 'success' ? 'active' : 'pending',
+        enrollment_error: errorMessage,
+        enrollment_retry_count: retryCount,
       });
 
     if (error) {

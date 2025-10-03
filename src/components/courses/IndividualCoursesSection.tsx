@@ -6,7 +6,7 @@ import { Filter, Search } from "lucide-react";
 import { SeriesColumn } from "./SeriesColumn";
 import type { NormalizedSeriesMetadata } from "@/types/catalog";
 import { useCartStore } from "@/stores/cart-store";
-import { calculateCartDiscounts } from "@/lib/pricing/discounts";
+import { calculateCartDiscounts, DISCOUNT_TIERS } from "@/lib/pricing/discounts";
 
 type CoursePricing = {
   price: number;
@@ -78,8 +78,31 @@ export function IndividualCoursesSection({
   // Cart-based discount summary for showing tier beside Filters button
   const cartItems = useCartStore(state => state.items);
   const discountSummary = useMemo(() => calculateCartDiscounts(cartItems), [cartItems]);
-  const { qualifyingCount, discountRate, currentTier } = discountSummary;
-  const discountPercent = Math.round(discountRate * 100);
+  const {
+    qualifyingCount,
+    discountRate,
+    currentTier,
+    qualifyingSubtotal,
+    discountAmount,
+    upcomingTier,
+  } = discountSummary;
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 2,
+    }),
+    []
+  );
+
+  const coursesSubtotalAfterDiscount = Math.max(0, qualifyingSubtotal - discountAmount);
+  const averageCoursePriceAfterDiscount = qualifyingCount > 0 ? coursesSubtotalAfterDiscount / qualifyingCount : 0;
+  const discountPercentLabel = discountRate > 0 ? `~${(discountRate * 100).toFixed(0)}%` : "0%";
+
+  const formattedDiscountAmount = currencyFormatter.format(discountAmount);
+  const formattedAverageCoursePriceAfterDiscount = currencyFormatter.format(averageCoursePriceAfterDiscount);
+  const formattedCoursesSubtotalAfterDiscount = currencyFormatter.format(coursesSubtotalAfterDiscount);
 
   // Initialize with all series when component mounts
   useEffect(() => {
@@ -175,31 +198,58 @@ export function IndividualCoursesSection({
         </div>
 
         {/* Filter Toggle */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50"
           >
             <Filter className="h-4 w-4" />
             Filters
-            {hasActiveFilters && (
-              <span className="ml-1 rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">
-                Active
-              </span>
-            )}
           </button>
-          {qualifyingCount > 0 && (
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {currentTier?.name ? `${currentTier.name}` : 'add 5 courses to get discount'}
-              <span className="text-emerald-600/80">•</span>
-              {qualifyingCount} {qualifyingCount === 1 ? 'course' : 'courses'}
-              {discountPercent > 0 && (
-                <span className="text-emerald-600/80">• {discountPercent}% off</span>
-              )}
+          {hasActiveFilters && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+              Filters active
             </span>
           )}
         </div>
+
+        {qualifyingCount > 0 ? (
+          <div className="mx-auto mt-2 w-full max-w-3xl rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2 text-xs text-gray-600 shadow-sm sm:px-6 sm:text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center sm:text-left">
+              <span>
+                Discount tier applied
+                <span className="ml-1 font-semibold text-gray-900">{currentTier?.name ?? 'Active discount'}</span>
+              </span>
+              <span className="hidden text-gray-300 sm:inline">•</span>
+              <span>
+                Total
+                <span className="ml-1 font-semibold text-gray-900">{formattedCoursesSubtotalAfterDiscount}</span>
+                <span className="ml-1 text-gray-400">(≈ {formattedAverageCoursePriceAfterDiscount} / course)</span>
+              </span>
+              <span className="hidden text-gray-300 sm:inline">•</span>
+              <span>
+                Discount
+                <span className="ml-1 font-semibold text-gray-900">- {formattedDiscountAmount} ({discountPercentLabel})</span>
+              </span>
+              <a
+                href="#discount-tier-benefits"
+                className="ml-1 inline-flex items-center text-emerald-600 underline-offset-2 transition hover:text-emerald-700 hover:underline"
+              >
+                Know more
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto mt-2 w-full max-w-3xl rounded-full border border-dashed border-emerald-200/60 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2 text-center text-xs text-emerald-700 sm:px-6 sm:text-sm">
+            <span>Add courses to your bundle to unlock tiered discounts.</span>
+            <a
+              href="#discount-tier-benefits"
+              className="ml-2 inline-flex items-center text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
+            >
+              Know more
+            </a>
+          </div>
+        )}
 
         {/* Expandable Filters */}
         {isFilterOpen && (
@@ -365,6 +415,76 @@ export function IndividualCoursesSection({
           </div>
         </div>
       )}
+
+      <section id="discount-tier-benefits" className="mt-12">
+        <div className="relative overflow-hidden rounded-3xl border border-amber-200/60 bg-gradient-to-br from-white via-amber-50/80 to-orange-50/70 p-6 shadow-sm sm:p-8">
+          <div className="absolute -top-10 right-8 h-32 w-32 rounded-full bg-amber-200/40 blur-3xl" aria-hidden="true" />
+          <div className="absolute -bottom-12 left-6 h-40 w-40 rounded-full bg-orange-200/30 blur-3xl" aria-hidden="true" />
+          <div className="relative">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-500">Tier benefits</p>
+                <h2 className="mt-1 text-2xl font-bold text-gray-900">How the discount tiers work</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Combine courses across categories. Your savings automatically increase as you cross each threshold.
+                </p>
+              </div>
+              <div className="rounded-full border border-amber-200 bg-white/80 px-4 py-1 text-xs font-semibold text-amber-700 shadow-sm">
+                Currently added: {qualifyingCount} {qualifyingCount === 1 ? 'course' : 'courses'}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {DISCOUNT_TIERS.map(tier => {
+                const isUnlocked = qualifyingCount >= tier.threshold;
+                const isNextTier = !isUnlocked && upcomingTier?.name === tier.name;
+                const coursesToUnlock = Math.max(0, tier.threshold - qualifyingCount);
+                return (
+                  <div
+                    key={tier.name}
+                    className={`relative rounded-2xl border p-5 transition ${
+                      isUnlocked
+                        ? 'border-emerald-300 bg-white shadow-md'
+                        : isNextTier
+                        ? 'border-amber-300 bg-white/90 shadow-sm'
+                        : 'border-white/70 bg-white/70'
+                    }`}
+                  >
+                    <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide">
+                      <span className={isUnlocked ? 'text-emerald-600' : isNextTier ? 'text-amber-500' : 'text-gray-400'}>
+                        {tier.name}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] ${
+                        isUnlocked
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : isNextTier
+                          ? 'bg-amber-50 text-amber-600'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {isUnlocked ? 'Unlocked' : isNextTier ? 'Next up' : 'Locked'}
+                      </span>
+                    </div>
+                    <p className="text-3xl font-bold text-gray-900">{(tier.rate * 100).toFixed(0)}% off</p>
+                    <p className="mt-2 text-sm text-gray-600">Add {tier.threshold}+ qualifying courses</p>
+                    <ul className="mt-4 space-y-2 text-xs text-gray-500">
+                      <li>Applies automatically at checkout</li>
+                      {isUnlocked ? (
+                        <li className="font-semibold text-emerald-600">Savings active now</li>
+                      ) : coursesToUnlock > 0 ? (
+                        <li className="font-semibold text-amber-600">
+                          Add {coursesToUnlock} more {coursesToUnlock === 1 ? 'course' : 'courses'} to unlock
+                        </li>
+                      ) : (
+                        <li>Build your bundle to reach this tier</li>
+                      )}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
