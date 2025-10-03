@@ -7,7 +7,6 @@ export async function POST(req: Request) {
     const secret = req.headers.get('x-revalidate-secret')
     
     if (secret !== process.env.REVALIDATE_SECRET) {
-        console.log(secret, process.env.REVALIDATE_SECRET);//testing .
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' }, 
         { status: 402 }
