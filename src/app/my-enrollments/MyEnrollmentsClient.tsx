@@ -225,7 +225,7 @@ function EnrollmentCard({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const courseUrl = `https://courses.greencardiy.com/program/${enrollment.enroll_id}`;
+  const courseUrl = `https://courses.greencardiy.com/program-player?program=${enrollment.enroll_id}`;
   const detailPageUrl = isBundle 
     ? `/bundle/${enrollment.slug || enrollment.product_id}` 
     : `/course/${enrollment.slug || enrollment.product_id}`;
