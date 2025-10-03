@@ -144,14 +144,17 @@ function BundleCard({
   const isInCart = useCartStore(state =>
     state.items.some(item => item.productId === bundle.bundle_id && item.type === "bundle"),
   );
-  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
-  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+  const purchasedProductIds = useEnrollmentStore(state => state.purchasedProductIds);
+  const purchasedEnrollIds = useEnrollmentStore(state => state.purchasedEnrollIds);
 
   const bundleProductId = bundle.bundle_id?.trim();
   const bundleEnrollId = bundle.enroll_id?.trim();
   const isPurchased = useMemo(() => {
-    return isProductPurchased(bundleProductId) || isEnrollPurchased(bundleEnrollId);
-  }, [bundleEnrollId, bundleProductId, isEnrollPurchased, isProductPurchased]);
+    return (
+      (!!bundleProductId && purchasedProductIds.includes(bundleProductId)) ||
+      (!!bundleEnrollId && purchasedEnrollIds.includes(bundleEnrollId))
+    );
+  }, [bundleEnrollId, bundleProductId, purchasedEnrollIds, purchasedProductIds]);
 
   const handleAddToCart = () => {
     if (isInCart || isPurchased) return;
@@ -281,7 +284,7 @@ function BundleCard({
           </div>
           {isPurchased && (
             <p className="text-xs font-semibold text-emerald-600">
-              You have lifetime access to this bundle
+              You already purchased this bundle
             </p>
           )}
 

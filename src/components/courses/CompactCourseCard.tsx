@@ -99,12 +99,17 @@ export function CompactCourseCard({
   const isInCart = Boolean(cartItem);
 
   // Purchase state
-  const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
-  const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
+  const purchasedProductIds = useEnrollmentStore(state => state.purchasedProductIds);
+  const purchasedEnrollIds = useEnrollmentStore(state => state.purchasedEnrollIds);
 
   const isPurchased = useMemo(() => {
-    return isProductPurchased(course.course_id) || isEnrollPurchased(course.enroll_id);
-  }, [course.course_id, course.enroll_id, isEnrollPurchased, isProductPurchased]);
+    const productId = course.course_id?.trim();
+    const enrollId = course.enroll_id?.trim();
+    return (
+      (!!productId && purchasedProductIds.includes(productId)) ||
+      (!!enrollId && purchasedEnrollIds.includes(enrollId))
+    );
+  }, [course.course_id, course.enroll_id, purchasedEnrollIds, purchasedProductIds]);
 
   const detailHref = `/course/${course.course_slug || course.slug || course.course_id}`;
 
