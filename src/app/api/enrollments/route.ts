@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { supabase } from "@/lib/supabase/server";
 
-type EnrollmentRow = {
+type _EnrollmentRow = {
   product_id: string | null;
   enroll_id: string | null;
   enrollment_status: string | null;
@@ -53,7 +53,8 @@ export async function GET() {
     );
   }
 
-  const successful = (data ?? []).filter(row => row.enrollment_status === "success");
+  const typedData = (data ?? []) as _EnrollmentRow[];
+  const successful = typedData.filter(row => row.enrollment_status === "success");
   const productIds = toUniqueIds(successful.map(row => row.product_id));
   const enrollIds = toUniqueIds(successful.map(row => row.enroll_id));
 

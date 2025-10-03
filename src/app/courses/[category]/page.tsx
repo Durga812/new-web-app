@@ -8,6 +8,16 @@ import { CuratedBundlesSection } from '@/components/courses/CuratedBundlesSectio
 import { supabase } from '@/lib/supabase/server'
 import { EnrollmentProvider } from '@/components/providers/EnrollmentProvider'
 
+const toUniqueStrings = (values: Array<string | null>) => {
+  return Array.from(
+    new Set(
+      values
+        .map(value => value?.trim())
+        .filter((value): value is string => Boolean(value && value.length > 0)),
+    ),
+  );
+};
+
 interface CategoryPageProps {
   params: Promise<{
     category: string
@@ -79,7 +89,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   let purchasedEnrollIds: string[] = []
 
   if (userId) {
-    type EnrollmentIdRow = {
+    type _EnrollmentIdRow = {
       product_id: string | null
       enroll_id: string | null
       enrollment_status: string | null
@@ -93,13 +103,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       .eq('status', 'active')
 
     if (data) {
-      const successful = data.filter(r => r.enrollment_status === 'success')
-      purchasedProductIds = Array.from(new Set(
-        successful.map(r => r.product_id).filter(Boolean)
-      ))
-      purchasedEnrollIds = Array.from(new Set(
-        successful.map(r => r.enroll_id).filter(Boolean)
-      ))
+      const typedData = data as _EnrollmentIdRow[]
+      const successful = typedData.filter(r => r.enrollment_status === 'success')
+      purchasedProductIds = toUniqueStrings(successful.map(r => r.product_id))
+      purchasedEnrollIds = toUniqueStrings(successful.map(r => r.enroll_id))
     }
   }
 

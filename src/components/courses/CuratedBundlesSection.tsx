@@ -141,7 +141,9 @@ function BundleCard({
   const bundleHref = `/bundle/${bundle.bundle_slug || bundle.slug || bundle.bundle_id}`;
 
   const addItemToCart = useCartStore(state => state.addItem);
-  const isInCart = useCartStore(state => state.items.some(item => item.id === bundle.bundle_id));
+  const isInCart = useCartStore(state =>
+    state.items.some(item => item.productId === bundle.bundle_id && item.type === "bundle"),
+  );
   const isProductPurchased = useEnrollmentStore(state => state.isProductPurchased);
   const isEnrollPurchased = useEnrollmentStore(state => state.isEnrollPurchased);
 
@@ -174,7 +176,7 @@ function BundleCard({
 
   return (
     <article className={`group relative flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
-      isPurchased ? 'border-emerald-200' : 'border-gray-200'
+      isPurchased ? 'border-emerald-200 ring-1 ring-emerald-200' : 'border-gray-200'
     }`}>
       {/* Media & Badges */}
       <Link
@@ -206,7 +208,7 @@ function BundleCard({
           {isPurchased && (
             <Badge className="h-6 border-0 bg-emerald-500/90 text-xs font-semibold text-white backdrop-blur">
               <Check className="mr-1 h-3 w-3" />
-              Purchased
+              Owned
             </Badge>
           )}
           {bundle.series && (
@@ -286,10 +288,11 @@ function BundleCard({
           <Button
             onClick={handleAddToCart}
             disabled={isInCart || isPurchased}
+            aria-disabled={isInCart || isPurchased}
             size="sm"
             className={`h-9 w-full text-sm font-medium transition-all ${
               isPurchased || isInCart
-                ? 'bg-gray-100 text-gray-500'
+                ? 'cursor-not-allowed bg-gray-100 text-gray-500'
                 : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600'
             }`}
           >

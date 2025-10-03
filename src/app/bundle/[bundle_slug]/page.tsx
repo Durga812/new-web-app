@@ -7,6 +7,16 @@ import { EnrollmentProvider } from '@/components/providers/EnrollmentProvider'
 import BundleDetailClient from './BundleDetailClient'
 import type { Metadata } from 'next'
 
+const toUniqueStrings = (values: Array<string | null>) => {
+  return Array.from(
+    new Set(
+      values
+        .map(value => value?.trim())
+        .filter((value): value is string => Boolean(value && value.length > 0)),
+    ),
+  );
+};
+
 interface BundleDetailPageProps {
   params: Promise<{
     bundle_slug: string
@@ -42,7 +52,7 @@ export default async function BundleDetailPage({ params }: BundleDetailPageProps
   let purchasedEnrollIds: string[] = []
 
   if (userId) {
-    type EnrollmentIdRow = {
+    type _EnrollmentIdRow = {
       product_id: string | null
       enroll_id: string | null
       enrollment_status: string | null
@@ -56,9 +66,10 @@ export default async function BundleDetailPage({ params }: BundleDetailPageProps
       .eq('status', 'active')
 
     if (data) {
-      const successful = data.filter((record) => record.enrollment_status === 'success')
-      purchasedProductIds = Array.from(new Set(successful.map((record) => record.product_id).filter(Boolean)))
-      purchasedEnrollIds = Array.from(new Set(successful.map((record) => record.enroll_id).filter(Boolean)))
+      const typedData = data as _EnrollmentIdRow[]
+      const successful = typedData.filter((record) => record.enrollment_status === 'success')
+      purchasedProductIds = toUniqueStrings(successful.map((record) => record.product_id))
+      purchasedEnrollIds = toUniqueStrings(successful.map((record) => record.enroll_id))
     }
   }
 

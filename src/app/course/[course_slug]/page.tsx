@@ -26,6 +26,16 @@ export async function generateMetadata({ params }: CourseDetailPageProps) {
   }
 }
 
+const toUniqueStrings = (values: Array<string | null>) => {
+  return Array.from(
+    new Set(
+      values
+        .map(value => value?.trim())
+        .filter((value): value is string => Boolean(value && value.length > 0)),
+    ),
+  );
+};
+
 export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
   const { course_slug } = await params
   const course = await getCourseBySlug(course_slug)
@@ -49,7 +59,7 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
   let purchasedEnrollIds: string[] = []
 
   if (userId) {
-    type EnrollmentIdRow = {
+    type _EnrollmentIdRow = {
       product_id: string | null
       enroll_id: string | null
       enrollment_status: string | null
@@ -63,13 +73,10 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
       .eq('status', 'active')
 
     if (data) {
-      const successful = data.filter(r => r.enrollment_status === 'success')
-      purchasedProductIds = Array.from(new Set(
-        successful.map(r => r.product_id).filter(Boolean)
-      ))
-      purchasedEnrollIds = Array.from(new Set(
-        successful.map(r => r.enroll_id).filter(Boolean)
-      ))
+      const typedData = data as _EnrollmentIdRow[]
+      const successful = typedData.filter(r => r.enrollment_status === 'success')
+      purchasedProductIds = toUniqueStrings(successful.map(r => r.product_id))
+      purchasedEnrollIds = toUniqueStrings(successful.map(r => r.enroll_id))
     }
   }
 
