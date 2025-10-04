@@ -276,11 +276,11 @@ export function CompactCourseCard({
                 </div>
               )}
             </div>
-            {selectedOption.compared_price && selectedOption.compared_price > selectedOption.price && (
+            {/* {selectedOption.compared_price && selectedOption.compared_price > selectedOption.price && (
               <div className="text-xs font-semibold text-emerald-600">
                 Save {Math.round((1 - selectedOption.price / selectedOption.compared_price) * 100)}%
               </div>
-            )}
+            )} */}
           </div>
         )}
 

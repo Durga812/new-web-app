@@ -7,9 +7,9 @@ export type DiscountTier = {
 };
 
 export const DISCOUNT_TIERS: DiscountTier[] = [
-  { threshold: 40, rate: 0.27, name: "Extraordinary" },
-  { threshold: 20, rate: 0.16, name: "Visionary" },
-  { threshold: 10, rate: 0.11, name: "Leader" },
+  { threshold: 40, rate: 0.37, name: "Extraordinary" },
+  { threshold: 20, rate: 0.25, name: "Visionary" },
+  { threshold: 10, rate: 0.16, name: "Leader" },
   { threshold: 5, rate: 0.06, name: "Foundation" },
 ];
 

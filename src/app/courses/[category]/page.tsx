@@ -1,7 +1,7 @@
 // src/app/courses/[category]/page.tsx
 import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
-import { getCoursesAndBundlesByCategory } from '@/lib/isr/data-isr'
+import { getCoursesAndBundlesByCategory } from '@/lib/isg/data-isr'
 import type { NormalizedSeriesMetadata, RawSeriesMetadata, SeriesMetadataMap } from '@/types/catalog'
 import { IndividualCoursesSection } from '@/components/courses/IndividualCoursesSection'
 import { CuratedBundlesSection } from '@/components/courses/CuratedBundlesSection'

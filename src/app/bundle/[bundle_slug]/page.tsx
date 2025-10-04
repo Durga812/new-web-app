@@ -1,7 +1,7 @@
 // src/app/bundle/[bundle_slug]/page.tsx
 import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
-import { getBundleBySlug } from '@/lib/isr/data-isr'
+import { getBundleBySlug } from '@/lib/isg/data-isr'
 import { supabase } from '@/lib/supabase/server'
 import { EnrollmentProvider } from '@/components/providers/EnrollmentProvider'
 import BundleDetailClient from './BundleDetailClient'

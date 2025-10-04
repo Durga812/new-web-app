@@ -1,7 +1,7 @@
 // src/app/course/[course_slug]/page.tsx
 import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
-import { getCourseBySlug, getRelatedCourses, getRelatedBundles } from '@/lib/isr/data-isr'
+import { getCourseBySlug, getRelatedCourses, getRelatedBundles } from '@/lib/isg/data-isr'
 import { supabase } from '@/lib/supabase/server'
 import { EnrollmentProvider } from '@/components/providers/EnrollmentProvider'
 import CourseDetailClient from './CourseDetailClient'
