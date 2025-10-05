@@ -527,7 +527,7 @@ function EnrollmentCard({
         <div className="mt-auto space-y-2">
           <a
             href={courseUrl}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
+            className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
           >
             <span>Access Course</span>
             <ExternalLink className="h-4 w-4" />
@@ -536,7 +536,7 @@ function EnrollmentCard({
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={detailPageUrl}
-              className="flex items-center justify-center rounded-lg border-2 border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
+              className="flex items-center justify-center rounded-lg border-2 border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
             >
               View Details
             </Link>
@@ -545,7 +545,7 @@ function EnrollmentCard({
             {isCourse && !enrollment.has_reviewed && (
               <button
                 onClick={() => onOpenReview(enrollment.product_id, enrollment.product_title)}
-                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 hover:border-amber-400"
+                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 hover:border-amber-400"
               >
                 <Star className="h-3.5 w-3.5" />
                 Rate
@@ -556,7 +556,7 @@ function EnrollmentCard({
             {isCourse && enrollment.has_reviewed && (
               <button
                 disabled
-                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 cursor-not-allowed opacity-75"
+                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 cursor-not-allowed opacity-75"
               >
                 <Star className="h-3.5 w-3.5 fill-green-700" />
                 Rated
@@ -567,7 +567,7 @@ function EnrollmentCard({
             {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
               <button
                 onClick={() => setShowBundleTooltip(!showBundleTooltip)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
               >
                 <Package className="h-3.5 w-3.5" />
                 Included
