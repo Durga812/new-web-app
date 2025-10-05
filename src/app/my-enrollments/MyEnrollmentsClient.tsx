@@ -1,7 +1,7 @@
 // src/app/my-enrollments/MyEnrollmentsClient.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, X } from "lucide-react";
@@ -73,7 +73,7 @@ export default function MyEnrollmentsClient({
   enrollments: EnrichedEnrollment[];
 }) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [activeSeries, setActiveSeries] = useState<string>('all');
+  const [selectedSeries, setSelectedSeries] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [reviewModal, setReviewModal] = useState<{
@@ -97,7 +97,7 @@ export default function MyEnrollmentsClient({
     return ['all', ...Array.from(categories)];
   }, [enrollments]);
 
-  // Get available series for the active category
+  // Get available series for the active category (excluding 'all')
   const availableSeries = useMemo<string[]>(() => {
     if (activeCategory === 'all') return [];
     
@@ -110,8 +110,17 @@ export default function MyEnrollmentsClient({
         }
       });
     
-    return ['all', ...Array.from(series)];
+    return Array.from(series);
   }, [enrollments, activeCategory]);
+
+  // Initialize selected series when available series change
+  useEffect(() => {
+    if (availableSeries.length > 0) {
+      setSelectedSeries(new Set(availableSeries));
+    } else {
+      setSelectedSeries(new Set());
+    }
+  }, [availableSeries]);
 
   // Filter and sort enrollments
   const filteredEnrollments = useMemo(() => {
@@ -122,9 +131,9 @@ export default function MyEnrollmentsClient({
       filtered = filtered.filter(e => e.category === activeCategory);
     }
 
-    // Filter by series
-    if (activeSeries !== 'all') {
-      filtered = filtered.filter(e => e.series === activeSeries);
+    // Filter by series (only if some series are selected)
+    if (selectedSeries.size > 0 && activeCategory !== 'all') {
+      filtered = filtered.filter(e => e.series && selectedSeries.has(e.series));
     }
 
     // Filter by type
@@ -140,7 +149,7 @@ export default function MyEnrollmentsClient({
     });
 
     return sorted;
-  }, [enrollments, activeCategory, activeSeries, typeFilter, sortBy]);
+  }, [enrollments, activeCategory, selectedSeries, typeFilter, sortBy]);
 
   const openReviewModal = (productId: string, productTitle: string) => {
     setReviewModal({
@@ -185,7 +194,19 @@ export default function MyEnrollmentsClient({
   // Reset series filter when category changes
   const handleCategoryChange = (category: string) => {
     setActiveCategory(category);
-    setActiveSeries('all');
+  };
+
+  // Toggle series selection
+  const toggleSeries = (series: string) => {
+    setSelectedSeries(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(series)) {
+        newSet.delete(series);
+      } else {
+        newSet.add(series);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -274,26 +295,26 @@ export default function MyEnrollmentsClient({
               </div>
             </div>
 
-            {/* Series Filter Buttons - Only show when specific category is selected */}
-            {activeCategory !== 'all' && availableSeries.length > 1 && (
-              <div className="mt-4 flex flex-wrap gap-2">
+            {/* Series Filter Buttons - Multi-select, smaller size */}
+            {activeCategory !== 'all' && availableSeries.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {availableSeries.map((series) => {
-                  const isActive = activeSeries === series;
+                  const isSelected = selectedSeries.has(series);
                   const config = getCategoryConfig(activeCategory);
                   
                   return (
                     <button
                       key={series}
-                      onClick={() => setActiveSeries(series)}
+                      onClick={() => toggleSeries(series)}
                       className={`
-                        px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all
-                        ${isActive
-                          ? `${config.bg} ${config.text} border-2 ${config.border}`
-                          : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
+                        px-2.5 py-1 text-xs font-medium rounded-md transition-all
+                        ${isSelected
+                          ? `${config.bg} ${config.text} border ${config.border}`
+                          : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
                         }
                       `}
                     >
-                      {series === 'all' ? 'All Series' : formatSeriesName(series)}
+                      {formatSeriesName(series)}
                     </button>
                   );
                 })}
@@ -374,7 +395,7 @@ function EnrollmentCard({
     : `/course/${enrollment.slug || enrollment.product_id}`;
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
+    <Card className="group relative flex h-full p-0 flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
       {/* Image */}
       <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
@@ -399,20 +420,29 @@ function EnrollmentCard({
         
         {/* Top Badges */}
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-2">
-          {/* Review Badge */}
-          {isCourse && enrollment.has_reviewed && enrollment.user_review && (
-            <Badge className="border-0 bg-amber-500/95 backdrop-blur-sm text-xs text-white flex items-center gap-1 shadow-lg">
-              <Star className="h-3 w-3 fill-white" />
-              {enrollment.user_review.rating}
+          {/* Series Badge - Top Left */}
+          {enrollment.series && (
+            <Badge className="border-0 bg-gray-900/80 backdrop-blur-sm text-xs text-white shadow-lg">
+              {enrollment.series.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
             </Badge>
           )}
           
-          {/* Expiry Badge */}
-          {isExpiringSoon && (
-            <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg ml-auto">
-              {daysUntilExpiry}d left
-            </Badge>
-          )}
+          <div className="ml-auto flex flex-col gap-1.5 items-end">
+            {/* Review Badge */}
+            {isCourse && enrollment.has_reviewed && enrollment.user_review && (
+              <Badge className="border-0 bg-amber-500/95 backdrop-blur-sm text-xs text-white flex items-center gap-1 shadow-lg">
+                <Star className="h-3 w-3 fill-white" />
+                {enrollment.user_review.rating}
+              </Badge>
+            )}
+            
+            {/* Expiry Badge */}
+            {isExpiringSoon && (
+              <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
+                {daysUntilExpiry}d left
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Type Badge */}
@@ -425,15 +455,29 @@ function EnrollmentCard({
 
       {/* Content */}
       <div className="flex flex-1 flex-col p-4">
-        {/* Title */}
-        <h3 className="mb-3 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
+        {/* Type Badge and Tags - Same Line */}
+        {enrollment.tags && enrollment.tags.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {enrollment.tags.slice(0, 2).map(tag => (
+              <span 
+                key={tag}
+                className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600"
+              >
+                {tag.replace(/-/g, ' ')}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Title - Reduced padding */}
+        <h3 className="mb-2 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
           {enrollment.product_title}
         </h3>
 
-        {/* Meta Info - Single Line for Courses */}
+        {/* Meta Info - Justify Between */}
         <div className="mb-3">
           {!isBundle && (enrollment.total_lessons || enrollment.total_duration) && (
-            <div className="flex items-center gap-3 text-xs text-gray-600">
+            <div className="flex items-center justify-between text-xs text-gray-600">
               {enrollment.total_lessons !== undefined && enrollment.total_lessons > 0 && (
                 <div className="flex items-center gap-1.5">
                   <div className={`w-7 h-7 rounded-lg ${categoryConfig.bg} flex items-center justify-center flex-shrink-0`}>
@@ -478,20 +522,6 @@ function EnrollmentCard({
           </div>
         </div>
 
-        {/* Tags */}
-        {enrollment.tags && enrollment.tags.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {enrollment.tags.slice(0, 3).map(tag => (
-              <span 
-                key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700"
-              >
-                {tag.replace(/-/g, ' ')}
-              </span>
-            ))}
-          </div>
-        )}
-
         {/* Action Buttons */}
         <div className="mt-auto space-y-2">
           <a
@@ -534,58 +564,54 @@ function EnrollmentCard({
 
             {/* Included Courses Button - Only for bundles */}
             {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowBundleTooltip(!showBundleTooltip)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
-                >
-                  <Package className="h-3.5 w-3.5" />
-                  Included
-                </button>
-                
-                {/* Tooltip - Shows above button */}
-                {showBundleTooltip && (
-                  <>
-                    {/* Backdrop to close tooltip */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowBundleTooltip(false)}
-                    />
-                    
-                    {/* Tooltip Content */}
-                    <div className="absolute bottom-full right-0 mb-2 w-72 z-50">
-                      <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-4 border border-gray-700">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="text-sm font-semibold flex items-center gap-2">
-                            <Package className="h-4 w-4" />
-                            Included Courses ({enrollment.included_courses.length})
-                          </div>
-                          <button
-                            onClick={() => setShowBundleTooltip(false)}
-                            className="text-gray-400 hover:text-white transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {enrollment.included_courses.map((course, idx) => (
-                            <div key={course.course_id} className="flex items-start gap-2 text-xs">
-                              <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
-                              <span className="text-gray-200 leading-relaxed">{course.title}</span>
-                            </div>
-                          ))}
-                        </div>
-                        {/* Triangle pointer */}
-                        <div className="absolute -bottom-2 right-4 w-3 h-3 bg-gray-900 border-r border-b border-gray-700 transform rotate-45" />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              <button
+                onClick={() => setShowBundleTooltip(!showBundleTooltip)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
+              >
+                <Package className="h-3.5 w-3.5" />
+                Included
+              </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Bundle Tooltip - Centered in Card */}
+      {isBundle && showBundleTooltip && enrollment.included_courses && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40" 
+            onClick={() => setShowBundleTooltip(false)}
+          />
+          
+          {/* Tooltip Content - Centered */}
+          <div className="absolute inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
+            <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-4 border border-gray-700 max-w-sm w-full pointer-events-auto">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Included Courses ({enrollment.included_courses.length})
+                </div>
+                <button
+                  onClick={() => setShowBundleTooltip(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {enrollment.included_courses.map((course, idx) => (
+                  <div key={course.course_id} className="flex items-start gap-2 text-xs">
+                    <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
+                    <span className="text-gray-200 leading-relaxed">{course.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
