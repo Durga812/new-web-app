@@ -395,7 +395,7 @@ function EnrollmentCard({
     : `/course/${enrollment.slug || enrollment.product_id}`;
 
   return (
-    <Card className="group relative flex h-full p-0 flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
+    <Card className="group relative flex h-full py-0 flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
       {/* Image */}
       <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
@@ -445,30 +445,31 @@ function EnrollmentCard({
           </div>
         </div>
 
-        {/* Type Badge */}
-        <div className="absolute bottom-2 left-2">
+        {/* Bottom Badges - Type Badge (left) and Tags (right) */}
+        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2">
+          {/* Type Badge - Left */}
           <Badge className={`border-0 ${categoryConfig.bg} ${categoryConfig.text} backdrop-blur-sm text-xs font-semibold shadow-md`}>
             {isBundle ? 'Bundle' : 'Course'}
           </Badge>
+          
+          {/* Tags - Right */}
+          {enrollment.tags && enrollment.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 justify-end">
+              {enrollment.tags.slice(0, 2).map(tag => (
+                <span 
+                  key={tag}
+                  className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/90 backdrop-blur-sm text-gray-700 shadow-md"
+                >
+                  {tag.replace(/-/g, ' ')}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col p-4">
-        {/* Type Badge and Tags - Same Line */}
-        {enrollment.tags && enrollment.tags.length > 0 && (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            {enrollment.tags.slice(0, 2).map(tag => (
-              <span 
-                key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600"
-              >
-                {tag.replace(/-/g, ' ')}
-              </span>
-            ))}
-          </div>
-        )}
-
+      <div className="flex flex-1 flex-col p-2">
         {/* Title - Reduced padding */}
         <h3 className="mb-2 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
           {enrollment.product_title}
