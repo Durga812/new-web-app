@@ -96,35 +96,9 @@ export function Navigation() {
     router.push("/my-enrollments");
   };
 
-  const bannerMessages = [
-    "Add 5 courses and save 6% (Foundation)",
-    "Pick 10 courses for an easy 11% off (Leader)",
-    "Grab 20 and the discount jumps to 16% (Visionary)",
-    "Build a 40-course stack and lock in 27% off (Extraordinary)",
-    "All savings apply automatically to eligible courses",
-  ];
-
   return (
     <>
       <div ref={navContainerRef} className="fixed inset-x-0 top-0 z-40">
-        <div className="bg-gradient-to-r from-amber-600/90 via-amber-700/90 to-orange-600/90 text-amber-50">
-          <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-2 text-xs font-semibold sm:px-6 sm:text-sm lg:px-8">
-            <div className="relative flex-1 overflow-hidden whitespace-nowrap">
-              <div className="banner-marquee">
-                {[0, 1].map(track => (
-                  <div key={track} className="banner-marquee-track">
-                    {bannerMessages.map((message, index) => (
-                      <span key={`${track}-${index}`} className="banner-marquee-item text-amber-50">
-                        <span className="dot" aria-hidden="true" />
-                        {message}
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
         <header className="border-b border-amber-100 bg-white/95 backdrop-blur-md">
           <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" aria-label="Home" className="flex items-center">

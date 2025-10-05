@@ -19,16 +19,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DISCOUNT_TIERS as discountTiers } from "@/lib/pricing/discounts";
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const discountTiers = [
-    { threshold: 40, rate: 0.27, name: "Extraordinary" },
-    { threshold: 20, rate: 0.16, name: "Visionary" },
-    { threshold: 10, rate: 0.11, name: "Leader" },
-    { threshold: 5, rate: 0.06, name: "Foundation" }
-  ];
+  // const discountTiers = [
+  //   { threshold: 40, rate: 0.27, name: "Extraordinary" },
+  //   { threshold: 20, rate: 0.16, name: "Visionary" },
+  //   { threshold: 10, rate: 0.11, name: "Leader" },
+  //   { threshold: 5, rate: 0.06, name: "Foundation" }
+  // ];
 
   const bundleCategories = [
     { name: "EB-1A", path: "/courses/eb1a" },

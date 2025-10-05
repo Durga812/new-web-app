@@ -192,49 +192,6 @@ body {
   height: 100%;
 }
 
-/* Banner marquee animation */
-.banner-marquee {
-  display: flex;
-  width: 200%;
-  animation: banner-marquee 28s linear infinite;
-}
-
-.banner-marquee:hover {
-  animation-play-state: paused;
-}
-
-.banner-marquee-track {
-  display: flex;
-  gap: 1.5rem;
-  min-width: 100%;
-  padding-right: 1.5rem;
-}
-
-.banner-marquee-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.banner-marquee-item .dot {
-  display: inline-block;
-  height: 0.35rem;
-  width: 0.35rem;
-  border-radius: 9999px;
-  background-image: linear-gradient(135deg, #f97316, #facc15);
-}
-
-@keyframes banner-marquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
 /* Responsive text sizing */
 @media (max-width: 640px) {
   .responsive-text-sm {
