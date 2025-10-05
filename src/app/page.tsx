@@ -35,7 +35,7 @@ export default function Home() {
     { name: "EB-1A", path: "/courses/eb1a" },
     { name: "EB2-NIW", path: "/courses/eb2-niw" },
     { name: "EB-5", path: "/courses/eb5" },
-    { name: "O-1", path: "/courses/o1" }
+    { name: "O-1", path: "/courses/o-1" }
   ];
 
   const faqs = [
