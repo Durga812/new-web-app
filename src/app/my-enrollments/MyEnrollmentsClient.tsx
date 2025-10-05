@@ -87,8 +87,14 @@ export default function MyEnrollmentsClient({
   });
 
   // Get unique categories from enrollments
-  const availableCategories = useMemo(() => {
-    const categories = new Set(enrollments.map(e => e.category).filter(Boolean));
+  const availableCategories = useMemo<string[]>(() => {
+    const categories = new Set<string>();
+    enrollments.forEach(enrollment => {
+      if (enrollment.category) {
+        categories.add(enrollment.category);
+      }
+    });
+
     return ['all', ...Array.from(categories)];
   }, [enrollments]);
 
