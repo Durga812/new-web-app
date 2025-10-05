@@ -395,7 +395,7 @@ function EnrollmentCard({
     : `/course/${enrollment.slug || enrollment.product_id}`;
 
   return (
-    <Card className="group relative flex h-full py-0 flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
+    <Card className="group relative flex h-80 py-0 flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
       {/* Image */}
       <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
