@@ -1,10 +1,11 @@
+
 // src/app/my-enrollments/MyEnrollmentsClient.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, ExternalLink, Calendar, Clock, BookOpen, Package, Star, Layers } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -37,23 +38,44 @@ type EnrichedEnrollment = {
   };
 };
 
-const CATEGORY_CONFIG = {
-  eb1a: { label: "EB1A", color: "from-orange-500 to-amber-500", bg: "bg-orange-50" },
-  "eb2-niw": { label: "EB2-NIW", color: "from-yellow-500 to-amber-500", bg: "bg-yellow-50" },
-  "o-1": { label: "O-1", color: "from-pink-500 to-rose-500", bg: "bg-pink-50" },
-  eb5: { label: "EB5", color: "from-green-500 to-emerald-500", bg: "bg-green-50" },
+type CategoryConfig = {
+  label: string;
+  color: string;
+  text: string;
+  bg: string;
+  border: string;
 };
+
+type CategoryKey = "eb1a" | "eb2-niw" | "o-1" | "eb5";
+
+const DEFAULT_CATEGORY_STYLE = {
+  color: "from-gray-500 to-gray-600",
+  text: "text-gray-600",
+  bg: "bg-gray-50",
+  border: "border-gray-200",
+} as const;
+
+const CATEGORY_CONFIG: Record<CategoryKey, CategoryConfig> = {
+  eb1a: { label: "EB-1A", color: "from-orange-500 to-amber-500", text: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+  "eb2-niw": { label: "EB2-NIW", color: "from-yellow-500 to-amber-500", text: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200" },
+  "o-1": { label: "O-1", color: "from-pink-500 to-rose-500", text: "text-pink-600", bg: "bg-pink-50", border: "border-pink-200" },
+  eb5: { label: "EB-5", color: "from-green-500 to-emerald-500", text: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
+};
+
+const isKnownCategory = (category: string): category is CategoryKey =>
+  category in CATEGORY_CONFIG;
+
+type SortOption = 'latest' | 'oldest';
+type TypeFilter = 'all' | 'course' | 'bundle';
 
 export default function MyEnrollmentsClient({ 
   enrollments
 }: { 
   enrollments: EnrichedEnrollment[];
 }) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(Object.keys(CATEGORY_CONFIG))
-  );
-  const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
-  const [expandedBundles, setExpandedBundles] = useState<Set<string>>(new Set());
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('latest');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [reviewModal, setReviewModal] = useState<{
     isOpen: boolean;
     productId: string;
@@ -64,11 +86,41 @@ export default function MyEnrollmentsClient({
     productTitle: "",
   });
 
-  // Group enrollments by category and then by series
+  // Get unique categories from enrollments
+  const availableCategories = useMemo(() => {
+    const categories = new Set(enrollments.map(e => e.category).filter(Boolean));
+    return ['all', ...Array.from(categories)];
+  }, [enrollments]);
+
+  // Filter and sort enrollments
+  const filteredEnrollments = useMemo(() => {
+    let filtered = enrollments;
+
+    // Filter by category
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter(e => e.category === activeCategory);
+    }
+
+    // Filter by type
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(e => e.product_type === typeFilter);
+    }
+
+    // Sort by date
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.enrolled_at).getTime();
+      const dateB = new Date(b.enrolled_at).getTime();
+      return sortBy === 'latest' ? dateB - dateA : dateA - dateB;
+    });
+
+    return sorted;
+  }, [enrollments, activeCategory, typeFilter, sortBy]);
+
+  // Group by category and series
   const groupedEnrollments = useMemo(() => {
     const groups: Record<string, Record<string, EnrichedEnrollment[]>> = {};
     
-    enrollments.forEach(enrollment => {
+    filteredEnrollments.forEach(enrollment => {
       const category = enrollment.category || 'other';
       const series = enrollment.series || 'general';
       
@@ -82,43 +134,7 @@ export default function MyEnrollmentsClient({
     });
     
     return groups;
-  }, [enrollments]);
-
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleSeries = (seriesKey: string) => {
-    setExpandedSeries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(seriesKey)) {
-        newSet.delete(seriesKey);
-      } else {
-        newSet.add(seriesKey);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleBundle = (enrollmentId: string) => {
-    setExpandedBundles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(enrollmentId)) {
-        newSet.delete(enrollmentId);
-      } else {
-        newSet.add(enrollmentId);
-      }
-      return newSet;
-    });
-  };
+  }, [filteredEnrollments]);
 
   const openReviewModal = (productId: string, productTitle: string) => {
     setReviewModal({
@@ -143,126 +159,170 @@ export default function MyEnrollmentsClient({
     ).join(' ');
   };
 
+  const getCategoryConfig = (category: string): CategoryConfig => {
+    if (isKnownCategory(category)) {
+      return CATEGORY_CONFIG[category];
+    }
+
+    const normalizedLabel = category
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ") || "Other";
+
+    return {
+      label: normalizedLabel,
+      ...DEFAULT_CATEGORY_STYLE,
+    };
+  };
+
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-        <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-          {/* Header */}
-          <header className="mb-10">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-                <BookOpen className="h-6 w-6 text-white" />
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+          
+          {/* Header Section */}
+          <div className="mb-8">
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
                   My Enrollments
                 </h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  {enrollments.length} {enrollments.length === 1 ? 'course' : 'courses'} • Access and track your progress
+                <p className="text-gray-600">
+                  {enrollments.length} {enrollments.length === 1 ? 'course' : 'courses'} enrolled
                 </p>
               </div>
-            </div>
-          </header>
 
-          {/* Category Sections */}
-          <div className="space-y-6">
-            {Object.entries(groupedEnrollments).map(([category, seriesGroups]) => {
-              const config = CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG];
-              const isExpanded = expandedCategories.has(category);
-              const totalItems = Object.values(seriesGroups).flat().length;
-              
-              return (
-                <section 
-                  key={category} 
-                  className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden transition-shadow hover:shadow-md"
-                >
-                  {/* Category Header */}
-                  <button
-                    onClick={() => toggleCategory(category)}
-                    className="flex w-full items-center justify-between p-5 sm:p-6 text-left transition-colors hover:bg-gray-50/50"
+              {/* Filters */}
+              <div className="flex items-center gap-3">
+                {/* Type Filter */}
+                <div className="relative">
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${config?.color || 'from-gray-500 to-gray-600'} shadow-lg`}>
-                        <BookOpen className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                          {config?.label || category.toUpperCase()}
-                        </h2>
-                        <p className="text-sm text-gray-600 mt-0.5">
-                          {totalItems} {totalItems === 1 ? 'item' : 'items'} • {Object.keys(seriesGroups).length} {Object.keys(seriesGroups).length === 1 ? 'series' : 'series'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${config?.bg || 'bg-gray-100'} border-0 text-gray-700 hidden sm:flex`}>
-                        {totalItems} enrolled
-                      </Badge>
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                    <option value="all">All Types</option>
+                    <option value="course">Individual Courses</option>
+                    <option value="bundle">Curated Bundles</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+
+                {/* Sort Filter */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
+                  >
+                    <option value="latest">Latest Purchase</option>
+                    <option value="oldest">Oldest Purchase</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Category Tabs */}
+            <div className="border-b border-gray-200">
+              <div className="flex gap-1 overflow-x-auto pb-px scrollbar-hide">
+                {availableCategories.map((category) => {
+                  const isActive = activeCategory === category;
+                  const config = category === 'all' ? null : getCategoryConfig(category);
+                  const count = category === 'all' 
+                    ? enrollments.length 
+                    : enrollments.filter(e => e.category === category).length;
+
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => setActiveCategory(category)}
+                      className={`
+                        relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                        ${isActive 
+                          ? 'text-gray-900' 
+                          : 'text-gray-600 hover:text-gray-900'
+                        }
+                      `}
+                    >
+                      <span className="relative z-10">
+                        {category === 'all' ? 'All Categories' : config?.label || category.toUpperCase()}
+                        <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
+                          ({count})
+                        </span>
+                      </span>
+                      {isActive && (
+                        <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config?.color || 'from-gray-700 to-gray-900'}`} />
                       )}
-                    </div>
-                  </button>
-
-                  {/* Series Sections */}
-                  {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50/30">
-                      {Object.entries(seriesGroups).map(([series, items]) => {
-                        const seriesKey = `${category}-${series}`;
-                        const isSeriesExpanded = expandedSeries.has(seriesKey);
-                        
-                        return (
-                          <div key={seriesKey} className="border-b border-gray-100 last:border-b-0">
-                            {/* Series Header */}
-                            <button
-                              onClick={() => toggleSeries(seriesKey)}
-                              className="flex w-full items-center justify-between px-5 sm:px-6 py-4 text-left transition-colors hover:bg-white/50"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center">
-                                  <Layers className="h-4 w-4 text-gray-600" />
-                                </div>
-                                <div>
-                                  <h3 className="text-base font-semibold text-gray-900">
-                                    {formatSeriesName(series)}
-                                  </h3>
-                                  <p className="text-xs text-gray-500 mt-0.5">
-                                    {items.length} {items.length === 1 ? 'course' : 'courses'}
-                                  </p>
-                                </div>
-                              </div>
-                              {isSeriesExpanded ? (
-                                <ChevronUp className="h-4 w-4 text-gray-400" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
-                              )}
-                            </button>
-
-                            {/* Enrollment Cards */}
-                            {isSeriesExpanded && (
-                              <div className="grid gap-4 px-5 sm:px-6 pb-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {items.map(enrollment => (
-                                  <EnrollmentCard
-                                    key={enrollment.id}
-                                    enrollment={enrollment}
-                                    isExpanded={expandedBundles.has(enrollment.id)}
-                                    onToggle={() => toggleBundle(enrollment.id)}
-                                    onOpenReview={openReviewModal}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              );
-            })}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
+
+          {/* Content */}
+          {filteredEnrollments.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-100 mb-4">
+                <BookOpen className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses found</h3>
+              <p className="text-gray-600">Try adjusting your filters</p>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {Object.entries(groupedEnrollments).map(([category, seriesGroups]) => {
+                const config = getCategoryConfig(category);
+                
+                return (
+                  <div key={category}>
+                    {/* Category Header */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`h-1 w-12 rounded-full bg-gradient-to-r ${config.color}`} />
+                        <h2 className="text-2xl font-bold text-gray-900">
+                          {config.label}
+                        </h2>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-15">
+                        {Object.values(seriesGroups).flat().length} {Object.values(seriesGroups).flat().length === 1 ? 'course' : 'courses'}
+                      </p>
+                    </div>
+
+                    {/* Series Groups */}
+                    <div className="space-y-8">
+                      {Object.entries(seriesGroups).map(([series, items]) => (
+                        <div key={`${category}-${series}`}>
+                          {/* Series Subheading */}
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className={`h-px flex-1 bg-gradient-to-r ${config.color} opacity-20`} />
+                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${config.text}`}>
+                              {formatSeriesName(series)}
+                            </h3>
+                            <div className={`h-px flex-1 bg-gradient-to-l ${config.color} opacity-20`} />
+                          </div>
+
+                          {/* Course Cards Grid */}
+                          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {items.map(enrollment => (
+                              <EnrollmentCard
+                                key={enrollment.id}
+                                enrollment={enrollment}
+                                onOpenReview={openReviewModal}
+                                categoryConfig={config}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -279,15 +339,14 @@ export default function MyEnrollmentsClient({
 
 function EnrollmentCard({ 
   enrollment, 
-  isExpanded, 
-  onToggle,
-  onOpenReview 
+  onOpenReview,
+  categoryConfig
 }: { 
   enrollment: EnrichedEnrollment;
-  isExpanded: boolean;
-  onToggle: () => void;
   onOpenReview: (productId: string, productTitle: string) => void;
+  categoryConfig: CategoryConfig;
 }) {
+  const [showTooltip, setShowTooltip] = useState(false);
   const isBundle = enrollment.product_type === 'bundle';
   const isCourse = enrollment.product_type === 'course';
   const enrolledDate = new Date(enrollment.enrolled_at);
@@ -316,141 +375,154 @@ function EnrollmentCard({
     : `/course/${enrollment.slug || enrollment.product_id}`;
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 border-gray-200 bg-white">
+    <Card className="group relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
       {/* Image */}
-      <div className="relative h-32 overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
+      <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
           <Image
             src={enrollment.image_url}
             alt={enrollment.product_title}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
+          <div className={`flex h-full items-center justify-center bg-gradient-to-br ${categoryConfig.color}`}>
             {isBundle ? (
-              <Package className="h-10 w-10 text-amber-500 opacity-40" />
+              <Package className="h-12 w-12 text-white opacity-60" />
             ) : (
-              <BookOpen className="h-10 w-10 text-amber-500 opacity-40" />
+              <BookOpen className="h-12 w-12 text-white opacity-60" />
             )}
           </div>
         )}
         
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Expiry Badge */}
-        {isExpiringSoon && (
-          <div className="absolute right-2 top-2">
-            <Badge className="border-0 bg-orange-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
-              {daysUntilExpiry}d left
-            </Badge>
-          </div>
-        )}
-
-        {/* Review Badge */}
-        {isCourse && enrollment.has_reviewed && enrollment.user_review && (
-          <div className="absolute left-2 top-2">
+        {/* Top Badges */}
+        <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-2">
+          {/* Review Badge */}
+          {isCourse && enrollment.has_reviewed && enrollment.user_review && (
             <Badge className="border-0 bg-amber-500/95 backdrop-blur-sm text-xs text-white flex items-center gap-1 shadow-lg">
               <Star className="h-3 w-3 fill-white" />
               {enrollment.user_review.rating}
             </Badge>
+          )}
+          
+          <div className="ml-auto flex flex-col gap-1.5 items-end">
+            {/* Expiry Badge */}
+            {isExpiringSoon && (
+              <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
+                {daysUntilExpiry}d left
+              </Badge>
+            )}
+            
+            {/* Bundle Info Icon with Tooltip */}
+            {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
+              <div className="relative">
+                <button
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm border border-gray-200 shadow-lg hover:bg-white transition-colors"
+                >
+                  <Info className="h-4 w-4 text-gray-700" />
+                </button>
+                
+                {/* Tooltip */}
+                {showTooltip && (
+                  <div className="absolute top-full right-0 mt-2 w-64 z-50">
+                    <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-3 border border-gray-700">
+                      <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                        <Package className="h-3.5 w-3.5" />
+                        Included Courses ({enrollment.included_courses.length})
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        {enrollment.included_courses.map((course, idx) => (
+                          <div key={course.course_id} className="flex items-start gap-2 text-xs">
+                            <span className="text-amber-400 font-medium flex-shrink-0">{idx + 1}.</span>
+                            <span className="text-gray-200 leading-snug">{course.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Triangle pointer */}
+                      <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 border-l border-t border-gray-700 transform rotate-45" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Type Badge */}
+        <div className="absolute bottom-2 left-2">
+          <Badge className={`border-0 ${categoryConfig.bg} ${categoryConfig.text} backdrop-blur-sm text-xs font-semibold shadow-md`}>
+            {isBundle ? 'Bundle' : 'Course'}
+          </Badge>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="flex flex-1 flex-col p-3.5">
-        {/* Type Badge */}
-        <div className="mb-2.5 flex items-center gap-1.5 flex-wrap">
-          <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-200 text-amber-700 bg-amber-50">
-            {isBundle ? 'Bundle' : 'Course'}
-          </Badge>
-          {enrollment.category && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-              {CATEGORY_CONFIG[enrollment.category as keyof typeof CATEGORY_CONFIG]?.label || enrollment.category}
-            </Badge>
-          )}
-        </div>
-
+      <div className="flex flex-1 flex-col p-4">
         {/* Title */}
-        <h3 className="mb-2.5 text-sm font-semibold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem]">
+        <h3 className="mb-3 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
           {enrollment.product_title}
         </h3>
 
         {/* Meta Info */}
-        <div className="mb-3 space-y-1.5 text-[11px] text-gray-600">
+        <div className="mb-3 space-y-2 text-xs text-gray-600">
           {!isBundle && enrollment.total_lessons !== undefined && enrollment.total_lessons > 0 && (
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="h-3 w-3 text-gray-400" />
-              <span>{enrollment.total_lessons} lessons</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
+                <BookOpen className={`h-4 w-4 ${categoryConfig.text}`} />
+              </div>
+              <span className="font-medium">{enrollment.total_lessons} lessons</span>
             </div>
           )}
           
           {!isBundle && enrollment.total_duration !== undefined && enrollment.total_duration > 0 && (
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-3 w-3 text-gray-400" />
-              <span>{formatDuration(enrollment.total_duration)}</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
+                <Clock className={`h-4 w-4 ${categoryConfig.text}`} />
+              </div>
+              <span className="font-medium">{formatDuration(enrollment.total_duration)}</span>
             </div>
           )}
           
           {isBundle && enrollment.included_course_ids && (
-            <div className="flex items-center gap-1.5">
-              <Package className="h-3 w-3 text-gray-400" />
-              <span>{enrollment.included_course_ids.length} courses</span>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
+                <Package className={`h-4 w-4 ${categoryConfig.text}`} />
+              </div>
+              <span className="font-medium">{enrollment.included_course_ids.length} courses included</span>
             </div>
           )}
-          
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3 w-3 text-gray-400" />
-            <span>{formatDate(enrolledDate)}</span>
+        </div>
+
+        {/* Dates */}
+        <div className="mb-4 pt-3 border-t border-gray-100 space-y-1.5 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Purchased</span>
+            <span className="font-medium text-gray-700">{formatDate(enrolledDate)}</span>
           </div>
-          
-          <div className={`flex items-center gap-1.5 ${isExpiringSoon ? 'font-semibold text-orange-600' : ''}`}>
-            <Calendar className="h-3 w-3" />
-            <span>Expires {formatDate(expiryDate)}</span>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">Expires</span>
+            <span className={`font-medium ${isExpiringSoon ? 'text-red-600' : 'text-gray-700'}`}>
+              {formatDate(expiryDate)}
+            </span>
           </div>
         </div>
 
         {/* Tags */}
         {enrollment.tags && enrollment.tags.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1">
-            {enrollment.tags.slice(0, 2).map(tag => (
-              <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 border-gray-200">
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {enrollment.tags.slice(0, 3).map(tag => (
+              <span 
+                key={tag}
+                className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-700"
+              >
                 {tag.replace(/-/g, ' ')}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* Bundle Included Courses */}
-        {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
-          <div className="mb-3">
-            <button
-              onClick={onToggle}
-              className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-2.5 py-2 text-[11px] font-medium text-gray-700 transition hover:bg-gray-100/50 hover:border-gray-300"
-            >
-              <span className="flex items-center gap-1.5">
-                <Package className="h-3 w-3" />
-                {enrollment.included_courses.length} courses
               </span>
-              {isExpanded ? (
-                <ChevronUp className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
-              )}
-            </button>
-            
-            {isExpanded && (
-              <div className="mt-2 space-y-1.5 rounded-lg border border-gray-200 bg-white p-2.5">
-                {enrollment.included_courses.map(course => (
-                  <div key={course.course_id} className="flex items-start gap-1.5 text-[11px]">
-                    <div className="mt-1 h-1 w-1 rounded-full bg-amber-500 flex-shrink-0" />
-                    <span className="text-gray-700 leading-snug">{course.title}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
         )}
 
@@ -458,27 +530,27 @@ function EnrollmentCard({
         <div className="mt-auto space-y-2">
           <a
             href={courseUrl}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-semibold text-white transition-all hover:from-amber-600 hover:to-orange-600 hover:shadow-lg"
+            className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
           >
-            Access Course
-            <ExternalLink className="h-3.5 w-3.5" />
+            <span>Access Course</span>
+            <ExternalLink className="h-4 w-4" />
           </a>
           
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={detailPageUrl}
-              className="flex items-center justify-center rounded-lg border border-gray-300 px-2.5 py-1.5 text-[11px] font-medium text-gray-700 transition hover:bg-gray-50 hover:border-gray-400"
+              className="flex items-center justify-center rounded-lg border-2 border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
             >
-              Details
+              View Details
             </Link>
             
             {/* Review Button - Only for courses */}
             {isCourse && !enrollment.has_reviewed && (
               <button
                 onClick={() => onOpenReview(enrollment.product_id, enrollment.product_title)}
-                className="flex items-center justify-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-700 transition hover:bg-amber-100 hover:border-amber-400"
+                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 hover:border-amber-400"
               >
-                <Star className="h-3 w-3" />
+                <Star className="h-3.5 w-3.5" />
                 Rate
               </button>
             )}
@@ -487,10 +559,10 @@ function EnrollmentCard({
             {isCourse && enrollment.has_reviewed && (
               <button
                 disabled
-                className="flex items-center justify-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-[11px] font-medium text-green-700 cursor-not-allowed"
+                className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 cursor-not-allowed opacity-75"
               >
-                <Star className="h-3 w-3 fill-green-700" />
-                {enrollment.user_review?.rating}/5
+                <Star className="h-3.5 w-3.5 fill-green-700" />
+                Rated
               </button>
             )}
           </div>

@@ -214,20 +214,22 @@ async function enrichEnrollments(
 
 function EmptyState() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-32 text-center">
-      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 mb-6 shadow-lg">
-        <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md text-center">
+        <div className="inline-flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-amber-100 to-orange-100 mb-6 shadow-lg">
+          <svg className="h-12 w-12 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-3">No enrollments yet</h1>
+        <p className="text-gray-600 mb-8 text-lg">Start your immigration journey by enrolling in our expert-curated courses</p>
+        <Link
+          href="/courses"
+          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-8 py-4 text-base font-semibold text-white shadow-lg hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 hover:scale-105"
+        >
+          Browse Courses
+        </Link>
       </div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-3">No enrollments yet</h1>
-      <p className="text-gray-600 mb-10 text-lg">Start your immigration journey by enrolling in courses</p>
-      <Link
-        href="/courses"
-        className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-8 py-4 text-base font-semibold text-white shadow-lg hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200"
-      >
-        Browse Courses
-      </Link>
     </div>
   );
 }
