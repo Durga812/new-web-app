@@ -25,6 +25,7 @@ type EnrollmentRow = {
 
 type EnrichedEnrollment = EnrollmentRow & {
   category?: string;
+  series?: string;
   image_url?: string;
   total_lessons?: number;
   total_duration?: number;
@@ -47,6 +48,7 @@ type RawCourseRow = {
   course_id: string;
   title: string;
   category?: string | null;
+  series?: string | null;
   image_url?: string | null;
   tags?: string[] | null;
   details?: unknown;
@@ -57,6 +59,7 @@ type RawBundleRow = {
   bundle_id: string;
   title: string;
   category?: string | null;
+  series?: string | null;
   image_url?: string | null;
   tags?: string[] | null;
   included_course_ids?: string[] | null;
@@ -126,7 +129,7 @@ async function enrichEnrollments(
   if (courseIds.length > 0) {
     const { data: courses } = await supabase
       .from('courses')
-      .select('course_id, title, category, image_url, tags, details, slug')
+      .select('course_id, title, category, series, image_url, tags, details, slug')
       .in('course_id', courseIds);
 
     const typedCourses: RawCourseRow[] = Array.isArray(courses) ? (courses as RawCourseRow[]) : [];
@@ -148,6 +151,7 @@ async function enrichEnrollments(
         enriched.push({
           ...enrollment,
           category: courseData.category ?? undefined,
+          series: courseData.series ?? undefined,
           image_url: courseData.image_url ?? undefined,
           total_lessons: curriculum.totalLessons || 0,
           total_duration: curriculum.totalDuration || 0,
@@ -169,7 +173,7 @@ async function enrichEnrollments(
   if (bundleIds.length > 0) {
     const { data: bundles } = await supabase
       .from('bundles')
-      .select('bundle_id, title, category, image_url, tags, included_course_ids, slug')
+      .select('bundle_id, title, category, series, image_url, tags, included_course_ids, slug')
       .in('bundle_id', bundleIds);
 
     const typedBundles: RawBundleRow[] = Array.isArray(bundles) ? (bundles as RawBundleRow[]) : [];
@@ -192,6 +196,7 @@ async function enrichEnrollments(
         enriched.push({
           ...enrollment,
           category: bundleData.category ?? undefined,
+          series: bundleData.series ?? undefined,
           image_url: bundleData.image_url ?? undefined,
           slug: bundleData.slug || undefined,
           tags: bundleData.tags || [],
@@ -210,16 +215,16 @@ async function enrichEnrollments(
 function EmptyState() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-32 text-center">
-      <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600 mb-6">
-        <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 mb-6 shadow-lg">
+        <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       </div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">No enrollments yet</h1>
-      <p className="text-gray-600 mb-8">Start your immigration journey by enrolling in courses</p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-3">No enrollments yet</h1>
+      <p className="text-gray-600 mb-10 text-lg">Start your immigration journey by enrolling in courses</p>
       <Link
         href="/courses"
-        className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-3 text-sm font-semibold text-white hover:from-amber-600 hover:to-orange-600"
+        className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-8 py-4 text-base font-semibold text-white shadow-lg hover:shadow-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200"
       >
         Browse Courses
       </Link>
