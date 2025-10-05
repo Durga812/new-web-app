@@ -476,7 +476,7 @@ function EnrollmentCard({
         </h3>
 
         {/* Meta Info - Justify Between */}
-        <div className="mb-3">
+        <div className="mb-1.5">
           {!isBundle && (enrollment.total_lessons || enrollment.total_duration) && (
             <div className="flex items-center justify-between text-xs text-gray-600">
               {enrollment.total_lessons !== undefined && enrollment.total_lessons > 0 && (
