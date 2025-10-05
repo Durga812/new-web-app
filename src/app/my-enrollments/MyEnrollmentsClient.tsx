@@ -1,11 +1,10 @@
-
 // src/app/my-enrollments/MyEnrollmentsClient.tsx
 "use client";
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, Info } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -74,6 +73,7 @@ export default function MyEnrollmentsClient({
   enrollments: EnrichedEnrollment[];
 }) {
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeSeries, setActiveSeries] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('latest');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [reviewModal, setReviewModal] = useState<{
@@ -94,9 +94,24 @@ export default function MyEnrollmentsClient({
         categories.add(enrollment.category);
       }
     });
-
     return ['all', ...Array.from(categories)];
   }, [enrollments]);
+
+  // Get available series for the active category
+  const availableSeries = useMemo<string[]>(() => {
+    if (activeCategory === 'all') return [];
+    
+    const series = new Set<string>();
+    enrollments
+      .filter(e => e.category === activeCategory)
+      .forEach(enrollment => {
+        if (enrollment.series) {
+          series.add(enrollment.series);
+        }
+      });
+    
+    return ['all', ...Array.from(series)];
+  }, [enrollments, activeCategory]);
 
   // Filter and sort enrollments
   const filteredEnrollments = useMemo(() => {
@@ -105,6 +120,11 @@ export default function MyEnrollmentsClient({
     // Filter by category
     if (activeCategory !== 'all') {
       filtered = filtered.filter(e => e.category === activeCategory);
+    }
+
+    // Filter by series
+    if (activeSeries !== 'all') {
+      filtered = filtered.filter(e => e.series === activeSeries);
     }
 
     // Filter by type
@@ -120,27 +140,7 @@ export default function MyEnrollmentsClient({
     });
 
     return sorted;
-  }, [enrollments, activeCategory, typeFilter, sortBy]);
-
-  // Group by category and series
-  const groupedEnrollments = useMemo(() => {
-    const groups: Record<string, Record<string, EnrichedEnrollment[]>> = {};
-    
-    filteredEnrollments.forEach(enrollment => {
-      const category = enrollment.category || 'other';
-      const series = enrollment.series || 'general';
-      
-      if (!groups[category]) {
-        groups[category] = {};
-      }
-      if (!groups[category][series]) {
-        groups[category][series] = [];
-      }
-      groups[category][series].push(enrollment);
-    });
-    
-    return groups;
-  }, [filteredEnrollments]);
+  }, [enrollments, activeCategory, activeSeries, typeFilter, sortBy]);
 
   const openReviewModal = (productId: string, productTitle: string) => {
     setReviewModal({
@@ -159,7 +159,7 @@ export default function MyEnrollmentsClient({
   };
 
   const formatSeriesName = (series: string) => {
-    if (series === 'general') return 'General Courses';
+    if (series === 'general') return 'General';
     return series.split('-').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
@@ -182,6 +182,12 @@ export default function MyEnrollmentsClient({
     };
   };
 
+  // Reset series filter when category changes
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    setActiveSeries('all');
+  };
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -189,24 +195,25 @@ export default function MyEnrollmentsClient({
           
           {/* Header Section */}
           <div className="mb-8">
-            <div className="flex items-start justify-between mb-6">
+            {/* Title and Filters - Responsive */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
                   My Enrollments
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-sm sm:text-base text-gray-600">
                   {enrollments.length} {enrollments.length === 1 ? 'course' : 'courses'} enrolled
                 </p>
               </div>
 
-              {/* Filters */}
-              <div className="flex items-center gap-3">
+              {/* Filters - Responsive */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 {/* Type Filter */}
                 <div className="relative">
                   <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
+                    className="w-full sm:w-auto appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
                   >
                     <option value="all">All Types</option>
                     <option value="course">Individual Courses</option>
@@ -220,7 +227,7 @@ export default function MyEnrollmentsClient({
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
+                    className="w-full sm:w-auto appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
                   >
                     <option value="latest">Latest Purchase</option>
                     <option value="oldest">Oldest Purchase</option>
@@ -243,9 +250,9 @@ export default function MyEnrollmentsClient({
                   return (
                     <button
                       key={category}
-                      onClick={() => setActiveCategory(category)}
+                      onClick={() => handleCategoryChange(category)}
                       className={`
-                        relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                        relative px-4 sm:px-6 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
                         ${isActive 
                           ? 'text-gray-900' 
                           : 'text-gray-600 hover:text-gray-900'
@@ -266,9 +273,35 @@ export default function MyEnrollmentsClient({
                 })}
               </div>
             </div>
+
+            {/* Series Filter Buttons - Only show when specific category is selected */}
+            {activeCategory !== 'all' && availableSeries.length > 1 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {availableSeries.map((series) => {
+                  const isActive = activeSeries === series;
+                  const config = getCategoryConfig(activeCategory);
+                  
+                  return (
+                    <button
+                      key={series}
+                      onClick={() => setActiveSeries(series)}
+                      className={`
+                        px-4 py-2 text-xs sm:text-sm font-medium rounded-full transition-all
+                        ${isActive
+                          ? `${config.bg} ${config.text} border-2 ${config.border}`
+                          : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300'
+                        }
+                      `}
+                    >
+                      {series === 'all' ? 'All Series' : formatSeriesName(series)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Content */}
+          {/* Content - No Category/Series Headers, Just Cards */}
           {filteredEnrollments.length === 0 ? (
             <div className="text-center py-20">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-100 mb-4">
@@ -278,55 +311,15 @@ export default function MyEnrollmentsClient({
               <p className="text-gray-600">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="space-y-10">
-              {Object.entries(groupedEnrollments).map(([category, seriesGroups]) => {
-                const config = getCategoryConfig(category);
-                
-                return (
-                  <div key={category}>
-                    {/* Category Header */}
-                    <div className="mb-6">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`h-1 w-12 rounded-full bg-gradient-to-r ${config.color}`} />
-                        <h2 className="text-2xl font-bold text-gray-900">
-                          {config.label}
-                        </h2>
-                      </div>
-                      <p className="text-sm text-gray-600 ml-15">
-                        {Object.values(seriesGroups).flat().length} {Object.values(seriesGroups).flat().length === 1 ? 'course' : 'courses'}
-                      </p>
-                    </div>
-
-                    {/* Series Groups */}
-                    <div className="space-y-8">
-                      {Object.entries(seriesGroups).map(([series, items]) => (
-                        <div key={`${category}-${series}`}>
-                          {/* Series Subheading */}
-                          <div className="mb-4 flex items-center gap-3">
-                            <div className={`h-px flex-1 bg-gradient-to-r ${config.color} opacity-20`} />
-                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${config.text}`}>
-                              {formatSeriesName(series)}
-                            </h3>
-                            <div className={`h-px flex-1 bg-gradient-to-l ${config.color} opacity-20`} />
-                          </div>
-
-                          {/* Course Cards Grid */}
-                          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {items.map(enrollment => (
-                              <EnrollmentCard
-                                key={enrollment.id}
-                                enrollment={enrollment}
-                                onOpenReview={openReviewModal}
-                                categoryConfig={config}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredEnrollments.map(enrollment => (
+                <EnrollmentCard
+                  key={enrollment.id}
+                  enrollment={enrollment}
+                  onOpenReview={openReviewModal}
+                  categoryConfig={getCategoryConfig(enrollment.category || 'other')}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -352,7 +345,7 @@ function EnrollmentCard({
   onOpenReview: (productId: string, productTitle: string) => void;
   categoryConfig: CategoryConfig;
 }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [showBundleTooltip, setShowBundleTooltip] = useState(false);
   const isBundle = enrollment.product_type === 'bundle';
   const isCourse = enrollment.product_type === 'course';
   const enrolledDate = new Date(enrollment.enrolled_at);
@@ -414,49 +407,12 @@ function EnrollmentCard({
             </Badge>
           )}
           
-          <div className="ml-auto flex flex-col gap-1.5 items-end">
-            {/* Expiry Badge */}
-            {isExpiringSoon && (
-              <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
-                {daysUntilExpiry}d left
-              </Badge>
-            )}
-            
-            {/* Bundle Info Icon with Tooltip */}
-            {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
-              <div className="relative">
-                <button
-                  onMouseEnter={() => setShowTooltip(true)}
-                  onMouseLeave={() => setShowTooltip(false)}
-                  className="flex items-center justify-center w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm border border-gray-200 shadow-lg hover:bg-white transition-colors"
-                >
-                  <Info className="h-4 w-4 text-gray-700" />
-                </button>
-                
-                {/* Tooltip */}
-                {showTooltip && (
-                  <div className="absolute top-full right-0 mt-2 w-64 z-50">
-                    <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-3 border border-gray-700">
-                      <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
-                        <Package className="h-3.5 w-3.5" />
-                        Included Courses ({enrollment.included_courses.length})
-                      </div>
-                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                        {enrollment.included_courses.map((course, idx) => (
-                          <div key={course.course_id} className="flex items-start gap-2 text-xs">
-                            <span className="text-amber-400 font-medium flex-shrink-0">{idx + 1}.</span>
-                            <span className="text-gray-200 leading-snug">{course.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                      {/* Triangle pointer */}
-                      <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 border-l border-t border-gray-700 transform rotate-45" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Expiry Badge */}
+          {isExpiringSoon && (
+            <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg ml-auto">
+              {daysUntilExpiry}d left
+            </Badge>
+          )}
         </div>
 
         {/* Type Badge */}
@@ -474,30 +430,34 @@ function EnrollmentCard({
           {enrollment.product_title}
         </h3>
 
-        {/* Meta Info */}
-        <div className="mb-3 space-y-2 text-xs text-gray-600">
-          {!isBundle && enrollment.total_lessons !== undefined && enrollment.total_lessons > 0 && (
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
-                <BookOpen className={`h-4 w-4 ${categoryConfig.text}`} />
-              </div>
-              <span className="font-medium">{enrollment.total_lessons} lessons</span>
-            </div>
-          )}
-          
-          {!isBundle && enrollment.total_duration !== undefined && enrollment.total_duration > 0 && (
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
-                <Clock className={`h-4 w-4 ${categoryConfig.text}`} />
-              </div>
-              <span className="font-medium">{formatDuration(enrollment.total_duration)}</span>
+        {/* Meta Info - Single Line for Courses */}
+        <div className="mb-3">
+          {!isBundle && (enrollment.total_lessons || enrollment.total_duration) && (
+            <div className="flex items-center gap-3 text-xs text-gray-600">
+              {enrollment.total_lessons !== undefined && enrollment.total_lessons > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-7 h-7 rounded-lg ${categoryConfig.bg} flex items-center justify-center flex-shrink-0`}>
+                    <BookOpen className={`h-3.5 w-3.5 ${categoryConfig.text}`} />
+                  </div>
+                  <span className="font-medium">{enrollment.total_lessons} lessons</span>
+                </div>
+              )}
+              
+              {enrollment.total_duration !== undefined && enrollment.total_duration > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-7 h-7 rounded-lg ${categoryConfig.bg} flex items-center justify-center flex-shrink-0`}>
+                    <Clock className={`h-3.5 w-3.5 ${categoryConfig.text}`} />
+                  </div>
+                  <span className="font-medium">{formatDuration(enrollment.total_duration)}</span>
+                </div>
+              )}
             </div>
           )}
           
           {isBundle && enrollment.included_course_ids && (
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg ${categoryConfig.bg} flex items-center justify-center`}>
-                <Package className={`h-4 w-4 ${categoryConfig.text}`} />
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div className={`w-7 h-7 rounded-lg ${categoryConfig.bg} flex items-center justify-center flex-shrink-0`}>
+                <Package className={`h-3.5 w-3.5 ${categoryConfig.text}`} />
               </div>
               <span className="font-medium">{enrollment.included_course_ids.length} courses included</span>
             </div>
@@ -570,6 +530,58 @@ function EnrollmentCard({
                 <Star className="h-3.5 w-3.5 fill-green-700" />
                 Rated
               </button>
+            )}
+
+            {/* Included Courses Button - Only for bundles */}
+            {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowBundleTooltip(!showBundleTooltip)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
+                >
+                  <Package className="h-3.5 w-3.5" />
+                  Included
+                </button>
+                
+                {/* Tooltip - Shows above button */}
+                {showBundleTooltip && (
+                  <>
+                    {/* Backdrop to close tooltip */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowBundleTooltip(false)}
+                    />
+                    
+                    {/* Tooltip Content */}
+                    <div className="absolute bottom-full right-0 mb-2 w-72 z-50">
+                      <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-4 border border-gray-700">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-sm font-semibold flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            Included Courses ({enrollment.included_courses.length})
+                          </div>
+                          <button
+                            onClick={() => setShowBundleTooltip(false)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {enrollment.included_courses.map((course, idx) => (
+                            <div key={course.course_id} className="flex items-start gap-2 text-xs">
+                              <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
+                              <span className="text-gray-200 leading-relaxed">{course.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Triangle pointer */}
+                        <div className="absolute -bottom-2 right-4 w-3 h-3 bg-gray-900 border-r border-b border-gray-700 transform rotate-45" />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
