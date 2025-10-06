@@ -119,12 +119,15 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
 
   const { orderId, orderNumber } = orderResult;
 
-  // Step 2: Update user's stripe_customer_id if exists
+  // Step 2: Clear user's cart now that the order is saved
+  await clearUserCart(clerkId);
+
+  // Step 3: Update user's stripe_customer_id if exists
   if (session.customer) {
     await updateStripeCustomerId(clerkId, session.customer as string);
   }
 
-  // Step 3: Send order confirmation email
+  // Step 4: Send order confirmation email
   const metadata = session.metadata || {};
   await sendOrderConfirmationEmail({
     orderId,
@@ -144,7 +147,7 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
     })),
   });
 
-  // Step 4: Ensure user exists in LearnWorlds
+  // Step 5: Ensure user exists in LearnWorlds
   const learnWorldsUserId = await ensureLearnWorldsUser(clerkId, email);
   
   if (!learnWorldsUserId) {
@@ -152,18 +155,15 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
     // Continue anyway, enrollments will fail but we'll track them
   }
 
-  // Step 5: Enroll user in each product
+  // Step 6: Enroll user in each product
   await enrollUserInProducts(clerkId, email, orderId, purchasedItems);
 
-  // Step 6: Send enrollment complete email
+  // Step 7: Send enrollment complete email
   await sendEnrollmentCompleteEmail(
     email,
     session.customer_details?.name || null,
     purchasedItems.length
   );
-
-  // Step 7: Clear user's cart
-  await clearUserCart(clerkId);
 
   console.log("Checkout processing completed successfully");
 }

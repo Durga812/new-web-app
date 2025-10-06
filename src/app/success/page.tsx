@@ -8,14 +8,27 @@ import { useCartStore } from "@/stores/cart-store";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const clearCart = useCartStore(state => state.clearCart);
+  const loadCart = useCartStore(state => state.loadCart);
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
-    if (sessionId) {
-      clearCart();
+    if (!sessionId) {
+      return;
     }
-  }, [clearCart, sessionId]);
+
+    // Optimistically clear local cart state so the drawer empties immediately.
+    useCartStore.setState({ items: [] });
+
+    // Sync from the server right away and once more after a short delay in case the webhook is still running.
+    void loadCart();
+    const retryTimeout = setTimeout(() => {
+      void loadCart();
+    }, 2000);
+
+    return () => {
+      clearTimeout(retryTimeout);
+    };
+  }, [loadCart, sessionId]);
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-6 px-4 text-center">
