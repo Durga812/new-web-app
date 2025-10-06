@@ -31,6 +31,9 @@ type Course = {
     price3?: CoursePricing;
   };
   image_url?: string;
+  subtitle?: string;
+  keyBenefits?: string[];
+  details?: Record<string, unknown>;
 };
 
 interface IndividualCoursesSectionProps {
@@ -366,6 +369,7 @@ export function IndividualCoursesSection({
                       series={series}
                       metadata={metadata}
                       courses={seriesCourses}
+                      desktopColumnIndex={index}
                     />
                   </div>
                 );

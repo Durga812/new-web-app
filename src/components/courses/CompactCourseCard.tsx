@@ -1,7 +1,7 @@
 // src/components/courses/CompactCourseCard.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type CSSProperties } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, Check, Star, Clock } from "lucide-react";
@@ -36,11 +36,15 @@ type Course = {
     price3?: CoursePricing;
   };
   image_url?: string;
+  subtitle?: string;
+  keyBenefits?: string[];
+  details?: Record<string, unknown>;
 };
 
 interface CompactCourseCardProps {
   course: Course;
   metadata?: NormalizedSeriesMetadata;
+  tooltipSide?: 'left' | 'right';
 }
 
 const formatPrice = (value: number) =>
@@ -58,12 +62,37 @@ const formatLabel = (value?: string) => {
     .join(" ");
 };
 
+const toRecord = (value: unknown): Record<string, unknown> | undefined => {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
+};
+
+const toNormalizedString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const toStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map(item => (typeof item === "string" ? item.trim() : ""))
+    .filter((item): item is string => item.length > 0);
+};
+
 type PricingKey = keyof NonNullable<Course["pricing"]>;
 const pricingKeys: PricingKey[] = ["price1", "price2", "price3"];
 
 export function CompactCourseCard({
   course,
   metadata,
+  tooltipSide = 'right',
 }: CompactCourseCardProps) {
   // Pricing options
   const pricingOptions = useMemo(() => {
@@ -90,6 +119,50 @@ export function CompactCourseCard({
 
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
   const selectedOption = pricingOptions[selectedOptionIndex];
+
+  const { tooltipSubtitle, tooltipBenefits } = useMemo(() => {
+    const detailsRecord = toRecord(course.details);
+    const heroRecord = toRecord(detailsRecord?.["hero"]);
+
+    const subtitle =
+      toNormalizedString(course.subtitle) ??
+      toNormalizedString(heroRecord?.["subtitle"]) ??
+      toNormalizedString(detailsRecord?.["subtitle"]);
+
+    const normalizedBenefits = (() => {
+      const fromCourse = toStringArray(course.keyBenefits);
+      if (fromCourse.length > 0) {
+        return fromCourse;
+      }
+
+      const fromHero = toStringArray(heroRecord?.["keyBenefits"]);
+      if (fromHero.length > 0) {
+        return fromHero;
+      }
+
+      return toStringArray(detailsRecord?.["keyBenefits"]);
+    })();
+
+    return {
+      tooltipSubtitle: subtitle,
+      tooltipBenefits: normalizedBenefits.slice(0, 4),
+    };
+  }, [course.details, course.keyBenefits, course.subtitle]);
+
+  const hasTooltipContent = Boolean(tooltipSubtitle) || tooltipBenefits.length > 0;
+  const tooltipStyle = useMemo<CSSProperties>(() => {
+    const offset = 'calc(100% + 0.375rem)';
+    return tooltipSide === 'left'
+      ? { right: offset }
+      : { left: offset };
+  }, [tooltipSide]);
+
+  const arrowStyle = useMemo<CSSProperties>(() => {
+    const offset = '-6px';
+    return tooltipSide === 'left'
+      ? { right: offset }
+      : { left: offset };
+  }, [tooltipSide]);
 
   // Cart state
   const cartItem = useCartStore(state =>
@@ -156,7 +229,7 @@ export function CompactCourseCard({
 //   }, [course.title, course.series]);
 
   return (
-    <div className={`group rounded-lg border bg-white shadow-sm transition-all hover:shadow-md ${
+    <div className={`group relative z-0 rounded-lg border bg-white shadow-sm transition-all hover:z-20 hover:shadow-lg ${
       isPurchased ? 'border-emerald-200' : 'border-gray-200'
     }`}>
       {/* Card Header with Image */}
@@ -313,6 +386,32 @@ export function CompactCourseCard({
           )}
         </Button>
       </div>
+
+      {hasTooltipContent && (
+        <div
+          style={tooltipStyle}
+          className="pointer-events-none absolute top-1/2 hidden w-72 -translate-y-1/2 rounded-2xl border border-gray-200 bg-white/95 p-4 text-xs text-gray-600 shadow-xl ring-1 ring-black/5 opacity-0 transition-opacity duration-200 ease-out lg:block group-hover:opacity-100 z-50"
+        >
+          <div
+            style={arrowStyle}
+            className="absolute top-1/2 hidden h-3 w-3 -translate-y-1/2 rotate-45 border border-gray-200 bg-white/95 lg:block"
+            aria-hidden="true"
+          />
+          {tooltipSubtitle && (
+            <p className="text-sm font-semibold text-gray-900">{tooltipSubtitle}</p>
+          )}
+          {tooltipBenefits.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {tooltipBenefits.map((benefit, index) => (
+                <li key={index} className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                  <span>{benefit}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

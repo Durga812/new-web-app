@@ -29,20 +29,26 @@ type Course = {
     price3?: CoursePricing;
   };
   image_url?: string;
+  subtitle?: string;
+  keyBenefits?: string[];
+  details?: Record<string, unknown>;
 };
 
 interface SeriesColumnProps {
   series: string;
   metadata?: NormalizedSeriesMetadata;
   courses: Course[];
+  desktopColumnIndex?: number;
 }
 
 export function SeriesColumn({
   series,
   metadata,
   courses,
+  desktopColumnIndex,
 }: SeriesColumnProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipSide = desktopColumnIndex !== undefined && desktopColumnIndex >= 2 ? 'left' : 'right';
 
   return (
     <div
@@ -99,6 +105,7 @@ export function SeriesColumn({
             key={course.course_id}
             course={course}
             metadata={metadata}
+            tooltipSide={tooltipSide}
           />
         ))}
       </div>

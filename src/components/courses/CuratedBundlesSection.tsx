@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Check, Search, Package, Sparkles } from "lucide-react";
@@ -50,11 +50,20 @@ const formatPrice = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value);
 
+const normalizeId = (value?: string | null) => {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : '';
+};
+
 export function CuratedBundlesSection({
   category,
   bundles,
 }: CuratedBundlesSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [courseTitleLookup, setCourseTitleLookup] = useState<Record<string, string>>({});
 
   // Filter bundles based on search
   const filteredBundles = useMemo(() => {
@@ -67,6 +76,74 @@ export function CuratedBundlesSection({
       bundle.tags?.some(tag => tag.toLowerCase().includes(query))
     );
   }, [bundles, searchQuery]);
+
+  const visibleCourseIds = useMemo(() => {
+    const ids = new Set<string>();
+    filteredBundles.forEach(bundle => {
+      bundle.included_course_ids.forEach(id => {
+        const normalized = normalizeId(id);
+        if (normalized) {
+          ids.add(normalized);
+        }
+      });
+    });
+    return Array.from(ids);
+  }, [filteredBundles]);
+
+  useEffect(() => {
+    if (visibleCourseIds.length === 0) {
+      return;
+    }
+
+    const missing = visibleCourseIds.filter(id => !courseTitleLookup[id]);
+    if (missing.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetch('/api/catalog/course-titles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: missing }),
+    })
+      .then(async response => {
+        if (!response.ok) {
+          throw new Error(`Failed to fetch course titles: ${response.status}`);
+        }
+        return response.json() as Promise<{ courses?: Array<{ course_id?: string; title?: string }> }>;
+      })
+      .then(payload => {
+        if (isCancelled || !payload?.courses) {
+          return;
+        }
+
+        setCourseTitleLookup(prev => {
+          const next = { ...prev };
+          payload.courses?.forEach(course => {
+            const normalized = normalizeId(course?.course_id ?? null);
+            if (!normalized || next[normalized]) {
+              return;
+            }
+            const title =
+              typeof course?.title === 'string' && course.title.trim().length > 0
+                ? course.title.trim()
+                : normalized;
+            next[normalized] = title;
+          });
+          return next;
+        });
+      })
+      .catch(error => {
+        console.error('Failed to load bundle course titles', error);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [visibleCourseIds, courseTitleLookup]);
 
   return (
     <section className="space-y-6">
@@ -121,6 +198,7 @@ export function CuratedBundlesSection({
             <BundleCard
               key={bundle.bundle_id}
               bundle={bundle}
+              courseTitleLookup={courseTitleLookup}
             />
           ))}
         </div>
@@ -131,9 +209,14 @@ export function CuratedBundlesSection({
 
 function BundleCard({
   bundle,
+  courseTitleLookup,
 }: {
   bundle: Bundle;
+  courseTitleLookup: Record<string, string>;
 }) {
+  const [showIncludedCourses, setShowIncludedCourses] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const tooltipTriggerRef = useRef<HTMLButtonElement | null>(null);
   const totalCourses = bundle.included_course_ids.length;
   const savingsPercent = bundle.pricing.compared_price
     ? Math.round((1 - bundle.pricing.price / bundle.pricing.compared_price) * 100)
@@ -155,6 +238,33 @@ function BundleCard({
       (!!bundleEnrollId && purchasedEnrollIds.includes(bundleEnrollId))
     );
   }, [bundleEnrollId, bundleProductId, purchasedEnrollIds, purchasedProductIds]);
+
+  const includedCourseTitles = useMemo(() => {
+    return bundle.included_course_ids
+      .map(courseId => normalizeId(courseId))
+      .map(id => (id ? courseTitleLookup[id] ?? id : ''))
+      .filter((title): title is string => title.length > 0);
+  }, [bundle.included_course_ids, courseTitleLookup]);
+
+  useEffect(() => {
+    if (!showIncludedCourses) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (tooltipRef.current?.contains(target)) {
+        return;
+      }
+      if (tooltipTriggerRef.current?.contains(target)) {
+        return;
+      }
+      setShowIncludedCourses(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showIncludedCourses]);
 
   const handleAddToCart = () => {
     if (isInCart || isPurchased) return;
@@ -178,9 +288,11 @@ function BundleCard({
   };
 
   return (
-    <article className={`group relative flex h-full flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
+    <article
+      className={`group relative flex h-full flex-col overflow-visible rounded-xl border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg ${
       isPurchased ? 'border-emerald-200 ring-1 ring-emerald-200' : 'border-gray-200'
-    }`}>
+    }`}
+    >
       {/* Media & Badges */}
       <Link
         href={bundleHref}
@@ -262,7 +374,7 @@ function BundleCard({
 
         {/* Pricing */}
         <div className="mt-auto space-y-3">
-          <div className="flex items-end justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-gray-500">Bundle Price</p>
               <div className="flex items-baseline gap-2">
@@ -276,11 +388,42 @@ function BundleCard({
                 )}
               </div>
             </div>
-            {savingsPercent > 0 && (
-              <span className="text-xs font-semibold text-emerald-600">
-                Save {savingsPercent}%
-              </span>
-            )}
+            <div className="relative flex flex-col items-end gap-1 text-right">
+              {includedCourseTitles.length > 0 && (
+                <button
+                  type="button"
+                  ref={tooltipTriggerRef}
+                  onClick={() => setShowIncludedCourses(prev => !prev)}
+                  aria-expanded={showIncludedCourses}
+                  className="text-xs font-semibold text-blue-600 underline-offset-2 transition-colors hover:text-blue-700 hover:underline"
+                >
+                  View courses
+                </button>
+              )}
+              {savingsPercent > 0 && (
+                <span className="text-xs font-semibold text-emerald-600">
+                  Save {savingsPercent}%
+                </span>
+              )}
+
+              {showIncludedCourses && includedCourseTitles.length > 0 && (
+                <div
+                  ref={tooltipRef}
+                  className="absolute right-0 bottom-full z-30 mb-2 w-72 rounded-2xl border border-gray-200 bg-white/95 p-4 text-xs text-gray-600 shadow-xl ring-1 ring-black/5"
+                >
+                  <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border border-gray-200 bg-white/95" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-gray-900">Courses in this bundle</p>
+                  <ul className="mt-2 space-y-1">
+                    {includedCourseTitles.map((title, idx) => (
+                      <li key={`${bundle.bundle_id}-${idx}`} className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
+                        <span>{title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
           {isPurchased && (
             <p className="text-xs font-semibold text-emerald-600">
@@ -318,6 +461,7 @@ function BundleCard({
           </Button>
         </div>
       </div>
+
     </article>
   );
 }
