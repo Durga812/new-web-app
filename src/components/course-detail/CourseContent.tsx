@@ -1,10 +1,11 @@
 // src/components/course-detail/CourseContent.tsx
 "use client";
 
-import { ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, ListMinus, ListPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 import type { CourseDetail } from "@/types/course-detail";
 
 interface CourseContentProps {
@@ -26,6 +27,13 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
   const faqs = safeArray(course.faqs);
   const modules = safeArray(course.modules);
   const reviews = safeArray(course.reviews);
+
+  const moduleIds = useMemo(() => modules.map(module => module.id).filter(Boolean) as string[], [modules]);
+  const allModulesExpanded = moduleIds.length > 0 && moduleIds.every(id => expandedModules.includes(id));
+
+  const toggleAllModules = () => {
+    setExpandedModules(allModulesExpanded ? [] : moduleIds);
+  };
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev =>
@@ -82,11 +90,11 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
       <section ref={(el) => { sectionRefs.current.about = el; }} id="about">
         <h2 className="mb-5 text-2xl font-bold text-gray-900">About this course</h2>
         
-        <Card className="mb-5 p-6">
+        <Card className="mb-5 p-6 py-4">
           <p className="leading-relaxed text-gray-700">{course.description}</p>
         </Card>
 
-        <Card className="mb-5 p-6">
+        <Card className="mb-5 p-6 py-4">
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Who this course is for</h3>
           <div className="grid gap-6 md:grid-cols-2">
             <div>
@@ -120,7 +128,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 py-4">
           <h3 className="mb-4 text-lg font-semibold text-gray-900">Course highlights</h3>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {highlights.map((highlight, idx) => (
@@ -135,12 +143,31 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
 
       {/* Curriculum Section */}
       <section ref={(el) => { sectionRefs.current.curriculum = el; }} id="curriculum">
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-2xl font-bold text-gray-900">Course curriculum</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="text-xs">{course.totalModules} modules</Badge>
             <Badge variant="outline" className="text-xs">{course.totalLessons} lessons</Badge>
             <Badge variant="outline" className="text-xs">{formatDuration(course.totalDuration)}</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={toggleAllModules}
+              className="inline-flex items-center gap-2 rounded-full border-amber-200 bg-amber-50 px-4 py-2 text-amber-700 shadow-sm transition hover:bg-amber-100 hover:text-amber-800"
+            >
+              {allModulesExpanded ? (
+                <>
+                  <ListMinus className="h-4 w-4" />
+                  Collapse all
+                </>
+              ) : (
+                <>
+                  <ListPlus className="h-4 w-4" />
+                  Expand all
+                </>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -199,7 +226,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
       {/* Learning Outcomes Section */}
       <section ref={(el) => { sectionRefs.current.outcomes = el; }} id="outcomes">
         <h2 className="mb-5 text-2xl font-bold text-gray-900">What you&apos;ll learn</h2>
-        <Card className="p-6">
+        <Card className="p-6 py-4">
           <div className="grid gap-4 sm:grid-cols-2">
             {learningOutcomes.map((outcome, idx) => (
               <div key={idx} className="flex items-start gap-3">
@@ -216,7 +243,7 @@ export default function CourseContent({ course, sectionRefs }: CourseContentProp
       {/* Requirements Section */}
       <section ref={(el) => { sectionRefs.current.requirements = el; }} id="requirements">
         <h2 className="mb-5 text-2xl font-bold text-gray-900">Requirements</h2>
-        <Card className="p-6">
+        <Card className="p-6 py-4">
           <ul className="space-y-3">
             {requirements.map((req, idx) => (
               <li key={idx} className="flex items-start gap-3">

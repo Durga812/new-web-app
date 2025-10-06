@@ -36,12 +36,20 @@ function SuccessContent() {
       <p className="text-base text-gray-600">
         Thanks for enrolling with Immigreat. Your receipt has been emailed and your courses will be ready shortly.
       </p>
-      <Link
-        href="/courses"
-        className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-orange-200/50 transition hover:opacity-90"
-      >
-        Browse more courses
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/my-enrollments"
+          className="inline-flex items-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200/50 transition hover:opacity-90"
+        >
+          Go to My Enrollments
+        </Link>
+        <Link
+          href="/courses"
+          className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-orange-200/50 transition hover:opacity-90"
+        >
+          Browse more courses
+        </Link>
+      </div>
     </main>
   );
 }
