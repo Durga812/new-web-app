@@ -392,10 +392,14 @@ function EnrollmentCard({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const courseUrl = `https://courses.greencardiy.com/path-player?courseid=${enrollment.enroll_id}&learningProgramId=${enrollment.enroll_id}`;
+  const trimmedEnrollId = enrollment.enroll_id.trim();
+  const courseAccessUrl = trimmedEnrollId
+    ? `https://courses.greencardiy.com/path-player?courseid=${trimmedEnrollId}&learningProgramId=${trimmedEnrollId}`
+    : null;
   const detailPageUrl = isBundle 
     ? `/bundle/${enrollment.slug || enrollment.product_id}` 
     : `/course/${enrollment.slug || enrollment.product_id}`;
+  const canAccessCourse = isCourse && Boolean(courseAccessUrl);
 
   return (
     <Card className="group relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
@@ -528,13 +532,17 @@ function EnrollmentCard({
 
         {/* Action Buttons */}
         <div className="mt-auto space-y-2">
-          
-            href={courseUrl}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
-          <a>
-            <span>Access Course</span>
-            <ExternalLink className="h-4 w-4" />
-          </a>
+          {canAccessCourse && courseAccessUrl && (
+            <a
+              href={courseAccessUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
+            >
+              <span>Access Course</span>
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
           
           <div className="grid grid-cols-2 gap-2">
             <Link
