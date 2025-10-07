@@ -612,12 +612,29 @@ function EnrollmentCard({
                     <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border border-gray-200 bg-white/95" aria-hidden="true" />
                     <p className="text-sm font-semibold text-gray-900">Courses in this bundle</p>
                     <ul className="mt-2 space-y-1">
-                      {enrollment.included_courses.map((course, idx) => (
-                        <li key={`${enrollment.id}-${course.course_id}-${idx}`} className="flex items-start gap-2">
-                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
-                          <span>{course.title}</span>
-                        </li>
-                      ))}
+                      {enrollment.included_courses.map((course, idx) => {
+                        const courseUrl = course.lw_bundle_child_id
+                          ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
+                          : null;
+                        return (
+                          <li key={`${enrollment.id}-${course.course_id}-${idx}`} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
+                            {courseUrl ? (
+                              <a
+                                href={courseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-gray-700 hover:text-amber-600 hover:underline transition-colors flex items-start gap-1 group"
+                              >
+                                <span>{course.title}</span>
+                                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
+                              </a>
+                            ) : (
+                              <span className="text-gray-500">{course.title}</span>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
