@@ -554,8 +554,7 @@ function EnrollmentCard({
           {canAccessCourse && courseAccessUrl && (
             <a
               href={courseAccessUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              
               className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
             >
               <span>Access Course</span>
@@ -622,8 +621,7 @@ function EnrollmentCard({
                             {courseUrl ? (
                               <a
                                 href={courseUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                
                                 className="text-gray-700 hover:text-amber-600 hover:underline transition-colors flex items-start gap-1 group"
                               >
                                 <span>{course.title}</span>
