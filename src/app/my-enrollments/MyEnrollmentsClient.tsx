@@ -29,6 +29,7 @@ type EnrichedEnrollment = {
     course_id: string;
     title: string;
     image_url?: string;
+    lw_bundle_child_id?: string; // ✅ Added
   }>;
   has_reviewed?: boolean;
   user_review?: {
@@ -527,10 +528,10 @@ function EnrollmentCard({
 
         {/* Action Buttons */}
         <div className="mt-auto space-y-2">
-          <a
+          
             href={courseUrl}
             className={`flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
-          >
+          <a>
             <span>Access Course</span>
             <ExternalLink className="h-4 w-4" />
           </a>
@@ -603,12 +604,33 @@ function EnrollmentCard({
                 </button>
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {enrollment.included_courses.map((course, idx) => (
-                  <div key={course.course_id} className="flex items-start gap-2 text-xs">
-                    <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
-                    <span className="text-gray-200 leading-relaxed">{course.title}</span>
-                  </div>
-                ))}
+                {enrollment.included_courses.map((course, idx) => {
+                  // ✅ Build course URL if lw_bundle_child_id exists
+                  const courseUrl = course.lw_bundle_child_id
+                    ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
+                    : null;
+
+                  return (
+                    <div key={course.course_id} className="flex items-start gap-2 text-xs">
+                      <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
+                      {courseUrl ? (
+                        // ✅ Clickable link
+                        <a
+                          href={courseUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-200 leading-relaxed hover:text-amber-400 hover:underline transition-colors flex items-start gap-1 group"
+                        >
+                          <span>{course.title}</span>
+                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
+                        </a>
+                      ) : (
+                        // ✅ Non-clickable text
+                        <span className="text-gray-400 leading-relaxed">{course.title}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

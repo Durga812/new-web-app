@@ -36,6 +36,7 @@ type EnrichedEnrollment = EnrollmentRow & {
     course_id: string;
     title: string;
     image_url?: string;
+    lw_bundle_child_id?: string; //  Still optional (course might not have mapping)
   }>;
   has_reviewed?: boolean;
   user_review?: {
@@ -63,6 +64,7 @@ type RawBundleRow = {
   image_url?: string | null;
   tags?: string[] | null;
   included_course_ids?: string[] | null;
+  lw_bundle_children: Record<string, string>; //  Not nullable
   slug?: string | null;
 };
 
@@ -173,7 +175,7 @@ async function enrichEnrollments(
   if (bundleIds.length > 0) {
     const { data: bundles } = await supabase
       .from('bundles')
-      .select('bundle_id, title, category, series, image_url, tags, included_course_ids, slug')
+      .select('bundle_id, title, category, series, image_url, tags, included_course_ids,lw_bundle_children, slug')
       .in('bundle_id', bundleIds);
 
     const typedBundles: RawBundleRow[] = Array.isArray(bundles) ? (bundles as RawBundleRow[]) : [];
@@ -182,27 +184,37 @@ async function enrichEnrollments(
       const bundleData = typedBundles.find(b => b.bundle_id === enrollment.product_id);
       
       if (bundleData) {
-        let includedCourses: Array<{ course_id: string; title: string; image_url?: string }> = [];
+      let includedCourses: Array<{ 
+        course_id: string; 
+        title: string; 
+        image_url?: string;
+        lw_bundle_child_id?: string;
+      }> = [];
+      
+      if (bundleData.included_course_ids && bundleData.included_course_ids.length > 0) {
+        const { data: coursesData } = await supabase
+          .from('courses')
+          .select('course_id, title, image_url')
+          .in('course_id', bundleData.included_course_ids);
         
-        if (bundleData.included_course_ids && bundleData.included_course_ids.length > 0) {
-          const { data: coursesData } = await supabase
-            .from('courses')
-            .select('course_id, title, image_url')
-            .in('course_id', bundleData.included_course_ids);
-          
-          includedCourses = coursesData || [];
-        }
+        // ✅ No need for || {} since it's not nullable
+        const lwMappings = bundleData.lw_bundle_children;
+        includedCourses = (coursesData || []).map(course => ({
+          ...course,
+          lw_bundle_child_id: lwMappings[course.course_id]
+        }));
+      }
         
         enriched.push({
-          ...enrollment,
-          category: bundleData.category ?? undefined,
-          series: bundleData.series ?? undefined,
-          image_url: bundleData.image_url ?? undefined,
-          slug: bundleData.slug || undefined,
-          tags: bundleData.tags || [],
-          included_course_ids: bundleData.included_course_ids || [],
-          included_courses: includedCourses,
-        });
+        ...enrollment,
+        category: bundleData.category ?? undefined,
+        series: bundleData.series ?? undefined,
+        image_url: bundleData.image_url ?? undefined,
+        slug: bundleData.slug || undefined,
+        tags: bundleData.tags || [],
+        included_course_ids: bundleData.included_course_ids || [],
+        included_courses: includedCourses,
+      });
       } else {
         enriched.push(enrollment);
       }
