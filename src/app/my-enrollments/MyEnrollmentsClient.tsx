@@ -391,7 +391,7 @@ function EnrollmentCard({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const courseUrl = `https://courses.greencardiy.com/courseid=${enrollment.enroll_id}&learningProgramId=${enrollment.enroll_id}?program=${enrollment.enroll_id}`;
+  const courseUrl = `https://courses.greencardiy.com/path-player?courseid=${enrollment.enroll_id}&learningProgramId=${enrollment.enroll_id}?program=${enrollment.enroll_id}`;
   const detailPageUrl = isBundle 
     ? `/bundle/${enrollment.slug || enrollment.product_id}` 
     : `/course/${enrollment.slug || enrollment.product_id}`;
