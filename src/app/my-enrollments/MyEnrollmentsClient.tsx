@@ -1,10 +1,10 @@
 // src/app/my-enrollments/MyEnrollmentsClient.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, X } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -370,12 +370,26 @@ function EnrollmentCard({
   categoryConfig: CategoryConfig;
 }) {
   const [showBundleTooltip, setShowBundleTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const tooltipTriggerRef = useRef<HTMLButtonElement | null>(null);
   const isBundle = enrollment.product_type === 'bundle';
   const isCourse = enrollment.product_type === 'course';
   const enrolledDate = new Date(enrollment.enrolled_at);
   const expiryDate = new Date(enrollment.expires_at);
   const daysUntilExpiry = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   const isExpiringSoon = daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+  
+  useEffect(() => {
+    if (!showBundleTooltip) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (tooltipRef.current?.contains(target)) return;
+      if (tooltipTriggerRef.current?.contains(target)) return;
+      setShowBundleTooltip(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showBundleTooltip]);
   
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -402,7 +416,7 @@ function EnrollmentCard({
   const canAccessCourse = isCourse && Boolean(courseAccessUrl);
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
+    <Card className="group relative flex h-full flex-col overflow-visible transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
       {/* Image */}
       <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
@@ -479,7 +493,12 @@ function EnrollmentCard({
       <div className="flex flex-1 flex-col p-2">
         {/* Title - Reduced padding */}
         <h3 className="mb-2 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
-          {enrollment.product_title}
+          <Link
+            href={detailPageUrl}
+            className="transition-colors hover:text-amber-600"
+          >
+            {enrollment.product_title}
+          </Link>
         </h3>
 
         {/* Meta Info - Justify Between */}
@@ -574,76 +593,39 @@ function EnrollmentCard({
               </button>
             )}
 
-            {/* Included Courses Button - Only for bundles */}
+            {/* Included Courses Button + Tooltip - Only for bundles */}
             {isBundle && enrollment.included_courses && enrollment.included_courses.length > 0 && (
-              <button
-                onClick={() => setShowBundleTooltip(!showBundleTooltip)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
-              >
-                Included Courses
-              </button>
+              <div className="relative">
+                <button
+                  ref={tooltipTriggerRef}
+                  onClick={() => setShowBundleTooltip(prev => !prev)}
+                  aria-expanded={showBundleTooltip}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-all hover:bg-blue-100 hover:border-blue-400"
+                >
+                  Included Courses
+                </button>
+                {showBundleTooltip && (
+                  <div
+                    ref={tooltipRef}
+                    className="absolute right-0 bottom-full z-30 mb-2 w-72 rounded-2xl border border-gray-200 bg-white/95 p-4 text-xs text-gray-600 shadow-xl ring-1 ring-black/5"
+                  >
+                    <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border border-gray-200 bg-white/95" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-gray-900">Courses in this bundle</p>
+                    <ul className="mt-2 space-y-1">
+                      {enrollment.included_courses.map((course, idx) => (
+                        <li key={`${enrollment.id}-${course.course_id}-${idx}`} className="flex items-start gap-2">
+                          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
+                          <span>{course.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Bundle Tooltip - Centered in Card */}
-      {isBundle && showBundleTooltip && enrollment.included_courses && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/20 z-40" 
-            onClick={() => setShowBundleTooltip(false)}
-          />
-          
-          {/* Tooltip Content - Centered */}
-          <div className="absolute inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-            <div className="bg-gray-900 text-white rounded-lg shadow-2xl p-4 border border-gray-700 max-w-sm w-full pointer-events-auto">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-sm font-semibold flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Included Courses ({enrollment.included_courses.length})
-                </div>
-                <button
-                  onClick={() => setShowBundleTooltip(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {enrollment.included_courses.map((course, idx) => {
-                  // ✅ Build course URL if lw_bundle_child_id exists
-                  const courseUrl = course.lw_bundle_child_id
-                    ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
-                    : null;
-
-                  return (
-                    <div key={course.course_id} className="flex items-start gap-2 text-xs">
-                      <span className="text-amber-400 font-medium flex-shrink-0 mt-0.5">{idx + 1}.</span>
-                      {courseUrl ? (
-                        // ✅ Clickable link
-                        <a
-                          href={courseUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-gray-200 leading-relaxed hover:text-amber-400 hover:underline transition-colors flex items-start gap-1 group"
-                        >
-                          <span>{course.title}</span>
-                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5" />
-                        </a>
-                      ) : (
-                        // ✅ Non-clickable text
-                        <span className="text-gray-400 leading-relaxed">{course.title}</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </Card>
   );
 }
