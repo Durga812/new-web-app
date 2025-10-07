@@ -155,7 +155,7 @@ export function Navigation() {
             {!isLoaded ? (
               <div className="hidden h-10 w-24 animate-pulse rounded-full bg-gray-200 sm:block" />
             ) : isSignedIn ? (
-              <div className="hidden sm:block" ref={profileRef}>
+              <div className="relative hidden sm:block" ref={profileRef}>
                 <Button
                   variant="ghost"
                   onClick={() => setIsProfileOpen((open) => !open)}
@@ -173,7 +173,7 @@ export function Navigation() {
                 </Button>
 
                 {isProfileOpen && (
-                  <div className="absolute right-6 mt-3 w-72 overflow-hidden rounded-lg border border-amber-100 bg-white shadow-xl">
+                  <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-lg border border-amber-100 bg-white shadow-xl">
                     <div className="bg-amber-50 p-4">
                       <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
                       <p className="text-xs text-gray-600">{user?.primaryEmailAddress?.emailAddress}</p>

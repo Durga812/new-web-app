@@ -57,7 +57,7 @@ export function SeriesColumn({
       }`}
     >
       {/* Column Header */}
-      <div className="sticky top-[6.25rem] z-30 border-b border-gray-200/50 bg-white/80 px-3 py-3 backdrop-blur-sm rounded-t-xl">
+      <div className="sticky z-20 border-b border-gray-200/50 bg-white/80 px-3 py-3 backdrop-blur-sm rounded-t-xl top-[calc(var(--nav-offset,4rem)+var(--category-discount-height,0px)+0.75rem)]">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h3 className={`text-sm font-bold ${metadata?.accentColor || 'text-gray-800'}`}>
