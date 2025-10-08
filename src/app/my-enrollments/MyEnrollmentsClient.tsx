@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookOpen, Package, Filter, X, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -80,7 +81,17 @@ export default function MyEnrollmentsClient({
 }: { 
   enrollments: EnrichedEnrollment[];
 }) {
-  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('course');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Initialize activeMainTab from URL query parameter
+  const getInitialTab = (): MainTabType => {
+    const enrollmentType = searchParams.get('enrollment-type');
+    if (enrollmentType === 'bundle') return 'bundle';
+    return 'course'; // Default to 'course' for both 'course' and no parameter
+  };
+  
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>(getInitialTab);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [selectedSeries, setSelectedSeries] = useState<Set<string>>(new Set());
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -216,13 +227,21 @@ export default function MyEnrollmentsClient({
     };
   };
 
-  // Handle main tab change - reset category and filters
+  // Handle main tab change - reset category and filters and update URL
   const handleMainTabChange = (tab: MainTabType) => {
     setActiveMainTab(tab);
     setActiveCategory('');
     setSelectedSeries(new Set());
     setSelectedTags(new Set());
     setIsFilterExpanded(false);
+    
+    // Update URL with query parameter
+    if (tab === 'bundle') {
+      router.push('/my-enrollments?enrollment-type=bundle', { scroll: false });
+    } else {
+      // For 'course' tab, navigate to base URL without query params
+      router.push('/my-enrollments', { scroll: false });
+    }
   };
 
   // Handle category change - reset filters
@@ -332,7 +351,7 @@ export default function MyEnrollmentsClient({
                   `}
                 >
                   <BookOpen className="h-4 w-4" />
-                  <span>Courses</span>
+                  <span> individual Courses</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'course' 
                       ? 'bg-emerald-100 text-emerald-700' 
@@ -352,7 +371,7 @@ export default function MyEnrollmentsClient({
                   `}
                 >
                   <Package className="h-4 w-4" />
-                  <span>Bundles</span>
+                  <span>Curated Bundles</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'bundle' 
                       ? 'bg-sky-100 text-sky-700' 

@@ -129,7 +129,7 @@ export function BundleEnrollmentCard({
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex-1 min-w-0">
               <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors">
-                <Link href={detailPageUrl}>
+                <Link href={detailPageUrl} prefetch={true}>
                   {enrollment.product_title}
                 </Link>
               </h3>
@@ -163,6 +163,7 @@ export function BundleEnrollmentCard({
           <div className="mt-auto">
             <Link
               href={detailPageUrl}
+              prefetch={true}
               className={`inline-flex items-center justify-center rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
             >
               View Bundle Details

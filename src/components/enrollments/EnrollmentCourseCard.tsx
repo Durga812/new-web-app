@@ -191,6 +191,7 @@ export function EnrollmentCourseCard({
         <h3 className="mb-2 text-sm font-bold text-gray-900 line-clamp-2 leading-tight min-h-[2.5rem] group-hover:text-amber-600 transition-colors">
           <Link
             href={detailPageUrl}
+            prefetch={true}
             className="transition-colors hover:text-amber-600"
           >
             {enrollment.product_title}
@@ -260,6 +261,7 @@ export function EnrollmentCourseCard({
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={detailPageUrl}
+              prefetch={true}
               className="flex items-center justify-center rounded-lg border-2 border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
             >
               View Details
