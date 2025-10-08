@@ -261,8 +261,8 @@ export default function MyEnrollmentsClient({
   // Get count of active filters
   const activeFilterCount = selectedSeries.size + selectedTags.size;
 
-  // Group courses by series for series-based view (only for courses tab with series filter)
-  const shouldShowSeriesGrouped = activeMainTab === 'course' && selectedSeries.size > 0;
+  // Group courses by series for series-based view (always for courses tab)
+  const shouldShowSeriesGrouped = activeMainTab === 'course';
   
   const groupedBySeries = useMemo(() => {
     if (!shouldShowSeriesGrouped) return {};
@@ -285,6 +285,14 @@ export default function MyEnrollmentsClient({
     if (seriesCount === 2) return 'grid-cols-1 md:grid-cols-2';
     if (seriesCount === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
     return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  };
+
+  // Get card grid class based on number of series (for cards within each series column)
+  const getCardGridClass = (seriesCount: number) => {
+    if (seriesCount === 1) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'; // 4 cards per row for single series
+    if (seriesCount === 2) return 'grid-cols-1 sm:grid-cols-2'; // 2 cards per series = 4 total per row
+    if (seriesCount === 3) return 'grid-cols-1'; // 1 card per series = 3 total per row
+    return 'grid-cols-1'; // 1 card per series = 4 total per row
   };
 
   return (
@@ -532,7 +540,7 @@ export default function MyEnrollmentsClient({
                 <p className="text-gray-600">Try adjusting your filters</p>
               </div>
             ) : shouldShowSeriesGrouped ? (
-              // Series-grouped view for courses with series filter
+              // Series-grouped view for courses (always on courses tab)
               <div className={`grid gap-6 ${getSeriesGridClass(Object.keys(groupedBySeries).length)}`}>
                 {Object.entries(groupedBySeries).map(([seriesKey, seriesCourses]) => (
                   <div key={seriesKey} className="flex flex-col">
@@ -547,7 +555,7 @@ export default function MyEnrollmentsClient({
                     </div>
                     
                     {/* Course Cards for this series */}
-                    <div className="grid gap-4 grid-cols-1">
+                    <div className={`grid gap-4 ${getCardGridClass(Object.keys(groupedBySeries).length)}`}>
                       {seriesCourses.map(enrollment => (
                         <EnrollmentCard
                           key={enrollment.id}
@@ -561,7 +569,7 @@ export default function MyEnrollmentsClient({
                 ))}
               </div>
             ) : (
-              // Regular grid view for bundles or courses without series filter
+              // Regular grid view for bundles
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredEnrollments.map(enrollment => (
                   <EnrollmentCard
