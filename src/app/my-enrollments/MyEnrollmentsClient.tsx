@@ -105,7 +105,7 @@ export default function MyEnrollmentsClient({
           categories.add(enrollment.category);
         }
       });
-    return ['all', ...Array.from(categories)];
+    return Array.from(categories);
   }, [enrollments, activeMainTab]);
 
   // Get available series for the active category and main tab
@@ -113,7 +113,7 @@ export default function MyEnrollmentsClient({
     const series = new Set<string>();
     enrollments
       .filter(e => e.product_type === activeMainTab)
-      .filter(e => activeCategory === 'all' || e.category === activeCategory)
+      .filter(e => !activeCategory || e.category === activeCategory)
       .forEach(enrollment => {
         if (enrollment.series) {
           series.add(enrollment.series);
@@ -128,7 +128,7 @@ export default function MyEnrollmentsClient({
     const tags = new Set<string>();
     enrollments
       .filter(e => e.product_type === activeMainTab)
-      .filter(e => activeCategory === 'all' || e.category === activeCategory)
+      .filter(e => !activeCategory || e.category === activeCategory)
       .forEach(enrollment => {
         if (enrollment.tags && enrollment.tags.length > 0) {
           tags.add(enrollment.tags[0]);
@@ -152,7 +152,7 @@ export default function MyEnrollmentsClient({
     filtered = filtered.filter(e => e.product_type === activeMainTab);
 
     // Filter by category
-    if (activeCategory !== 'all') {
+    if (activeCategory) {
       filtered = filtered.filter(e => e.category === activeCategory);
     }
 
@@ -212,7 +212,7 @@ export default function MyEnrollmentsClient({
   // Handle main tab change - reset category and filters
   const handleMainTabChange = (tab: MainTabType) => {
     setActiveMainTab(tab);
-    setActiveCategory('all');
+    setActiveCategory('');
     setSelectedSeries(new Set());
     setSelectedTags(new Set());
     setIsFilterExpanded(false);
@@ -358,58 +358,57 @@ export default function MyEnrollmentsClient({
             </div>
 
             {/* Section Container with themed background */}
-            <div className={`rounded-b-lg rounded-tr-lg p-4 ${
+            <div className={`rounded-b-lg rounded-tr-lg ${
               activeMainTab === 'course' 
                 ? 'bg-emerald-50/40 border border-emerald-100' 
                 : 'bg-sky-50/40 border border-sky-100'
             }`}>
               {/* Category Tabs */}
-              <div className="border-b border-gray-300/50">
-                <div className="flex gap-1 overflow-x-auto pb-px scrollbar-hide">
-                  {availableCategories.map((category) => {
-                    const isActive = activeCategory === category;
-                    const config = category === 'all' ? null : getCategoryConfig(category);
-                    const count = category === 'all' 
-                      ? enrollments.filter(e => e.product_type === activeMainTab).length 
-                      : enrollments.filter(e => e.product_type === activeMainTab && e.category === category).length;
+              {availableCategories.length > 0 && (
+                <div className="p-4 pb-3 border-b border-gray-200/50">
+                  <div className="flex flex-wrap gap-2">
+                    {availableCategories.map((category) => {
+                      const isActive = activeCategory === category;
+                      const config = getCategoryConfig(category);
+                      const count = enrollments.filter(e => e.product_type === activeMainTab && e.category === category).length;
 
-                    return (
-                      <button
-                        key={category}
-                        onClick={() => handleCategoryChange(category)}
-                        className={`
-                          relative px-4 sm:px-6 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
-                          ${isActive 
-                            ? 'text-gray-900' 
-                            : 'text-gray-600 hover:text-gray-900'
-                          }
-                        `}
-                      >
-                        <span className="relative z-10">
-                          {category === 'all' ? 'All' : config?.label || category.toUpperCase()}
-                          <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
-                            ({count})
+                      return (
+                        <button
+                          key={category}
+                          onClick={() => handleCategoryChange(category)}
+                          className={`
+                            relative px-4 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap rounded-lg transition-all
+                            ${isActive 
+                              ? `${config.bg} ${config.text} border-2 ${config.border} shadow-sm` 
+                              : 'bg-white text-gray-600 border-2 border-gray-200 hover:border-gray-300 hover:text-gray-900'
+                            }
+                          `}
+                        >
+                          {config.label}
+                          <span className={`ml-2 text-xs font-normal px-1.5 py-0.5 rounded-full ${
+                            isActive 
+                              ? 'bg-white/60' 
+                              : 'bg-gray-100'
+                          }`}>
+                            {count}
                           </span>
-                        </span>
-                        {isActive && (
-                          <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config?.color || 'from-gray-700 to-gray-900'}`} />
-                        )}
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Filter Section */}
               {(availableSeries.length > 0 || availableTags.length > 0) && (
-                <div className="mt-4">
+                <div className="p-4 pt-3">
                   {/* Filter Toggle Button */}
                   <button
                     onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                    className={`flex items-center gap-2 px-4 py-2 bg-white rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 bg-white rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow ${
                       activeMainTab === 'course'
-                        ? 'border border-emerald-200 text-emerald-800 hover:border-emerald-300'
-                        : 'border border-sky-200 text-sky-800 hover:border-sky-300'
+                        ? 'border-2 border-emerald-200 text-emerald-800 hover:border-emerald-300'
+                        : 'border-2 border-sky-200 text-sky-800 hover:border-sky-300'
                     }`}
                   >
                     <Filter className="h-4 w-4" />
@@ -421,15 +420,15 @@ export default function MyEnrollmentsClient({
                         {activeFilterCount}
                       </Badge>
                     )}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isFilterExpanded ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${isFilterExpanded ? 'rotate-180' : ''}`} />
                   </button>
 
                   {/* Expandable Filter Panel */}
                   {isFilterExpanded && (
-                    <div className={`mt-3 p-4 bg-white rounded-lg ${
+                    <div className={`mt-3 p-4 bg-white rounded-lg shadow-sm ${
                       activeMainTab === 'course'
-                        ? 'border border-emerald-200'
-                        : 'border border-sky-200'
+                        ? 'border-2 border-emerald-200'
+                        : 'border-2 border-sky-200'
                     }`}>
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-gray-900">Filter by</h3>
@@ -447,25 +446,25 @@ export default function MyEnrollmentsClient({
                       {/* Series Filter */}
                       {availableSeries.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-xs font-medium text-gray-700 mb-2">Series</p>
+                          <p className="text-xs font-semibold text-gray-700 mb-2.5">Series</p>
                           <div className="flex flex-wrap gap-2">
                             {availableSeries.map((series) => {
                               const isSelected = selectedSeries.has(series);
-                              const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                              const config = activeCategory ? getCategoryConfig(activeCategory) : null;
                               
                               return (
                                 <button
                                   key={series}
                                   onClick={() => toggleSeries(series)}
                                   className={`
-                                    px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                    px-3 py-2 text-xs font-medium rounded-lg transition-all border-2
                                     ${isSelected
                                       ? config 
-                                        ? `${config.bg} ${config.text} border ${config.border}`
+                                        ? `${config.bg} ${config.text} ${config.border} shadow-sm`
                                         : activeMainTab === 'course'
-                                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                          : 'bg-sky-100 text-sky-700 border border-sky-300'
-                                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-gray-300'
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm'
+                                          : 'bg-sky-100 text-sky-700 border-sky-300 shadow-sm'
+                                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
                                     }
                                   `}
                                 >
@@ -480,25 +479,25 @@ export default function MyEnrollmentsClient({
                       {/* Tags Filter */}
                       {availableTags.length > 0 && (
                         <div>
-                          <p className="text-xs font-medium text-gray-700 mb-2">Tags</p>
+                          <p className="text-xs font-semibold text-gray-700 mb-2.5">Tags</p>
                           <div className="flex flex-wrap gap-2">
                             {availableTags.map((tag) => {
                               const isSelected = selectedTags.has(tag);
-                              const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                              const config = activeCategory ? getCategoryConfig(activeCategory) : null;
                               
                               return (
                                 <button
                                   key={tag}
                                   onClick={() => toggleTag(tag)}
                                   className={`
-                                    px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                    px-3 py-2 text-xs font-medium rounded-lg transition-all border-2
                                     ${isSelected
                                       ? config 
-                                        ? `${config.bg} ${config.text} border ${config.border}`
+                                        ? `${config.bg} ${config.text} ${config.border} shadow-sm`
                                         : activeMainTab === 'course'
-                                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                                          : 'bg-sky-100 text-sky-700 border border-sky-300'
-                                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-gray-300'
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm'
+                                          : 'bg-sky-100 text-sky-700 border-sky-300 shadow-sm'
+                                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
                                     }
                                   `}
                                 >
