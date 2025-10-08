@@ -279,14 +279,14 @@ export default function MyEnrollmentsClient({
             </div>
 
             {/* Main Type Selector: Courses | Bundles (Button Style) */}
-            <div className="mb-6">
-              <div className="inline-flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+            <div className="mb-0">
+              <div className="inline-flex items-center bg-gray-100 rounded-t-lg p-1 gap-1">
                 <button
                   onClick={() => handleMainTabChange('course')}
                   className={`
                     flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-semibold whitespace-nowrap transition-all
                     ${activeMainTab === 'course' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                      ? 'bg-emerald-50 text-emerald-900 shadow-sm border border-emerald-200' 
                       : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
@@ -295,7 +295,7 @@ export default function MyEnrollmentsClient({
                   <span>Courses</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'course' 
-                      ? 'bg-blue-100 text-blue-700' 
+                      ? 'bg-emerald-100 text-emerald-700' 
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {enrollments.filter(e => e.product_type === 'course').length}
@@ -306,7 +306,7 @@ export default function MyEnrollmentsClient({
                   className={`
                     flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-semibold whitespace-nowrap transition-all
                     ${activeMainTab === 'bundle' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
+                      ? 'bg-sky-50 text-sky-900 shadow-sm border border-sky-200' 
                       : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
@@ -315,7 +315,7 @@ export default function MyEnrollmentsClient({
                   <span>Bundles</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'bundle' 
-                      ? 'bg-purple-100 text-purple-700' 
+                      ? 'bg-sky-100 text-sky-700' 
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {enrollments.filter(e => e.product_type === 'bundle').length}
@@ -324,165 +324,200 @@ export default function MyEnrollmentsClient({
               </div>
             </div>
 
-            {/* Category Tabs */}
-            <div className="border-b border-gray-200">
-              <div className="flex gap-1 overflow-x-auto pb-px scrollbar-hide">
-                {availableCategories.map((category) => {
-                  const isActive = activeCategory === category;
-                  const config = category === 'all' ? null : getCategoryConfig(category);
-                  const count = category === 'all' 
-                    ? enrollments.filter(e => e.product_type === activeMainTab).length 
-                    : enrollments.filter(e => e.product_type === activeMainTab && e.category === category).length;
+            {/* Section Container with themed background */}
+            <div className={`rounded-b-lg rounded-tr-lg p-4 ${
+              activeMainTab === 'course' 
+                ? 'bg-emerald-50/40 border border-emerald-100' 
+                : 'bg-sky-50/40 border border-sky-100'
+            }`}>
+              {/* Category Tabs */}
+              <div className="border-b border-gray-300/50">
+                <div className="flex gap-1 overflow-x-auto pb-px scrollbar-hide">
+                  {availableCategories.map((category) => {
+                    const isActive = activeCategory === category;
+                    const config = category === 'all' ? null : getCategoryConfig(category);
+                    const count = category === 'all' 
+                      ? enrollments.filter(e => e.product_type === activeMainTab).length 
+                      : enrollments.filter(e => e.product_type === activeMainTab && e.category === category).length;
 
-                  return (
-                    <button
-                      key={category}
-                      onClick={() => handleCategoryChange(category)}
-                      className={`
-                        relative px-4 sm:px-6 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
-                        ${isActive 
-                          ? 'text-gray-900' 
-                          : 'text-gray-600 hover:text-gray-900'
-                        }
-                      `}
-                    >
-                      <span className="relative z-10">
-                        {category === 'all' ? 'All' : config?.label || category.toUpperCase()}
-                        <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
-                          ({count})
+                    return (
+                      <button
+                        key={category}
+                        onClick={() => handleCategoryChange(category)}
+                        className={`
+                          relative px-4 sm:px-6 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
+                          ${isActive 
+                            ? 'text-gray-900' 
+                            : 'text-gray-600 hover:text-gray-900'
+                          }
+                        `}
+                      >
+                        <span className="relative z-10">
+                          {category === 'all' ? 'All' : config?.label || category.toUpperCase()}
+                          <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
+                            ({count})
+                          </span>
                         </span>
-                      </span>
-                      {isActive && (
-                        <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config?.color || 'from-gray-700 to-gray-900'}`} />
-                      )}
-                    </button>
-                  );
-                })}
+                        {isActive && (
+                          <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config?.color || 'from-gray-700 to-gray-900'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* Filter Section */}
-            {(availableSeries.length > 0 || availableTags.length > 0) && (
-              <div className="mt-4">
-                {/* Filter Toggle Button */}
-                <button
-                  onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-400 transition-all"
-                >
-                  <Filter className="h-4 w-4" />
-                  <span>Filters</span>
-                  {activeFilterCount > 0 && (
-                    <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isFilterExpanded ? 'rotate-180' : ''}`} />
-                </button>
+              {/* Filter Section */}
+              {(availableSeries.length > 0 || availableTags.length > 0) && (
+                <div className="mt-4">
+                  {/* Filter Toggle Button */}
+                  <button
+                    onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                    className={`flex items-center gap-2 px-4 py-2 bg-white rounded-lg text-sm font-medium transition-all ${
+                      activeMainTab === 'course'
+                        ? 'border border-emerald-200 text-emerald-800 hover:border-emerald-300'
+                        : 'border border-sky-200 text-sky-800 hover:border-sky-300'
+                    }`}
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && (
+                      <Badge className={`text-white text-xs px-2 py-0.5 ${
+                        activeMainTab === 'course' ? 'bg-emerald-500' : 'bg-sky-500'
+                      }`}>
+                        {activeFilterCount}
+                      </Badge>
+                    )}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${isFilterExpanded ? 'rotate-180' : ''}`} />
+                  </button>
 
-                {/* Expandable Filter Panel */}
-                {isFilterExpanded && (
-                  <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-900">Filter by</h3>
-                      {activeFilterCount > 0 && (
-                        <button
-                          onClick={clearFilters}
-                          className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
-                        >
-                          <X className="h-3 w-3" />
-                          Clear all
-                        </button>
+                  {/* Expandable Filter Panel */}
+                  {isFilterExpanded && (
+                    <div className={`mt-3 p-4 bg-white rounded-lg ${
+                      activeMainTab === 'course'
+                        ? 'border border-emerald-200'
+                        : 'border border-sky-200'
+                    }`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-gray-900">Filter by</h3>
+                        {activeFilterCount > 0 && (
+                          <button
+                            onClick={clearFilters}
+                            className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+                          >
+                            <X className="h-3 w-3" />
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Series Filter */}
+                      {availableSeries.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-xs font-medium text-gray-700 mb-2">Series</p>
+                          <div className="flex flex-wrap gap-2">
+                            {availableSeries.map((series) => {
+                              const isSelected = selectedSeries.has(series);
+                              const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                              
+                              return (
+                                <button
+                                  key={series}
+                                  onClick={() => toggleSeries(series)}
+                                  className={`
+                                    px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                    ${isSelected
+                                      ? config 
+                                        ? `${config.bg} ${config.text} border ${config.border}`
+                                        : activeMainTab === 'course'
+                                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                          : 'bg-sky-100 text-sky-700 border border-sky-300'
+                                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-gray-300'
+                                    }
+                                  `}
+                                >
+                                  {formatSeriesName(series)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tags Filter */}
+                      {availableTags.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-gray-700 mb-2">Tags</p>
+                          <div className="flex flex-wrap gap-2">
+                            {availableTags.map((tag) => {
+                              const isSelected = selectedTags.has(tag);
+                              const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                              
+                              return (
+                                <button
+                                  key={tag}
+                                  onClick={() => toggleTag(tag)}
+                                  className={`
+                                    px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                    ${isSelected
+                                      ? config 
+                                        ? `${config.bg} ${config.text} border ${config.border}`
+                                        : activeMainTab === 'course'
+                                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                          : 'bg-sky-100 text-sky-700 border border-sky-300'
+                                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:border-gray-300'
+                                    }
+                                  `}
+                                >
+                                  {tag.replace(/-/g, ' ')}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-                    {/* Series Filter */}
-                    {availableSeries.length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-xs font-medium text-gray-700 mb-2">Series</p>
-                        <div className="flex flex-wrap gap-2">
-                          {availableSeries.map((series) => {
-                            const isSelected = selectedSeries.has(series);
-                            const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
-                            
-                            return (
-                              <button
-                                key={series}
-                                onClick={() => toggleSeries(series)}
-                                className={`
-                                  px-3 py-1.5 text-xs font-medium rounded-md transition-all
-                                  ${isSelected
-                                    ? config 
-                                      ? `${config.bg} ${config.text} border ${config.border}`
-                                      : 'bg-blue-100 text-blue-700 border border-blue-300'
-                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                                  }
-                                `}
-                              >
-                                {formatSeriesName(series)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tags Filter */}
-                    {availableTags.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-700 mb-2">Tags</p>
-                        <div className="flex flex-wrap gap-2">
-                          {availableTags.map((tag) => {
-                            const isSelected = selectedTags.has(tag);
-                            const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
-                            
-                            return (
-                              <button
-                                key={tag}
-                                onClick={() => toggleTag(tag)}
-                                className={`
-                                  px-3 py-1.5 text-xs font-medium rounded-md transition-all
-                                  ${isSelected
-                                    ? config 
-                                      ? `${config.bg} ${config.text} border ${config.border}`
-                                      : 'bg-blue-100 text-blue-700 border border-blue-300'
-                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                                  }
-                                `}
-                              >
-                                {tag.replace(/-/g, ' ')}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+          {/* Content - Cards with themed background */}
+          <div className={`rounded-lg p-4 mt-4 ${
+            activeMainTab === 'course' 
+              ? 'bg-emerald-50/30' 
+              : 'bg-sky-50/30'
+          }`}>
+            {filteredEnrollments.length === 0 ? (
+              <div className="text-center py-20">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 ${
+                  activeMainTab === 'course' ? 'bg-emerald-100' : 'bg-sky-100'
+                }`}>
+                  {activeMainTab === 'course' ? (
+                    <BookOpen className="w-8 h-8 text-emerald-400" />
+                  ) : (
+                    <Package className="w-8 h-8 text-sky-400" />
+                  )}
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No {activeMainTab === 'course' ? 'courses' : 'bundles'} found
+                </h3>
+                <p className="text-gray-600">Try adjusting your filters</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredEnrollments.map(enrollment => (
+                  <EnrollmentCard
+                    key={enrollment.id}
+                    enrollment={enrollment}
+                    onOpenReview={openReviewModal}
+                    categoryConfig={getCategoryConfig(enrollment.category || 'other')}
+                  />
+                ))}
               </div>
             )}
           </div>
-
-          {/* Content - No Category/Series Headers, Just Cards */}
-          {filteredEnrollments.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-100 mb-4">
-                <BookOpen className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses found</h3>
-              <p className="text-gray-600">Try adjusting your filters</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredEnrollments.map(enrollment => (
-                <EnrollmentCard
-                  key={enrollment.id}
-                  enrollment={enrollment}
-                  onOpenReview={openReviewModal}
-                  categoryConfig={getCategoryConfig(enrollment.category || 'other')}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
