@@ -569,13 +569,12 @@ export default function MyEnrollmentsClient({
                 ))}
               </div>
             ) : (
-              // Regular grid view for bundles
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              // Responsive 2-column grid for bundles on larger screens
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                 {filteredEnrollments.map(enrollment => (
-                  <EnrollmentCard
+                  <BundleEnrollmentCard
                     key={enrollment.id}
                     enrollment={enrollment}
-                    onOpenReview={openReviewModal}
                     categoryConfig={getCategoryConfig(enrollment.category || 'other')}
                   />
                 ))}
@@ -875,6 +874,144 @@ function EnrollmentCard({
               </div>
             )}
           </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BundleEnrollmentCard({
+  enrollment,
+  categoryConfig,
+}: {
+  enrollment: EnrichedEnrollment;
+  categoryConfig: CategoryConfig;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const expiryDate = new Date(enrollment.expires_at);
+  const enrolledDate = new Date(enrollment.enrolled_at);
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const isExpiringSoon = daysUntilExpiry <= 30 && daysUntilExpiry > 0;
+
+  const detailPageUrl = `/bundle/${enrollment.slug || enrollment.product_id}`;
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  return (
+    <Card className="relative overflow-hidden border-gray-200 bg-white">
+      <div className="flex flex-col md:flex-row">
+        {/* Media */}
+        <div className="relative h-40 w-full md:h-auto md:w-48 flex-shrink-0">
+          {enrollment.image_url ? (
+            <Image
+              src={enrollment.image_url}
+              alt={enrollment.product_title}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${categoryConfig.color}`}>
+              <Package className="h-10 w-10 text-white/80" />
+            </div>
+          )}
+          {enrollment.series && (
+            <div className="absolute left-2 top-2">
+              <Badge className="border-0 bg-gray-900/80 text-xs text-white shadow">{formatSeriesName(enrollment.series)}</Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-base md:text-lg font-bold text-gray-900 leading-snug">
+              <Link href={detailPageUrl} className="hover:text-amber-600 transition-colors">
+                {enrollment.product_title}
+              </Link>
+            </h3>
+            <Badge className={`${categoryConfig.bg} ${categoryConfig.text} border ${categoryConfig.border} text-xs font-semibold`}>Bundle</Badge>
+          </div>
+
+          {/* Meta */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-700">
+            {enrollment.included_course_ids && (
+              <span className="inline-flex items-center gap-1">
+                <Package className={`h-4 w-4 ${categoryConfig.text}`} />
+                {enrollment.included_course_ids.length} courses included
+              </span>
+            )}
+          </div>
+
+          {/* Dates */}
+          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
+              <span className="text-gray-500">Purchased</span>
+              <span className="font-medium text-gray-700">{formatDate(enrolledDate)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
+              <span className="text-gray-500">Expires</span>
+              <span className={`font-medium ${isExpiringSoon ? 'text-red-600' : 'text-gray-700'}`}>{formatDate(expiryDate)}</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Link
+              href={detailPageUrl}
+              className="inline-flex items-center justify-center rounded-lg border-2 border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
+            >
+              View Details
+            </Link>
+            {enrollment.included_courses && enrollment.included_courses.length > 0 && (
+              <button
+                onClick={() => setIsExpanded(prev => !prev)}
+                aria-expanded={isExpanded}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all border ${
+                  isExpanded
+                    ? 'bg-blue-100 text-blue-700 border-blue-300'
+                    : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 hover:border-blue-400'
+                }`}
+              >
+                {isExpanded ? 'Hide courses' : `Show courses (${enrollment.included_courses.length})`}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
+
+          {/* Included courses list */}
+          {isExpanded && enrollment.included_courses && enrollment.included_courses.length > 0 && (
+            <div className="mt-4 rounded-xl border border-gray-200 bg-white">
+              <ul className="divide-y divide-gray-100">
+                {enrollment.included_courses.map((course, idx) => {
+                  const courseUrl = course.lw_bundle_child_id
+                    ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
+                    : null;
+                  return (
+                    <li key={`${enrollment.id}-${course.course_id}-${idx}`} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <span className="text-sm text-gray-800 line-clamp-2">{course.title}</span>
+                      {courseUrl ? (
+                        <a
+                          href={courseUrl}
+                          className="inline-flex items-center justify-center rounded-lg border-2 border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400"
+                        >
+                          Watch
+                          <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-400">Not available</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </Card>
