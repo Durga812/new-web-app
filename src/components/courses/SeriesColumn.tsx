@@ -57,9 +57,7 @@ export function SeriesColumn({
       }`}
     >
       {/* Column Header */}
-      <div className="sticky z-20 border-b border-gray-200/50 bg-white px-3 py-3 backdrop-blur-md rounded-t-xl shadow-md top-[calc(var(--nav-offset,4rem)+var(--category-discount-height,0px))]">
-        {/* Gradient overlay to fade cards scrolling under */}
-        <div className="absolute inset-x-0 -bottom-12 h-12 bg-gradient-to-b from-white via-white/60 to-transparent pointer-events-none z-10" aria-hidden="true" />
+      <div className="sticky z-20 border-b border-gray-200/50 bg-white/90 px-3 py-3 backdrop-blur-md rounded-t-xl shadow-sm top-[calc(var(--nav-offset,4rem)+var(--category-discount-height,0px))]">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <h3 className={`text-sm font-bold ${metadata?.accentColor || 'text-gray-800'}`}>
