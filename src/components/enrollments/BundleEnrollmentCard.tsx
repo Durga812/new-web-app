@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, ChevronDown } from "lucide-react";
+import { Package, ChevronDown, Calendar, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -83,112 +83,149 @@ export function BundleEnrollmentCard({
   const displayedCourses = isExpanded ? includedCourses : includedCourses.slice(0, 3);
 
   return (
-    <Card className="relative overflow-hidden border-gray-200 bg-white flex flex-col">
-      <div className="flex flex-col md:flex-row">
-        {/* Media - More width on larger screens */}
-        <div className="relative h-48 w-full md:h-auto md:w-80 lg:w-96 flex-shrink-0">
+    <Card className="group relative overflow-hidden border-gray-200 bg-white transition-all duration-300 hover:shadow-xl">
+      {/* Main Content Section */}
+      <div className="flex flex-col sm:flex-row">
+        {/* Thumbnail - Optimized size */}
+        <div className="relative h-44 w-full sm:h-40 sm:w-48 md:w-56 flex-shrink-0 overflow-hidden">
           {enrollment.image_url ? (
             <Image
               src={enrollment.image_url}
               alt={enrollment.product_title}
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-110"
             />
           ) : (
             <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${categoryConfig.color}`}>
-              <Package className="h-12 w-12 text-white/80" />
+              <Package className="h-10 w-10 text-white/70" />
             </div>
           )}
+          
+          {/* Gradient overlay on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          
+          {/* Series Badge */}
           {enrollment.series && (
             <div className="absolute left-2 top-2">
-              <Badge className="border-0 bg-gray-900/80 text-xs text-white shadow">{formatSeriesName(enrollment.series)}</Badge>
+              <Badge className="border-0 bg-gray-900/80 backdrop-blur-sm text-xs text-white shadow-lg">
+                {formatSeriesName(enrollment.series)}
+              </Badge>
+            </div>
+          )}
+
+          {/* Expiry Warning Badge */}
+          {isExpiringSoon && (
+            <div className="absolute right-2 top-2">
+              <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
+                {daysUntilExpiry}d left
+              </Badge>
             </div>
           )}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-base md:text-lg font-bold text-gray-900 leading-snug">
-                <Link href={detailPageUrl} className="hover:text-amber-600 transition-colors">
+        {/* Content Area */}
+        <div className="flex flex-1 flex-col p-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors">
+                <Link href={detailPageUrl}>
                   {enrollment.product_title}
                 </Link>
               </h3>
-              <Badge className={`${categoryConfig.bg} ${categoryConfig.text} border ${categoryConfig.border} text-xs font-semibold flex-shrink-0`}>Bundle</Badge>
-            </div>
-
-            {/* Meta */}
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-700">
-              {enrollment.included_course_ids && (
-                <span className="inline-flex items-center gap-1">
-                  <Package className={`h-4 w-4 ${categoryConfig.text}`} />
-                  {enrollment.included_course_ids.length} courses included
-                </span>
-              )}
-            </div>
-
-            {/* Dates - Stacked on separate lines */}
-            <div className="mt-3 space-y-2 text-xs">
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
-                <span className="text-gray-500">Purchased</span>
-                <span className="font-medium text-gray-700">{formatDate(enrolledDate)}</span>
+              
+              {/* Meta Info */}
+              <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
+                <Package className={`h-3.5 w-3.5 ${categoryConfig.text}`} />
+                <span className="font-medium">{enrollment.included_course_ids?.length || 0} courses</span>
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 border border-gray-100">
-                <span className="text-gray-500">Expires</span>
-                <span className={`font-medium ${isExpiringSoon ? 'text-red-600' : 'text-gray-700'}`}>{formatDate(expiryDate)}</span>
-              </div>
+            </div>
+            
+            <Badge className={`${categoryConfig.bg} ${categoryConfig.text} border ${categoryConfig.border} text-xs font-semibold flex-shrink-0 h-fit`}>
+              Bundle
+            </Badge>
+          </div>
+
+          {/* Dates - Compact horizontal layout */}
+          <div className="flex items-center gap-4 text-xs mb-4">
+            <div className="flex items-center gap-1.5 text-gray-600">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{formatDate(enrolledDate)}</span>
+            </div>
+            <div className="h-3 w-px bg-gray-300" />
+            <div className={`flex items-center gap-1.5 ${isExpiringSoon ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+              <Clock className="h-3.5 w-3.5" />
+              <span>Expires {formatDate(expiryDate)}</span>
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          {/* Action Button */}
+          <div className="mt-auto">
             <Link
               href={detailPageUrl}
-              className="inline-flex items-center justify-center rounded-lg border-2 border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
+              className={`inline-flex items-center justify-center rounded-lg bg-gradient-to-r ${categoryConfig.color} px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]`}
             >
-              View Details
+              View Bundle Details
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Included Courses Section - Now part of the card */}
+      {/* Included Courses Section */}
       {includedCourses.length > 0 && (
-        <div className="border-t border-gray-200">
+        <div className="border-t border-gray-100 bg-gradient-to-b from-gray-50/50 to-white">
+          {/* Course List */}
           <ul className="divide-y divide-gray-100">
             {displayedCourses.map((course, idx) => {
               const courseUrl = course.lw_bundle_child_id
                 ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
                 : null;
               return (
-                <li key={`${enrollment.id}-${course.course_id}-${idx}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                  <span className="text-sm text-gray-800 line-clamp-1 flex-1">{course.title}</span>
+                <li 
+                  key={`${enrollment.id}-${course.course_id}-${idx}`} 
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-blue-50/50 transition-colors group/item"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                    <span className="text-sm text-gray-800 line-clamp-1">{course.title}</span>
+                  </div>
                   {courseUrl ? (
                     <a
                       href={courseUrl}
-                      className="inline-flex items-center justify-center rounded-lg border-2 border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 hover:border-blue-400 transition-all flex-shrink-0"
+                      className="inline-flex items-center justify-center rounded-md bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 transition-all flex-shrink-0 shadow-sm hover:shadow-md"
                     >
                       Watch
                     </a>
                   ) : (
-                    <span className="text-xs text-gray-400 flex-shrink-0">Not available</span>
+                    <span className="text-xs text-gray-400 italic flex-shrink-0">Unavailable</span>
                   )}
                 </li>
               );
             })}
           </ul>
           
-          {/* Show All/Show Less Button */}
+          {/* Expand/Collapse Button */}
           {includedCourses.length > 3 && (
-            <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+            <div className="px-4 py-3">
               <button
                 onClick={() => setIsExpanded(prev => !prev)}
                 aria-expanded={isExpanded}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition-all hover:bg-blue-50 hover:border-blue-300"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm"
               >
-                {isExpanded ? 'Show Less' : `Show All Courses (${includedCourses.length})`}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                {isExpanded ? (
+                  <>
+                    Show Less
+                    <ChevronDown className="h-4 w-4 rotate-180 transition-transform" />
+                  </>
+                ) : (
+                  <>
+                    Show All Courses
+                    <span className="inline-flex items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 ml-1">
+                      +{includedCourses.length - 3}
+                    </span>
+                    <ChevronDown className="h-4 w-4 transition-transform" />
+                  </>
+                )}
               </button>
             </div>
           )}
