@@ -229,7 +229,7 @@ export function CompactCourseCard({
 //   }, [course.title, course.series]);
 
   return (
-    <div className={`group relative z-0 rounded-lg border bg-white shadow-sm transition-all hover:z-20 hover:shadow-lg ${
+    <div className={`group relative z-0 rounded-lg border bg-white shadow-sm transition-all hover:z-10 hover:shadow-lg ${
       isPurchased ? 'border-emerald-200' : 'border-gray-200'
     }`}>
       {/* Card Header with Image */}

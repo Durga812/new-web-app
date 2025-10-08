@@ -219,6 +219,50 @@ export function IndividualCoursesSection({
 
   return (
     <div>
+      {/* Sticky Discount Summary - Below Navbar */}
+      <div
+        ref={discountSummaryRef}
+        className="sticky z-30 top-[var(--nav-offset,4rem)] mb-6 bg-gradient-to-b from-amber-50/20 to-transparent pt-3 pb-3"
+      >
+        {qualifyingCount > 0 ? (
+          <div className="mx-auto w-full max-w-3xl rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-xs text-gray-600 shadow-md backdrop-blur-md sm:px-6 sm:text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center sm:text-left">
+              <span>
+                Discount tier applied
+                <span className="ml-1 font-semibold text-gray-900">{currentTier?.name ?? 'Active discount'}</span>
+              </span>
+              <span className="hidden text-gray-300 sm:inline">•</span>
+              <span>
+                Total
+                <span className="ml-1 font-semibold text-gray-900">{formattedCoursesSubtotalAfterDiscount}</span>
+                <span className="ml-1 text-gray-400">(≈ {formattedAverageCoursePriceAfterDiscount} / course)</span>
+              </span>
+              <span className="hidden text-gray-300 sm:inline">•</span>
+              <span>
+                Discount
+                <span className="ml-1 font-semibold text-gray-900">- {formattedDiscountAmount} ({discountPercentLabel})</span>
+              </span>
+              <a
+                href="#discount-tier-benefits"
+                className="ml-1 inline-flex items-center text-emerald-600 underline-offset-2 transition hover:text-emerald-700 hover:underline"
+              >
+                Know more
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto w-full max-w-3xl rounded-full border border-dashed border-emerald-200/60 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-center text-xs text-emerald-700 backdrop-blur-md shadow-sm sm:px-6 sm:text-sm">
+            <span>Add courses to your bundle to unlock tiered discounts.</span>
+            <a
+              href="#discount-tier-benefits"
+              className="ml-2 inline-flex items-center text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
+            >
+              Know more
+            </a>
+          </div>
+        )}
+      </div>
+
       {/* Search and Filter Bar */}
       <div className="mb-6 flex flex-col gap-4">
         {/* Search */}
@@ -246,49 +290,6 @@ export function IndividualCoursesSection({
             <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
               Filters active
             </span>
-          )}
-        </div>
-
-        <div
-          ref={discountSummaryRef}
-          className="sticky z-30 top-[calc(var(--nav-offset,4rem)+0.75rem)]"
-        >
-          {qualifyingCount > 0 ? (
-            <div className="mx-auto w-full max-w-3xl rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2 text-xs text-gray-600 shadow-sm backdrop-blur sm:px-6 sm:text-sm">
-              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center sm:text-left">
-                <span>
-                  Discount tier applied
-                  <span className="ml-1 font-semibold text-gray-900">{currentTier?.name ?? 'Active discount'}</span>
-                </span>
-                <span className="hidden text-gray-300 sm:inline">•</span>
-                <span>
-                  Total
-                  <span className="ml-1 font-semibold text-gray-900">{formattedCoursesSubtotalAfterDiscount}</span>
-                  <span className="ml-1 text-gray-400">(≈ {formattedAverageCoursePriceAfterDiscount} / course)</span>
-                </span>
-                <span className="hidden text-gray-300 sm:inline">•</span>
-                <span>
-                  Discount
-                  <span className="ml-1 font-semibold text-gray-900">- {formattedDiscountAmount} ({discountPercentLabel})</span>
-                </span>
-                <a
-                  href="#discount-tier-benefits"
-                  className="ml-1 inline-flex items-center text-emerald-600 underline-offset-2 transition hover:text-emerald-700 hover:underline"
-                >
-                  Know more
-                </a>
-              </div>
-            </div>
-          ) : (
-            <div className="mx-auto w-full max-w-3xl rounded-full border border-dashed border-emerald-200/60 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2 text-center text-xs text-emerald-700 backdrop-blur sm:px-6 sm:text-sm">
-              <span>Add courses to your bundle to unlock tiered discounts.</span>
-              <a
-                href="#discount-tier-benefits"
-                className="ml-2 inline-flex items-center text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
-              >
-                Know more
-              </a>
-            </div>
           )}
         </div>
 
