@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, ChevronDown, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
@@ -74,18 +74,18 @@ const formatSeriesName = (series: string) => {
     .join(' ');
 };
 
-type SortOption = 'latest' | 'oldest';
-type TypeFilter = 'all' | 'course' | 'bundle';
+type MainTabType = 'course' | 'bundle';
 
 export default function MyEnrollmentsClient({ 
   enrollments
 }: { 
   enrollments: EnrichedEnrollment[];
 }) {
+  const [activeMainTab, setActiveMainTab] = useState<MainTabType>('course');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [selectedSeries, setSelectedSeries] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<SortOption>('latest');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(false);
   const [reviewModal, setReviewModal] = useState<{
     isOpen: boolean;
     productId: string;
@@ -96,24 +96,25 @@ export default function MyEnrollmentsClient({
     productTitle: "",
   });
 
-  // Get unique categories from enrollments
+  // Get unique categories from enrollments based on active main tab
   const availableCategories = useMemo<string[]>(() => {
     const categories = new Set<string>();
-    enrollments.forEach(enrollment => {
-      if (enrollment.category) {
-        categories.add(enrollment.category);
-      }
-    });
+    enrollments
+      .filter(e => e.product_type === activeMainTab)
+      .forEach(enrollment => {
+        if (enrollment.category) {
+          categories.add(enrollment.category);
+        }
+      });
     return ['all', ...Array.from(categories)];
-  }, [enrollments]);
+  }, [enrollments, activeMainTab]);
 
-  // Get available series for the active category (excluding 'all')
+  // Get available series for the active category and main tab
   const availableSeries = useMemo<string[]>(() => {
-    if (activeCategory === 'all') return [];
-    
     const series = new Set<string>();
     enrollments
-      .filter(e => e.category === activeCategory)
+      .filter(e => e.product_type === activeMainTab)
+      .filter(e => activeCategory === 'all' || e.category === activeCategory)
       .forEach(enrollment => {
         if (enrollment.series) {
           series.add(enrollment.series);
@@ -121,20 +122,35 @@ export default function MyEnrollmentsClient({
       });
     
     return Array.from(series);
-  }, [enrollments, activeCategory]);
+  }, [enrollments, activeMainTab, activeCategory]);
 
-  // Initialize selected series when available series change
+  // Get available tags (tag[0]) for the active category and main tab
+  const availableTags = useMemo<string[]>(() => {
+    const tags = new Set<string>();
+    enrollments
+      .filter(e => e.product_type === activeMainTab)
+      .filter(e => activeCategory === 'all' || e.category === activeCategory)
+      .forEach(enrollment => {
+        if (enrollment.tags && enrollment.tags.length > 0) {
+          tags.add(enrollment.tags[0]);
+        }
+      });
+    
+    return Array.from(tags);
+  }, [enrollments, activeMainTab, activeCategory]);
+
+  // Initialize selected series and tags when they change
   useEffect(() => {
-    if (availableSeries.length > 0) {
-      setSelectedSeries(new Set(availableSeries));
-    } else {
-      setSelectedSeries(new Set());
-    }
-  }, [availableSeries]);
+    setSelectedSeries(new Set());
+    setSelectedTags(new Set());
+  }, [availableSeries, availableTags]);
 
-  // Filter and sort enrollments
+  // Filter enrollments
   const filteredEnrollments = useMemo(() => {
     let filtered = enrollments;
+
+    // Filter by main tab (course or bundle)
+    filtered = filtered.filter(e => e.product_type === activeMainTab);
 
     // Filter by category
     if (activeCategory !== 'all') {
@@ -142,24 +158,24 @@ export default function MyEnrollmentsClient({
     }
 
     // Filter by series (only if some series are selected)
-    if (selectedSeries.size > 0 && activeCategory !== 'all') {
+    if (selectedSeries.size > 0) {
       filtered = filtered.filter(e => e.series && selectedSeries.has(e.series));
     }
 
-    // Filter by type
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(e => e.product_type === typeFilter);
+    // Filter by tags (only if some tags are selected)
+    if (selectedTags.size > 0) {
+      filtered = filtered.filter(e => e.tags && e.tags.length > 0 && selectedTags.has(e.tags[0]));
     }
 
-    // Sort by date
+    // Sort by latest purchase date
     const sorted = [...filtered].sort((a, b) => {
       const dateA = new Date(a.enrolled_at).getTime();
       const dateB = new Date(b.enrolled_at).getTime();
-      return sortBy === 'latest' ? dateB - dateA : dateA - dateB;
+      return dateB - dateA;
     });
 
     return sorted;
-  }, [enrollments, activeCategory, selectedSeries, typeFilter, sortBy]);
+  }, [enrollments, activeMainTab, activeCategory, selectedSeries, selectedTags]);
 
   const openReviewModal = (productId: string, productTitle: string) => {
     setReviewModal({
@@ -194,9 +210,20 @@ export default function MyEnrollmentsClient({
     };
   };
 
-  // Reset series filter when category changes
+  // Handle main tab change - reset category and filters
+  const handleMainTabChange = (tab: MainTabType) => {
+    setActiveMainTab(tab);
+    setActiveCategory('all');
+    setSelectedSeries(new Set());
+    setSelectedTags(new Set());
+    setIsFilterExpanded(false);
+  };
+
+  // Handle category change - reset filters
   const handleCategoryChange = (category: string) => {
     setActiveCategory(category);
+    setSelectedSeries(new Set());
+    setSelectedTags(new Set());
   };
 
   // Toggle series selection
@@ -212,6 +239,28 @@ export default function MyEnrollmentsClient({
     });
   };
 
+  // Toggle tag selection
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tag)) {
+        newSet.delete(tag);
+      } else {
+        newSet.add(tag);
+      }
+      return newSet;
+    });
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSelectedSeries(new Set());
+    setSelectedTags(new Set());
+  };
+
+  // Get count of active filters
+  const activeFilterCount = selectedSeries.size + selectedTags.size;
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -219,45 +268,61 @@ export default function MyEnrollmentsClient({
           
           {/* Header Section */}
           <div className="mb-8">
-            {/* Title and Filters - Responsive */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-              <div>
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                  My Enrollments
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600">
-                  {enrollments.length} {enrollments.length === 1 ? 'course' : 'courses'} enrolled
-                </p>
-              </div>
+            {/* Title */}
+            <div className="mb-6">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                My Enrollments
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">
+                {enrollments.length} {enrollments.length === 1 ? 'item' : 'items'} enrolled
+              </p>
+            </div>
 
-              {/* Filters - Responsive */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                {/* Type Filter */}
-                <div className="relative">
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-                    className="w-full sm:w-auto appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="course">Individual Courses</option>
-                    <option value="bundle">Curated Bundles</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                </div>
-
-                {/* Sort Filter */}
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="w-full sm:w-auto appearance-none bg-white border border-gray-300 rounded-lg pl-4 pr-10 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all cursor-pointer"
-                  >
-                    <option value="latest">Latest Purchase</option>
-                    <option value="oldest">Oldest Purchase</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 pointer-events-none" />
-                </div>
+            {/* Main Tabs: Courses | Bundles */}
+            <div className="mb-6">
+              <div className="flex gap-2 border-b border-gray-200">
+                <button
+                  onClick={() => handleMainTabChange('course')}
+                  className={`
+                    relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                    ${activeMainTab === 'course' 
+                      ? 'text-gray-900' 
+                      : 'text-gray-600 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Courses
+                    <span className={`text-xs font-normal ${activeMainTab === 'course' ? 'text-gray-600' : 'text-gray-500'}`}>
+                      ({enrollments.filter(e => e.product_type === 'course').length})
+                    </span>
+                  </span>
+                  {activeMainTab === 'course' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleMainTabChange('bundle')}
+                  className={`
+                    relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                    ${activeMainTab === 'bundle' 
+                      ? 'text-gray-900' 
+                      : 'text-gray-600 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Bundles
+                    <span className={`text-xs font-normal ${activeMainTab === 'bundle' ? 'text-gray-600' : 'text-gray-500'}`}>
+                      ({enrollments.filter(e => e.product_type === 'bundle').length})
+                    </span>
+                  </span>
+                  {activeMainTab === 'bundle' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500" />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -268,8 +333,8 @@ export default function MyEnrollmentsClient({
                   const isActive = activeCategory === category;
                   const config = category === 'all' ? null : getCategoryConfig(category);
                   const count = category === 'all' 
-                    ? enrollments.length 
-                    : enrollments.filter(e => e.category === category).length;
+                    ? enrollments.filter(e => e.product_type === activeMainTab).length 
+                    : enrollments.filter(e => e.product_type === activeMainTab && e.category === category).length;
 
                   return (
                     <button
@@ -284,7 +349,7 @@ export default function MyEnrollmentsClient({
                       `}
                     >
                       <span className="relative z-10">
-                        {category === 'all' ? 'All Categories' : config?.label || category.toUpperCase()}
+                        {category === 'all' ? 'All' : config?.label || category.toUpperCase()}
                         <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
                           ({count})
                         </span>
@@ -298,29 +363,103 @@ export default function MyEnrollmentsClient({
               </div>
             </div>
 
-            {/* Series Filter Buttons - Multi-select, smaller size */}
-            {activeCategory !== 'all' && availableSeries.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {availableSeries.map((series) => {
-                  const isSelected = selectedSeries.has(series);
-                  const config = getCategoryConfig(activeCategory);
-                  
-                  return (
-                    <button
-                      key={series}
-                      onClick={() => toggleSeries(series)}
-                      className={`
-                        px-2.5 py-1 text-xs font-medium rounded-md transition-all
-                        ${isSelected
-                          ? `${config.bg} ${config.text} border ${config.border}`
-                          : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                        }
-                      `}
-                    >
-                      {formatSeriesName(series)}
-                    </button>
-                  );
-                })}
+            {/* Filter Section */}
+            {(availableSeries.length > 0 || availableTags.length > 0) && (
+              <div className="mt-4">
+                {/* Filter Toggle Button */}
+                <button
+                  onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-400 transition-all"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <Badge className="bg-blue-500 text-white text-xs px-2 py-0.5">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isFilterExpanded ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Expandable Filter Panel */}
+                {isFilterExpanded && (
+                  <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900">Filter by</h3>
+                      {activeFilterCount > 0 && (
+                        <button
+                          onClick={clearFilters}
+                          className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+                        >
+                          <X className="h-3 w-3" />
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Series Filter */}
+                    {availableSeries.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Series</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableSeries.map((series) => {
+                            const isSelected = selectedSeries.has(series);
+                            const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                            
+                            return (
+                              <button
+                                key={series}
+                                onClick={() => toggleSeries(series)}
+                                className={`
+                                  px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                  ${isSelected
+                                    ? config 
+                                      ? `${config.bg} ${config.text} border ${config.border}`
+                                      : 'bg-blue-100 text-blue-700 border border-blue-300'
+                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                                  }
+                                `}
+                              >
+                                {formatSeriesName(series)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags Filter */}
+                    {availableTags.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-700 mb-2">Tags</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableTags.map((tag) => {
+                            const isSelected = selectedTags.has(tag);
+                            const config = activeCategory !== 'all' ? getCategoryConfig(activeCategory) : null;
+                            
+                            return (
+                              <button
+                                key={tag}
+                                onClick={() => toggleTag(tag)}
+                                className={`
+                                  px-3 py-1.5 text-xs font-medium rounded-md transition-all
+                                  ${isSelected
+                                    ? config 
+                                      ? `${config.bg} ${config.text} border ${config.border}`
+                                      : 'bg-blue-100 text-blue-700 border border-blue-300'
+                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                                  }
+                                `}
+                              >
+                                {tag.replace(/-/g, ' ')}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
