@@ -151,10 +151,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
 function CourseTypeTabs({ category, activeType }: { category: string; activeType: string }) {
   return (
-    <div className="inline-flex items-center rounded-full border border-gray-200/80 bg-white/90 p-1 shadow-sm backdrop-blur-sm">
+    <div className="flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-gray-200/80 bg-white/90 p-1 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-center sm:gap-1 sm:rounded-full">
       <a
         href={`/courses/${category}`}
-        className={`relative px-6 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+        className={`relative w-full rounded-xl px-4 py-2 text-center text-xs font-medium transition-all duration-200 sm:w-auto sm:rounded-full sm:px-6 sm:text-sm ${
           activeType === 'individual-courses'
             ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
             : 'text-gray-600 hover:text-gray-900'
@@ -164,7 +164,7 @@ function CourseTypeTabs({ category, activeType }: { category: string; activeType
       </a>
       <a
         href={`/courses/${category}?course-type=curated-bundle-courses`}
-        className={`relative px-6 py-2 text-sm font-medium rounded-full transition-all duration-200 ${
+        className={`relative w-full rounded-xl px-4 py-2 text-center text-xs font-medium transition-all duration-200 sm:w-auto sm:rounded-full sm:px-6 sm:text-sm ${
           activeType === 'curated-bundle-courses'
             ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
             : 'text-gray-600 hover:text-gray-900'

@@ -350,7 +350,7 @@ export default function MyEnrollmentsClient({
                     }
                   `}
                 >
-                  <BookOpen className="h-4 w-4" />
+                  
                   <span> individual Courses</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'course' 
@@ -370,7 +370,7 @@ export default function MyEnrollmentsClient({
                     }
                   `}
                 >
-                  <Package className="h-4 w-4" />
+                  
                   <span>Curated Bundles</span>
                   <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
                     activeMainTab === 'bundle' 
@@ -506,7 +506,7 @@ export default function MyEnrollmentsClient({
                       {/* Tags Filter */}
                       {availableTags.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-gray-700 mb-2.5">Tags</p>
+                          <p className="text-xs font-semibold text-gray-700 mb-2.5">Criteria</p>
                           <div className="flex flex-wrap gap-2">
                             {availableTags.map((tag) => {
                               const isSelected = selectedTags.has(tag);
