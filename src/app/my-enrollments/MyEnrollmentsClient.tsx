@@ -261,6 +261,32 @@ export default function MyEnrollmentsClient({
   // Get count of active filters
   const activeFilterCount = selectedSeries.size + selectedTags.size;
 
+  // Group courses by series for series-based view (only for courses tab with series filter)
+  const shouldShowSeriesGrouped = activeMainTab === 'course' && selectedSeries.size > 0;
+  
+  const groupedBySeries = useMemo(() => {
+    if (!shouldShowSeriesGrouped) return {};
+    
+    const grouped: Record<string, EnrichedEnrollment[]> = {};
+    filteredEnrollments.forEach(enrollment => {
+      const seriesKey = enrollment.series || 'other';
+      if (!grouped[seriesKey]) {
+        grouped[seriesKey] = [];
+      }
+      grouped[seriesKey].push(enrollment);
+    });
+    
+    return grouped;
+  }, [filteredEnrollments, shouldShowSeriesGrouped]);
+
+  // Get grid column class based on number of series
+  const getSeriesGridClass = (seriesCount: number) => {
+    if (seriesCount === 1) return 'grid-cols-1';
+    if (seriesCount === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (seriesCount === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+  };
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -505,7 +531,37 @@ export default function MyEnrollmentsClient({
                 </h3>
                 <p className="text-gray-600">Try adjusting your filters</p>
               </div>
+            ) : shouldShowSeriesGrouped ? (
+              // Series-grouped view for courses with series filter
+              <div className={`grid gap-6 ${getSeriesGridClass(Object.keys(groupedBySeries).length)}`}>
+                {Object.entries(groupedBySeries).map(([seriesKey, seriesCourses]) => (
+                  <div key={seriesKey} className="flex flex-col">
+                    {/* Series Header */}
+                    <div className="mb-4">
+                      <h2 className="text-xl font-bold text-gray-900 capitalize border-b-2 border-emerald-500 pb-2">
+                        {formatSeriesName(seriesKey)}
+                      </h2>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {seriesCourses.length} {seriesCourses.length === 1 ? 'course' : 'courses'}
+                      </p>
+                    </div>
+                    
+                    {/* Course Cards for this series */}
+                    <div className="grid gap-4 grid-cols-1">
+                      {seriesCourses.map(enrollment => (
+                        <EnrollmentCard
+                          key={enrollment.id}
+                          enrollment={enrollment}
+                          onOpenReview={openReviewModal}
+                          categoryConfig={getCategoryConfig(enrollment.category || 'other')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              // Regular grid view for bundles or courses without series filter
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredEnrollments.map(enrollment => (
                   <EnrollmentCard
