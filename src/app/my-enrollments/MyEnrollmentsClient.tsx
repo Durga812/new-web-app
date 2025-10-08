@@ -544,9 +544,9 @@ export default function MyEnrollmentsClient({
               <div className={`grid gap-6 ${getSeriesGridClass(Object.keys(groupedBySeries).length)}`}>
                 {Object.entries(groupedBySeries).map(([seriesKey, seriesCourses]) => (
                   <div key={seriesKey} className="flex flex-col">
-                    {/* Series Header */}
-                    <div className="mb-4">
-                      <h2 className="text-xl font-bold text-gray-900 capitalize border-b-2 border-emerald-500 pb-2">
+                    {/* Series Header - Sticky */}
+                    <div className="sticky top-16 z-20 mb-4 bg-gradient-to-r from-emerald-50 to-white backdrop-blur-sm border-b-2 border-emerald-500 pb-2 pt-2 -mx-2 px-2 rounded-t-lg shadow-sm">
+                      <h2 className="text-xl font-bold text-gray-900 capitalize">
                         {formatSeriesName(seriesKey)}
                       </h2>
                       <p className="text-sm text-gray-600 mt-1">
