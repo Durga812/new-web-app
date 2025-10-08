@@ -81,7 +81,7 @@ export default function MyEnrollmentsClient({
   enrollments: EnrichedEnrollment[];
 }) {
   const [activeMainTab, setActiveMainTab] = useState<MainTabType>('course');
-  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [selectedSeries, setSelectedSeries] = useState<Set<string>>(new Set());
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(false);
@@ -137,6 +137,13 @@ export default function MyEnrollmentsClient({
     
     return Array.from(tags);
   }, [enrollments, activeMainTab, activeCategory]);
+
+  // Initialize first category when categories change
+  useEffect(() => {
+    if (availableCategories.length > 0 && !activeCategory) {
+      setActiveCategory(availableCategories[0]);
+    }
+  }, [availableCategories, activeCategory]);
 
   // Initialize selected series and tags when they change
   useEffect(() => {
@@ -365,8 +372,8 @@ export default function MyEnrollmentsClient({
             }`}>
               {/* Category Tabs */}
               {availableCategories.length > 0 && (
-                <div className="p-4 pb-3 border-b border-gray-200/50">
-                  <div className="flex flex-wrap gap-2">
+                <div className="border-b border-gray-200/50">
+                  <div className="flex gap-1 overflow-x-auto pb-px scrollbar-hide px-4 pt-4">
                     {availableCategories.map((category) => {
                       const isActive = activeCategory === category;
                       const config = getCategoryConfig(category);
@@ -377,21 +384,22 @@ export default function MyEnrollmentsClient({
                           key={category}
                           onClick={() => handleCategoryChange(category)}
                           className={`
-                            relative px-4 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap rounded-lg transition-all
+                            relative px-4 sm:px-6 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all
                             ${isActive 
-                              ? `${config.bg} ${config.text} border-2 ${config.border} shadow-sm` 
-                              : 'bg-white text-gray-600 border-2 border-gray-200 hover:border-gray-300 hover:text-gray-900'
+                              ? 'text-gray-900' 
+                              : 'text-gray-600 hover:text-gray-900'
                             }
                           `}
                         >
-                          {config.label}
-                          <span className={`ml-2 text-xs font-normal px-1.5 py-0.5 rounded-full ${
-                            isActive 
-                              ? 'bg-white/60' 
-                              : 'bg-gray-100'
-                          }`}>
-                            {count}
+                          <span className="relative z-10">
+                            {config.label}
+                            <span className={`ml-2 text-xs font-normal ${isActive ? 'text-gray-600' : 'text-gray-500'}`}>
+                              ({count})
+                            </span>
                           </span>
+                          {isActive && (
+                            <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config.color}`} />
+                          )}
                         </button>
                       );
                     })}
@@ -401,7 +409,7 @@ export default function MyEnrollmentsClient({
 
               {/* Filter Section */}
               {(availableSeries.length > 0 || availableTags.length > 0) && (
-                <div className="p-4 pt-3">
+                <div className="p-4">
                   {/* Filter Toggle Button */}
                   <button
                     onClick={() => setIsFilterExpanded(!isFilterExpanded)}
