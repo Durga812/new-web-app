@@ -278,50 +278,48 @@ export default function MyEnrollmentsClient({
               </p>
             </div>
 
-            {/* Main Tabs: Courses | Bundles */}
+            {/* Main Type Selector: Courses | Bundles (Button Style) */}
             <div className="mb-6">
-              <div className="flex gap-2 border-b border-gray-200">
+              <div className="inline-flex items-center bg-gray-100 rounded-lg p-1 gap-1">
                 <button
                   onClick={() => handleMainTabChange('course')}
                   className={`
-                    relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                    flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-semibold whitespace-nowrap transition-all
                     ${activeMainTab === 'course' 
-                      ? 'text-gray-900' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
                 >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Courses
-                    <span className={`text-xs font-normal ${activeMainTab === 'course' ? 'text-gray-600' : 'text-gray-500'}`}>
-                      ({enrollments.filter(e => e.product_type === 'course').length})
-                    </span>
+                  <BookOpen className="h-4 w-4" />
+                  <span>Courses</span>
+                  <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
+                    activeMainTab === 'course' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {enrollments.filter(e => e.product_type === 'course').length}
                   </span>
-                  {activeMainTab === 'course' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
-                  )}
                 </button>
                 <button
                   onClick={() => handleMainTabChange('bundle')}
                   className={`
-                    relative px-6 py-3 text-sm font-semibold whitespace-nowrap transition-all
+                    flex items-center gap-2 px-6 py-2.5 rounded-md text-sm font-semibold whitespace-nowrap transition-all
                     ${activeMainTab === 'bundle' 
-                      ? 'text-gray-900' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:text-gray-900'
                     }
                   `}
                 >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Bundles
-                    <span className={`text-xs font-normal ${activeMainTab === 'bundle' ? 'text-gray-600' : 'text-gray-500'}`}>
-                      ({enrollments.filter(e => e.product_type === 'bundle').length})
-                    </span>
+                  <Package className="h-4 w-4" />
+                  <span>Bundles</span>
+                  <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
+                    activeMainTab === 'bundle' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {enrollments.filter(e => e.product_type === 'bundle').length}
                   </span>
-                  {activeMainTab === 'bundle' && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500" />
-                  )}
                 </button>
               </div>
             </div>
