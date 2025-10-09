@@ -10,6 +10,7 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const loadCart = useCartStore(state => state.loadCart);
   const sessionId = searchParams.get("session_id");
+  const itemCount = searchParams.get("items");
 
   useEffect(() => {
     if (!sessionId) {
@@ -38,11 +39,11 @@ function SuccessContent() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
-          href="/my-enrollments"
-          className="inline-flex items-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200/50 transition hover:opacity-90"
-        >
-          Go to My Enrollments
-        </Link>
+      href={`/my-enrollments?purchased=recently&items=${itemCount}&ts=${Date.now()}`}
+      className="inline-flex items-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200/50 transition hover:opacity-90"
+    >
+      Go to My Enrollments
+    </Link>
         <Link
           href="/courses"
           className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-orange-200/50 transition hover:opacity-90"

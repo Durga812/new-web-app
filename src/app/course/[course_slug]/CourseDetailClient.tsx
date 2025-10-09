@@ -1,7 +1,7 @@
 // src/app/courses/[course_slug]/CourseDetailClient.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CourseDetail } from "@/types/course-detail";
 import CourseHero from "@/components/course-detail/CourseHero";
 import PricingSidebar from "@/components/course-detail/PricingSidebar";
@@ -27,9 +27,40 @@ export default function CourseDetailClient({
   const [activeTab, setActiveTab] = useState("preview");
   const [isTabsSticky, setIsTabsSticky] = useState(false);
   const [navOffset, setNavOffset] = useState(80);
+  const [tabsDimensions, setTabsDimensions] = useState({ width: 0, left: 0, height: 0 });
 
-  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const tabsContentRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+
+  const updateTabsDimensions = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!tabsContainerRef.current || !tabsContentRef.current) {
+      return;
+    }
+
+    const containerRect = tabsContainerRef.current.getBoundingClientRect();
+    const nextDimensions = {
+      width: containerRect.width,
+      left: containerRect.left,
+      height: tabsContentRef.current.offsetHeight,
+    };
+
+    setTabsDimensions(prev => {
+      if (
+        prev.width === nextDimensions.width &&
+        prev.left === nextDimensions.left &&
+        prev.height === nextDimensions.height
+      ) {
+        return prev;
+      }
+
+      return nextDimensions;
+    });
+  }, []);
 
   useEffect(() => {
     const updateNavOffset = () => {
@@ -56,10 +87,54 @@ export default function CourseDetailClient({
   }, []);
 
   useEffect(() => {
+    updateTabsDimensions();
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const resizeObserverSupported = "ResizeObserver" in window;
+    const observers: ResizeObserver[] = [];
+
+    if (resizeObserverSupported) {
+      if (tabsContainerRef.current) {
+        const containerObserver = new ResizeObserver(() => updateTabsDimensions());
+        containerObserver.observe(tabsContainerRef.current);
+        observers.push(containerObserver);
+      }
+
+      if (tabsContentRef.current) {
+        const contentObserver = new ResizeObserver(() => updateTabsDimensions());
+        contentObserver.observe(tabsContentRef.current);
+        observers.push(contentObserver);
+      }
+    } else {
+      window.addEventListener("resize", updateTabsDimensions);
+    }
+
+    return () => {
+      if (!resizeObserverSupported) {
+        window.removeEventListener("resize", updateTabsDimensions);
+        return;
+      }
+
+      observers.forEach(observer => observer.disconnect());
+    };
+  }, [updateTabsDimensions]);
+
+  useEffect(() => {
     const handleScroll = () => {
-      if (tabsRef.current) {
-        const tabsTop = tabsRef.current.getBoundingClientRect().top;
-        setIsTabsSticky(tabsTop <= navOffset);
+      if (tabsContainerRef.current) {
+        const tabsTop = tabsContainerRef.current.getBoundingClientRect().top;
+        const shouldStick = tabsTop <= navOffset;
+
+        setIsTabsSticky(prev => {
+          if (prev !== shouldStick) {
+            updateTabsDimensions();
+            return shouldStick;
+          }
+          return prev;
+        });
       }
 
       const scrollPosition = window.scrollY + navOffset + 24;
@@ -74,9 +149,11 @@ export default function CourseDetailClient({
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [navOffset]);
+  }, [navOffset, updateTabsDimensions]);
 
   const scrollToSection = (sectionId: string) => {
     const section = sectionRefs.current[sectionId];
@@ -97,19 +174,43 @@ export default function CourseDetailClient({
             {/* Hero Section */}
             <CourseHero course={course} />
             
-            {/* Sticky Navigation Tabs */}
-            <div 
-              ref={tabsRef}
-              className={`mb-8 transition-all ${
-                isTabsSticky 
-                  ? "sticky top-[var(--nav-offset,4rem)] z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm -mx-4 px-4 py-3 sm:-mx-6 sm:px-6" 
-                  : "mt-8"
-              }`}
-            >
-              <CourseTabs 
-                activeTab={activeTab} 
-                onTabChange={scrollToSection}
+            {/* Mobile Pricing Card - Shows below hero on mobile only */}
+            <div className="mt-6 lg:hidden">
+              <PricingSidebar 
+                course={course}
+                selectedPriceKey={selectedPriceKey}
+                onPriceSelect={setSelectedPriceKey}
               />
+            </div>
+            
+            {/* Sticky Navigation Tabs */}
+            <div
+              ref={tabsContainerRef}
+              className={isTabsSticky ? "mb-8" : "mt-8 mb-8"}
+              style={isTabsSticky ? { height: tabsDimensions.height } : undefined}
+            >
+              <div
+                ref={tabsContentRef}
+                className={`transition-all ${
+                  isTabsSticky
+                    ? "fixed z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm -mx-4 px-4 py-3 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
+                    : ""
+                }`}
+                style={
+                  isTabsSticky
+                    ? {
+                        top: navOffset,
+                        left: tabsDimensions.left,
+                        width: tabsDimensions.width,
+                      }
+                    : undefined
+                }
+              >
+                <CourseTabs 
+                  activeTab={activeTab} 
+                  onTabChange={scrollToSection}
+                />
+              </div>
             </div>
 
             {/* All Content Sections */}
@@ -121,9 +222,9 @@ export default function CourseDetailClient({
             </div>
           </div>
           
-          {/* Right Side - Sticky Pricing Sidebar (30%) */}
-          <div className="w-full lg:w-[30%]">
-            <div className="sticky top-[calc(var(--nav-offset,4rem)+2rem)]">
+          {/* Right Side - Sticky Pricing Sidebar (30%) - Desktop only */}
+          <div className="hidden lg:block lg:w-[30%]">
+            <div className="sticky top-[calc(var(--nav-offset,4rem)+1rem)] z-30">
               <PricingSidebar 
                 course={course}
                 selectedPriceKey={selectedPriceKey}

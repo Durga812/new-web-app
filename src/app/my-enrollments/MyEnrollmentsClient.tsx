@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Package, Filter, X, ChevronDown } from "lucide-react";
+import { BookOpen, Package, Filter, X, ChevronDown, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { EnrollmentCourseCard } from "@/components/enrollments/EnrollmentCourseCard";
@@ -76,6 +76,15 @@ const formatSeriesName = (series: string) => {
 
 type MainTabType = 'course' | 'bundle';
 
+// Helper function to calculate number of refreshes based on item count
+const calculateRefreshTimes = (itemCount: number): number => {
+  if (itemCount <= 10) return 1;
+  if (itemCount <= 20) return 2;
+  if (itemCount <= 30) return 3;
+  if (itemCount <= 40) return 4;
+  return 5; // Max 5 refreshes for 50+ items
+};
+
 export default function MyEnrollmentsClient({ 
   enrollments
 }: { 
@@ -83,6 +92,11 @@ export default function MyEnrollmentsClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Banner state management
+  const [showBanner, setShowBanner] = useState(false);
+  const [expectedItems, setExpectedItems] = useState(0);
+  const [refreshCount, setRefreshCount] = useState(0);
   
   // Initialize activeMainTab from URL query parameter
   const getInitialTab = (): MainTabType => {
@@ -105,6 +119,64 @@ export default function MyEnrollmentsClient({
     productId: "",
     productTitle: "",
   });
+
+  // Auto-refresh logic when coming from purchase success page
+  useEffect(() => {
+    const purchaseStatus = searchParams.get('purchased');
+    const itemsParam = searchParams.get('items');
+    
+    // Only run if coming from purchase success
+    if (purchaseStatus !== 'recently' || !itemsParam) {
+      return;
+    }
+
+    const items = parseInt(itemsParam, 10);
+    const maxRefreshes = calculateRefreshTimes(items);
+    
+    // Show banner
+    setShowBanner(true);
+    setExpectedItems(items);
+    
+    // Check if all items are already loaded
+    if (enrollments.length >= items) {
+      setShowBanner(false);
+      // Clean URL params
+      router.replace('/my-enrollments', { scroll: false });
+      return;
+    }
+
+    // Set up interval for auto-refresh
+    const intervalId = setInterval(() => {
+      setRefreshCount((prev) => {
+        const newCount = prev + 1;
+        
+        // Stop after max refreshes
+        if (newCount >= maxRefreshes) {
+          clearInterval(intervalId);
+          return newCount;
+        }
+        
+        // Refresh the page data
+        router.refresh();
+        
+        return newCount;
+      });
+    }, 5000); // 5 seconds
+
+    // Cleanup
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [searchParams, enrollments.length, router]);
+
+  // Auto-hide banner when all items are loaded
+  useEffect(() => {
+    if (showBanner && expectedItems > 0 && enrollments.length >= expectedItems) {
+      setShowBanner(false);
+      // Clean URL params
+      router.replace('/my-enrollments', { scroll: false });
+    }
+  }, [showBanner, expectedItems, enrollments.length, router]);
 
   // Get unique categories from enrollments based on active main tab
   const availableCategories = useMemo<string[]>(() => {
@@ -320,11 +392,61 @@ export default function MyEnrollmentsClient({
     return 'grid-cols-1';
   };
 
+  const maxRefreshes = expectedItems > 0 ? calculateRefreshTimes(expectedItems) : 0;
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
         <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
           
+          {/* Enrollment Processing Banner */}
+          {showBanner && (
+            <div className="mb-6 rounded-lg border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-md">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-6 w-6 rounded-full border-3 border-blue-500 border-t-transparent animate-spin" />
+                    <h3 className="text-lg font-bold text-blue-900">
+                      Enrolling Your Courses...
+                    </h3>
+                  </div>
+                  <p className="text-sm text-blue-800 mb-2 font-medium">
+                    Your courses are being enrolled. This takes about 1 minute.
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-blue-700">
+                    <span className="font-semibold">Progress:</span>
+                    <span className="px-2 py-1 bg-blue-100 rounded-md font-mono text-xs">
+                      {enrollments.length} / {expectedItems}
+                    </span>
+                    {refreshCount < maxRefreshes && (
+                      <span className="text-xs text-blue-600">
+                        • Auto-refreshing ({refreshCount}/{maxRefreshes})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => router.refresh()}
+                    className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh Now
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBanner(false);
+                      router.replace('/my-enrollments', { scroll: false });
+                    }}
+                    className="text-xs text-blue-700 hover:text-blue-900 underline font-medium"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header Section */}
           <div className="mb-8">
             {/* Title */}

@@ -100,7 +100,7 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
       total: formatCurrency(total),
       item_count: items.length.toString(),
     },
-    success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}&items=${items.length}`,
     cancel_url: `${baseUrl}/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
 

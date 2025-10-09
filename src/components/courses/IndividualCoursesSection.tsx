@@ -1,7 +1,6 @@
-// src/components/courses/IndividualCoursesSection.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { Filter, Search } from "lucide-react";
 import { SeriesColumn } from "./SeriesColumn";
 import type { NormalizedSeriesMetadata } from "@/types/catalog";
@@ -78,6 +77,8 @@ export function IndividualCoursesSection({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const discountSummaryRef = useRef<HTMLDivElement | null>(null);
+  const [isSticky, setIsSticky] = useState(false);
+  const [isHighlighting, setIsHighlighting] = useState(false);
 
   // Cart-based discount summary for showing tier beside Filters button
   const cartItems = useCartStore(state => state.items);
@@ -90,6 +91,13 @@ export function IndividualCoursesSection({
     discountAmount,
     upcomingTier,
   } = discountSummary;
+  const previousSummaryMetricsRef = useRef({
+    qualifyingCount,
+    qualifyingSubtotal,
+    discountRate,
+  });
+  const isFirstSummaryRender = useRef(true);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currencyFormatter = useMemo(
     () => new Intl.NumberFormat("en-US", {
@@ -146,6 +154,127 @@ export function IndividualCoursesSection({
       document.documentElement.style.removeProperty("--category-discount-height");
     };
   }, [qualifyingCount, discountRate, currentTier?.name]);
+
+  // Track sticky state so we can enhance the visual treatment once the card pins under the nav
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const parseOffsetToPixels = (value: string) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return 64;
+      }
+      if (trimmed.endsWith("rem")) {
+        const rootFontSize =
+          parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        return parseFloat(trimmed) * rootFontSize;
+      }
+      if (trimmed.endsWith("px")) {
+        return parseFloat(trimmed);
+      }
+      const parsed = parseFloat(trimmed);
+      return Number.isNaN(parsed) ? 64 : parsed;
+    };
+
+    const readNavOffset = () => {
+      const offset = getComputedStyle(document.documentElement).getPropertyValue("--nav-offset");
+      return parseOffsetToPixels(offset || "64px");
+    };
+
+    const updateStickyState = () => {
+      const element = discountSummaryRef.current;
+      if (!element) {
+        setIsSticky(false);
+        return;
+      }
+      const navOffset = readNavOffset();
+      const { top } = element.getBoundingClientRect();
+      setIsSticky(top <= navOffset + 1);
+    };
+
+    updateStickyState();
+
+    const scrollOptions: AddEventListenerOptions = { passive: true };
+    window.addEventListener("scroll", updateStickyState, scrollOptions);
+    window.addEventListener("resize", updateStickyState);
+    window.addEventListener("immigreat:nav-resize", updateStickyState);
+
+    return () => {
+      window.removeEventListener("scroll", updateStickyState);
+      window.removeEventListener("resize", updateStickyState);
+      window.removeEventListener("immigreat:nav-resize", updateStickyState);
+    };
+  }, []);
+
+  // Pulse the glow when new courses are added so the change is noticeable
+  useEffect(() => {
+    if (isFirstSummaryRender.current) {
+      isFirstSummaryRender.current = false;
+      previousSummaryMetricsRef.current = {
+        qualifyingCount,
+        qualifyingSubtotal,
+        discountRate,
+      };
+      return;
+    }
+
+    const previous = previousSummaryMetricsRef.current;
+    const courseAdded =
+      qualifyingCount > previous.qualifyingCount ||
+      qualifyingSubtotal > previous.qualifyingSubtotal ||
+      discountRate > previous.discountRate;
+
+    previousSummaryMetricsRef.current = {
+      qualifyingCount,
+      qualifyingSubtotal,
+      discountRate,
+    };
+
+    if (!courseAdded) {
+      return;
+    }
+
+    setIsHighlighting(true);
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+    highlightTimeoutRef.current = setTimeout(() => {
+      setIsHighlighting(false);
+    }, 900);
+  }, [qualifyingCount, qualifyingSubtotal, discountRate]);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const summaryShadowStyle = useMemo<CSSProperties>(() => {
+    const transition = "box-shadow 450ms ease, transform 450ms ease";
+
+    if (isHighlighting) {
+      return {
+        boxShadow: "0 16px 36px rgba(251, 191, 36, 0.38), 0 0 0 1px rgba(245, 158, 11, 0.26)",
+        transition,
+      };
+    }
+
+    if (isSticky) {
+      return {
+        boxShadow: "0 12px 28px rgba(255, 255, 255, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.45)",
+        transition,
+      };
+    }
+
+    return {
+      boxShadow: "0 10px 24px rgba(15, 118, 110, 0.12), 0 0 0 1px rgba(16, 185, 129, 0.1)",
+      transition,
+    };
+  }, [isHighlighting, isSticky]);
 
   // Group and filter courses
   const { coursesBySeries, totalFilteredCount } = useMemo(() => {
@@ -222,10 +351,15 @@ export function IndividualCoursesSection({
       {/* Sticky Discount Summary - Below Navbar */}
       <div
         ref={discountSummaryRef}
-        className="sticky z-30 top-[var(--nav-offset,4rem)] mb-6 bg-gradient-to-b from-amber-50/20 to-transparent pt-3 pb-3"
+        className={`sticky z-30 top-[var(--nav-offset,4rem)] mb-6 pt-3 pb-3 transition-colors duration-500 ${
+          isSticky ? "bg-white/95" : "bg-gradient-to-b from-amber-50/20 to-transparent"
+        }`}
       >
         {qualifyingCount > 0 ? (
-          <div className="mx-auto w-full max-w-3xl rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-xs text-gray-600 shadow-md backdrop-blur-md sm:px-6 sm:text-sm">
+          <div
+            style={summaryShadowStyle}
+            className="mx-auto w-full max-w-3xl rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-xs text-gray-600 backdrop-blur-md transition-[box-shadow,transform] duration-500 ease-out sm:px-6 sm:text-sm"
+          >
             <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center sm:text-left">
               <span>
                 Discount tier applied
@@ -251,7 +385,10 @@ export function IndividualCoursesSection({
             </div>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-3xl rounded-full border border-dashed border-emerald-200/60 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-center text-xs text-emerald-700 backdrop-blur-md shadow-sm sm:px-6 sm:text-sm">
+          <div
+            style={summaryShadowStyle}
+            className="mx-auto w-full max-w-3xl rounded-full border border-dashed border-emerald-200/60 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 px-4 py-2.5 text-center text-xs text-emerald-700 backdrop-blur-md transition-[box-shadow,transform] duration-500 ease-out sm:px-6 sm:text-sm"
+          >
             <span>Add courses to your bundle to unlock tiered discounts.</span>
             <a
               href="#discount-tier-benefits"
