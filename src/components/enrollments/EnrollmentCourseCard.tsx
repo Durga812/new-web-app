@@ -8,6 +8,12 @@ import { ExternalLink, Clock, BookOpen, Package, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
+type CourseProgress = {
+  totalUnits: number;
+  completedUnits: number;
+  percent: number;
+};
+
 type EnrichedEnrollment = {
   id: string;
   product_id: string;
@@ -29,12 +35,14 @@ type EnrichedEnrollment = {
     title: string;
     image_url?: string;
     lw_bundle_child_id?: string;
+    progress?: CourseProgress;
   }>;
   has_reviewed?: boolean;
   user_review?: {
     rating: number;
     feedback?: string;
   };
+  progress?: CourseProgress;
 };
 
 type CategoryConfig = {
@@ -110,6 +118,9 @@ export function EnrollmentCourseCard({
     ? `/bundle/${enrollment.slug || enrollment.product_id}` 
     : `/course/${enrollment.slug || enrollment.product_id}`;
   const canAccessCourse = isCourse && Boolean(courseAccessUrl);
+  const fallbackProgress: CourseProgress = { totalUnits: 0, completedUnits: 0, percent: 0 };
+  const courseProgress = isCourse ? (enrollment.progress ?? fallbackProgress) : undefined;
+  const progressPercent = Math.max(0, Math.min(100, courseProgress?.percent ?? 0));
 
   return (
     <Card className="group relative flex h-full flex-col overflow-visible transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
@@ -231,6 +242,29 @@ export function EnrollmentCourseCard({
             </div>
           )}
         </div>
+
+        {/* Progress */}
+        {isCourse && courseProgress && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs font-semibold text-gray-600">
+              <span>Progress</span>
+              <span>{progressPercent}%</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className={`h-2 rounded-full bg-gradient-to-r ${categoryConfig.color}`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <div className="mt-1 text-[10px] font-medium text-gray-500">
+              {courseProgress.totalUnits > 0
+                ? `${courseProgress.completedUnits} of ${courseProgress.totalUnits} units completed`
+                : courseProgress.completedUnits > 0
+                  ? `${courseProgress.completedUnits} units completed`
+                  : "No progress recorded yet"}
+            </div>
+          </div>
+        )}
 
         {/* Dates */}
         <div className="mb-4 pt-3 border-t border-gray-100 space-y-1.5 text-xs">

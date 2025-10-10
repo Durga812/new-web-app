@@ -9,6 +9,12 @@ import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { EnrollmentCourseCard } from "@/components/enrollments/EnrollmentCourseCard";
 import { BundleEnrollmentCard } from "@/components/enrollments/BundleEnrollmentCard";
 
+type CourseProgress = {
+  totalUnits: number;
+  completedUnits: number;
+  percent: number;
+};
+
 type EnrichedEnrollment = {
   id: string;
   product_id: string;
@@ -30,12 +36,14 @@ type EnrichedEnrollment = {
     title: string;
     image_url?: string;
     lw_bundle_child_id?: string;
+    progress?: CourseProgress;
   }>;
   has_reviewed?: boolean;
   user_review?: {
     rating: number;
     feedback?: string;
   };
+  progress?: CourseProgress;
 };
 
 type CategoryConfig = {

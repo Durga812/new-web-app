@@ -23,6 +23,12 @@ type EnrollmentRow = {
   created_at: string;
 };
 
+type CourseProgress = {
+  totalUnits: number;
+  completedUnits: number;
+  percent: number;
+};
+
 type EnrichedEnrollment = EnrollmentRow & {
   category?: string;
   series?: string;
@@ -37,12 +43,14 @@ type EnrichedEnrollment = EnrollmentRow & {
     title: string;
     image_url?: string;
     lw_bundle_child_id?: string; //  Still optional (course might not have mapping)
+    progress?: CourseProgress;
   }>;
   has_reviewed?: boolean;
   user_review?: {
     rating: number;
     feedback?: string;
   };
+  progress?: CourseProgress;
 };
 
 type RawCourseRow = {
@@ -97,6 +105,16 @@ export default async function MyEnrollmentsPage() {
     return <EmptyState />;
   }
 
+  const { data: userRecord, error: userError } = await supabase
+    .from('users')
+    .select('learnworlds_user_id, email')
+    .eq('clerk_user_id', userId)
+    .maybeSingle();
+
+  if (userError) {
+    console.error("Failed to fetch user record for progress tracking:", userError);
+  }
+
   const { data: reviews } = await supabase
     .from('reviews')
     .select('product_id, rating, feedback')
@@ -111,7 +129,12 @@ export default async function MyEnrollmentsPage() {
     reviewsMap
   );
 
-  return <MyEnrollmentsClient enrollments={enrichedEnrollments} />;
+  const enrollmentsWithProgress = await attachProgressData(enrichedEnrollments, {
+    learnworldsUserId: userRecord?.learnworlds_user_id ?? null,
+    email: userRecord?.email ?? null,
+  });
+
+  return <MyEnrollmentsClient enrollments={enrollmentsWithProgress} />;
 }
 
 async function enrichEnrollments(
@@ -222,6 +245,138 @@ async function enrichEnrollments(
   }
 
   return enriched;
+}
+
+async function attachProgressData(
+  enrollments: EnrichedEnrollment[],
+  params: { learnworldsUserId?: string | null; email?: string | null }
+): Promise<EnrichedEnrollment[]> {
+  if (!enrollments.length) {
+    return enrollments;
+  }
+
+  const { learnworldsUserId, email } = params;
+  const normalizedEmail = email?.trim();
+  const courseIds = new Set<string>();
+
+  for (const enrollment of enrollments) {
+    const baseId = enrollment.enroll_id?.trim();
+    if (baseId) {
+      courseIds.add(baseId);
+    }
+
+    for (const course of enrollment.included_courses ?? []) {
+      const childId = course.lw_bundle_child_id?.trim();
+      if (childId) {
+        courseIds.add(childId);
+      }
+    }
+  }
+
+  if (courseIds.size === 0) {
+    return enrollments;
+  }
+
+  const courseIdList = Array.from(courseIds);
+
+  const { data: unitRows, error: unitError } = await supabase
+    .from('lw_course_units')
+    .select('lw_course_id, no_of_units')
+    .in('lw_course_id', courseIdList);
+
+  if (unitError) {
+    console.error("Failed to fetch course unit counts:", unitError);
+  }
+
+  const unitsMap = new Map<string, number>();
+  for (const row of unitRows ?? []) {
+    const id = row.lw_course_id?.trim();
+    if (!id) continue;
+    const totalUnits = typeof row.no_of_units === 'number'
+      ? row.no_of_units
+      : Number(row.no_of_units) || 0;
+    unitsMap.set(id, totalUnits);
+  }
+
+  let progressRows: Array<{ lw_course_id: string; unit_ids: string[] | null }> = [];
+
+  if (learnworldsUserId || email) {
+    const progressQuery = supabase
+      .from('lw_course_progress_track')
+      .select('lw_course_id, unit_ids')
+      .in('lw_course_id', courseIdList);
+
+    if (learnworldsUserId) {
+      progressQuery.eq('lw_user_id', learnworldsUserId);
+    }
+
+    if (normalizedEmail) {
+      progressQuery.eq('email_id', normalizedEmail);
+    }
+
+    const { data: progressData, error: progressError } = await progressQuery;
+
+    if (progressError) {
+      console.error("Failed to fetch course progress:", progressError);
+    } else if (progressData) {
+      progressRows = progressData;
+    }
+  }
+
+  const completedUnitsMap = new Map<string, number>();
+  for (const row of progressRows) {
+    const id = row.lw_course_id?.trim();
+    if (!id) continue;
+    const completedUnits = Array.isArray(row.unit_ids)
+      ? row.unit_ids.filter(unit => typeof unit === 'string' && unit.length > 0).length
+      : 0;
+    completedUnitsMap.set(id, completedUnits);
+  }
+
+  const defaultProgress = (): CourseProgress => ({ totalUnits: 0, completedUnits: 0, percent: 0 });
+
+  const buildProgress = (courseId?: string | null): CourseProgress => {
+    const trimmedId = courseId?.trim();
+    if (!trimmedId) {
+      return defaultProgress();
+    }
+
+    const totalUnits = unitsMap.get(trimmedId) ?? 0;
+    const completedUnits = completedUnitsMap.get(trimmedId) ?? 0;
+    if (totalUnits <= 0) {
+      return {
+        totalUnits,
+        completedUnits,
+        percent: 0,
+      };
+    }
+
+    const boundedCompleted = Math.min(completedUnits, totalUnits);
+    const percent = Math.round((boundedCompleted / totalUnits) * 100);
+
+    return {
+      totalUnits,
+      completedUnits: boundedCompleted,
+      percent: Math.min(100, Math.max(0, percent)),
+    };
+  };
+
+  return enrollments.map(enrollment => {
+    const courseProgress = enrollment.product_type === 'course'
+      ? buildProgress(enrollment.enroll_id)
+      : undefined;
+
+    const enrichedIncludedCourses = enrollment.included_courses?.map(course => ({
+      ...course,
+      progress: buildProgress(course.lw_bundle_child_id),
+    }));
+
+    return {
+      ...enrollment,
+      ...(courseProgress ? { progress: courseProgress } : {}),
+      ...(enrichedIncludedCourses ? { included_courses: enrichedIncludedCourses } : {}),
+    };
+  });
 }
 
 function EmptyState() {

@@ -8,6 +8,12 @@ import { Package, ChevronDown, Calendar, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
+type CourseProgress = {
+  totalUnits: number;
+  completedUnits: number;
+  percent: number;
+};
+
 type EnrichedEnrollment = {
   id: string;
   product_id: string;
@@ -29,12 +35,14 @@ type EnrichedEnrollment = {
     title: string;
     image_url?: string;
     lw_bundle_child_id?: string;
+    progress?: CourseProgress;
   }>;
   has_reviewed?: boolean;
   user_review?: {
     rating: number;
     feedback?: string;
   };
+  progress?: CourseProgress;
 };
 
 type CategoryConfig = {
@@ -181,14 +189,38 @@ export function BundleEnrollmentCard({
               const courseUrl = course.lw_bundle_child_id
                 ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
                 : null;
+              const fallbackProgress: CourseProgress = { totalUnits: 0, completedUnits: 0, percent: 0 };
+              const courseProgress = course.progress ?? fallbackProgress;
+              const progressPercent = Math.max(0, Math.min(100, courseProgress.percent));
               return (
                 <li 
                   key={`${enrollment.id}-${course.course_id}-${idx}`} 
-                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-blue-50/50 transition-colors group/item"
+                  className="flex items-start justify-between gap-3 px-4 py-2.5 hover:bg-blue-50/50 transition-colors group/item"
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                    <span className="text-sm text-gray-800 line-clamp-1">{course.title}</span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                      <span className="text-sm text-gray-800 line-clamp-1">{course.title}</span>
+                    </div>
+
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-[10px] font-medium text-gray-500">
+                        <span>
+                          {courseProgress.totalUnits > 0
+                            ? `${courseProgress.completedUnits} of ${courseProgress.totalUnits} units`
+                            : courseProgress.completedUnits > 0
+                              ? `${courseProgress.completedUnits} units completed`
+                              : 'No progress yet'}
+                        </span>
+                        <span>{progressPercent}%</span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className={`h-1.5 rounded-full bg-gradient-to-r ${categoryConfig.color}`}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                   {courseUrl ? (
                     <a
