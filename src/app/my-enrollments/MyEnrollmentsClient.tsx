@@ -210,6 +210,20 @@ export default function MyEnrollmentsClient({
         return enrolledDate >= redirectDate;
       }).length;
       
+      // Debug logging
+      console.log('🔍 Enrollment Check:', {
+        redirectTimestamp,
+        redirectDate: redirectDate.toISOString(),
+        totalEnrollments: enrollments.length,
+        currentOrderCount,
+        expectedItems,
+        enrollmentDates: enrollments.slice(0, 3).map(e => ({
+          title: e.product_title,
+          enrolled_at: e.enrolled_at,
+          isAfterRedirect: new Date(e.enrolled_at) >= redirectDate
+        }))
+      });
+      
       setCurrentOrderEnrollments(currentOrderCount);
       
       // Hide banner if all expected items are enrolled

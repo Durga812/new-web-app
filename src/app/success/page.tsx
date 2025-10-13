@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -11,6 +11,12 @@ function SuccessContent() {
   const loadCart = useCartStore(state => state.loadCart);
   const sessionId = searchParams.get("session_id");
   const itemCount = searchParams.get("items");
+  
+  // Capture timestamp when success page loads (not when button is clicked)
+  const [pageLoadTimestamp] = useState(() => {
+    // Subtract 30 seconds buffer to catch enrollments that happened just before page load
+    return Date.now() - 30000;
+  });
 
   useEffect(() => {
     if (!sessionId) {
@@ -39,7 +45,7 @@ function SuccessContent() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
-      href={`/my-enrollments?purchased=recently&items=${itemCount}&redirect_ts=${Date.now()}`}
+      href={`/my-enrollments?purchased=recently&items=${itemCount}&redirect_ts=${pageLoadTimestamp}`}
       className="inline-flex items-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200/50 transition hover:opacity-90"
     >
       Go to My Enrollments
