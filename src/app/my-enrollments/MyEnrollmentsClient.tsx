@@ -105,6 +105,10 @@ export default function MyEnrollmentsClient({
   const [showBanner, setShowBanner] = useState(false);
   const [expectedItems, setExpectedItems] = useState(0);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [maxRefreshCount, setMaxRefreshCount] = useState(0);
+  const [redirectTimestamp, setRedirectTimestamp] = useState<number>(0);
+  const [currentOrderEnrollments, setCurrentOrderEnrollments] = useState(0);
+  const [hasAddedExtraRefresh, setHasAddedExtraRefresh] = useState(false);
   
   // Initialize activeMainTab from URL query parameter
   const getInitialTab = (): MainTabType => {
@@ -128,63 +132,94 @@ export default function MyEnrollmentsClient({
     productTitle: "",
   });
 
-  // Auto-refresh logic when coming from purchase success page
+  // Initialize banner state from URL params (runs once)
   useEffect(() => {
     const purchaseStatus = searchParams.get('purchased');
     const itemsParam = searchParams.get('items');
+    const redirectTsParam = searchParams.get('redirect_ts');
     
     // Only run if coming from purchase success
-    if (purchaseStatus !== 'recently' || !itemsParam) {
+    if (purchaseStatus !== 'recently' || !itemsParam || !redirectTsParam) {
       return;
     }
 
     const items = parseInt(itemsParam, 10);
-    const maxRefreshes = calculateRefreshTimes(items);
+    const redirectTs = parseInt(redirectTsParam, 10);
+    const initialMaxRefreshes = calculateRefreshTimes(items);
     
-    // Show banner
+    // Initialize state (only if not already initialized to prevent re-runs)
     setShowBanner(true);
     setExpectedItems(items);
-    
-    // Check if all items are already loaded
-    if (enrollments.length >= items) {
-      setShowBanner(false);
-      // Clean URL params
-      router.replace('/my-enrollments', { scroll: false });
+    setRedirectTimestamp(redirectTs);
+    setRefreshCount(0);
+    setMaxRefreshCount(initialMaxRefreshes);
+    setHasAddedExtraRefresh(false);
+    setCurrentOrderEnrollments(0);
+  }, [searchParams]);
+
+  // Set up auto-refresh interval when banner is shown
+  useEffect(() => {
+    if (!showBanner || expectedItems === 0) {
       return;
     }
 
     // Set up interval for auto-refresh
     const intervalId = setInterval(() => {
-      setRefreshCount((prev) => {
-        const newCount = prev + 1;
-        
-        // Stop after max refreshes
-        if (newCount >= maxRefreshes) {
-          clearInterval(intervalId);
-          return newCount;
-        }
-        
-        // Refresh the page data
-        router.refresh();
-        
-        return newCount;
-      });
+      router.refresh();
+      
+      setRefreshCount((prev) => prev + 1);
     }, 5000); // 5 seconds
 
     // Cleanup
     return () => {
       clearInterval(intervalId);
     };
-  }, [searchParams, enrollments.length, router]);
+  }, [showBanner, expectedItems, router]);
+
+  // Handle max refresh check and extra refresh logic
+  useEffect(() => {
+    if (!showBanner || refreshCount === 0) return;
+    
+    // Check if we've reached max refreshes
+    if (refreshCount >= maxRefreshCount) {
+      // Count current order enrollments
+      const redirectDate = new Date(redirectTimestamp);
+      const currentOrderCount = enrollments.filter(enrollment => {
+        const enrolledDate = new Date(enrollment.enrolled_at);
+        return enrolledDate >= redirectDate;
+      }).length;
+      
+      setCurrentOrderEnrollments(currentOrderCount);
+      
+      // If not all items loaded and haven't added extra refresh yet
+      if (currentOrderCount < expectedItems && !hasAddedExtraRefresh) {
+        setHasAddedExtraRefresh(true);
+        setMaxRefreshCount(prev => prev + 1); // Add 1 extra refresh
+        console.log(`Added extra refresh. Current: ${currentOrderCount}/${expectedItems}`);
+      }
+    }
+  }, [refreshCount, maxRefreshCount, showBanner, hasAddedExtraRefresh, expectedItems, redirectTimestamp, enrollments]);
 
   // Auto-hide banner when all items are loaded
   useEffect(() => {
-    if (showBanner && expectedItems > 0 && enrollments.length >= expectedItems) {
-      setShowBanner(false);
-      // Clean URL params
-      router.replace('/my-enrollments', { scroll: false });
+    if (showBanner && expectedItems > 0 && redirectTimestamp > 0) {
+      // Count enrollments from current order only
+      const redirectDate = new Date(redirectTimestamp);
+      const currentOrderCount = enrollments.filter(enrollment => {
+        const enrolledDate = new Date(enrollment.enrolled_at);
+        return enrolledDate >= redirectDate;
+      }).length;
+      
+      setCurrentOrderEnrollments(currentOrderCount);
+      
+      // Hide banner if all expected items are enrolled
+      if (currentOrderCount >= expectedItems) {
+        setShowBanner(false);
+        // Clean URL params
+        router.replace('/my-enrollments', { scroll: false });
+      }
     }
-  }, [showBanner, expectedItems, enrollments.length, router]);
+  }, [showBanner, expectedItems, enrollments, redirectTimestamp, router]);
 
   // Get unique categories from enrollments based on active main tab
   const availableCategories = useMemo<string[]>(() => {
@@ -400,8 +435,6 @@ export default function MyEnrollmentsClient({
     return 'grid-cols-1';
   };
 
-  const maxRefreshes = expectedItems > 0 ? calculateRefreshTimes(expectedItems) : 0;
-
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
@@ -424,11 +457,11 @@ export default function MyEnrollmentsClient({
                   <div className="flex items-center gap-2 text-sm text-blue-700">
                     <span className="font-semibold">Progress:</span>
                     <span className="px-2 py-1 bg-blue-100 rounded-md font-mono text-xs">
-                      {enrollments.length} / {expectedItems}
+                      {currentOrderEnrollments} / {expectedItems}
                     </span>
-                    {refreshCount < maxRefreshes && (
+                    {refreshCount < maxRefreshCount && (
                       <span className="text-xs text-blue-600">
-                        • Auto-refreshing ({refreshCount}/{maxRefreshes})
+                        • Auto-refreshing ({refreshCount}/{maxRefreshCount}{hasAddedExtraRefresh ? '+1' : ''})
                       </span>
                     )}
                   </div>

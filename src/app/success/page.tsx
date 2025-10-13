@@ -39,7 +39,7 @@ function SuccessContent() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Link
-      href={`/my-enrollments?purchased=recently&items=${itemCount}&ts=${Date.now()}`}
+      href={`/my-enrollments?purchased=recently&items=${itemCount}&redirect_ts=${Date.now()}`}
       className="inline-flex items-center rounded-full bg-emerald-500 px-6 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-200/50 transition hover:opacity-90"
     >
       Go to My Enrollments
