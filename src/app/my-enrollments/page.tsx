@@ -298,38 +298,80 @@ async function attachProgressData(
     unitsMap.set(id, totalUnits);
   }
 
-  let progressRows: Array<{ lw_course_id: string; unit_ids: string[] | null }> = [];
+  // Prefer LW user ID for progress; fallback to email; if both exist, merge with LW as priority
+  let progressRows: Array<{ lw_course_id: string; unit_ids: unknown }> = [];
+  const progressByCourseId = new Map<string, { lw_course_id: string; unit_ids: unknown }>();
 
-  if (learnworldsUserId || email) {
-    const progressQuery = supabase
+  if (learnworldsUserId) {
+    const { data: byUserId, error } = await supabase
       .from('lw_course_progress_track')
       .select('lw_course_id, unit_ids')
-      .in('lw_course_id', courseIdList);
-
-    if (learnworldsUserId) {
-      progressQuery.eq('lw_user_id', learnworldsUserId);
-    }
-
-    if (normalizedEmail) {
-      progressQuery.eq('email_id', normalizedEmail);
-    }
-
-    const { data: progressData, error: progressError } = await progressQuery;
-
-    if (progressError) {
-      console.error("Failed to fetch course progress:", progressError);
-    } else if (progressData) {
-      progressRows = progressData;
+      .in('lw_course_id', courseIdList)
+      .eq('lw_user_id', learnworldsUserId);
+    if (error) {
+      console.error('Failed to fetch course progress by lw_user_id:', error);
+    } else if (byUserId) {
+      for (const row of byUserId) {
+        if (row?.lw_course_id) {
+          progressByCourseId.set(row.lw_course_id.trim(), row);
+        }
+      }
     }
   }
 
+  if (normalizedEmail) {
+    const { data: byEmail, error } = await supabase
+      .from('lw_course_progress_track')
+      .select('lw_course_id, unit_ids')
+      .in('lw_course_id', courseIdList)
+      .eq('email_id', normalizedEmail);
+    if (error) {
+      console.error('Failed to fetch course progress by email_id:', error);
+    } else if (byEmail) {
+      for (const row of byEmail) {
+        if (!row?.lw_course_id) continue;
+        const key = row.lw_course_id.trim();
+        // Only set if not already present from lw_user_id (LW ID has priority)
+        if (!progressByCourseId.has(key)) {
+          progressByCourseId.set(key, row);
+        }
+      }
+    }
+  }
+
+  progressRows = Array.from(progressByCourseId.values());
+
+  const parseUnitIds = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter(v => typeof v === 'string' && v.length > 0);
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return [];
+      // Try JSON array string first
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(v => typeof v === 'string' && v.length > 0);
+        }
+      } catch (_) {
+        // Not JSON; fall through to comma-separated parsing
+      }
+      // Fallback: comma-separated list
+      return trimmed
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    }
+    return [];
+  };
+
   const completedUnitsMap = new Map<string, number>();
   for (const row of progressRows) {
-    const id = row.lw_course_id?.trim();
+    const id = row.lw_course_id?.toString().trim();
     if (!id) continue;
-    const completedUnits = Array.isArray(row.unit_ids)
-      ? row.unit_ids.filter(unit => typeof unit === 'string' && unit.length > 0).length
-      : 0;
+    const unitIds = parseUnitIds(row.unit_ids);
+    const completedUnits = unitIds.length;
     completedUnitsMap.set(id, completedUnits);
   }
 
