@@ -191,7 +191,7 @@ export function BundleEnrollmentCard({
                 : null;
               const fallbackProgress: CourseProgress = { totalUnits: 0, completedUnits: 0, percent: 0 };
               const courseProgress = course.progress ?? fallbackProgress;
-              const progressPercent = Math.max(0, Math.min(100, courseProgress.percent));
+              const progressPercent = Math.max(0, Math.min(100, courseProgress?.percent ?? 0));
               return (
                 <li 
                   key={`${enrollment.id}-${course.course_id}-${idx}`} 
