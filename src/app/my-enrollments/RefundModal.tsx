@@ -100,7 +100,7 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="bg-white">
         <DialogHeader>
           <DialogTitle>Request Refund</DialogTitle>
           <DialogDescription>
