@@ -259,17 +259,49 @@ async function attachProgressData(
   const normalizedEmail = email?.trim();
   const courseIds = new Set<string>();
 
-  for (const enrollment of enrollments) {
-    const baseId = enrollment.enroll_id?.trim();
-    if (baseId) {
-      courseIds.add(baseId);
+  const sanitizeIdentifier = (value?: string | null): string | null => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
+  const stripDurationSuffix = (value: string): string | null => {
+    const withoutDuration = value.replace(/-(\d+)(m|mo)?$/i, '');
+    return withoutDuration !== value ? withoutDuration : null;
+  };
+
+  const collectIdentifierVariants = (value?: string | null): string[] => {
+    const primary = sanitizeIdentifier(value);
+    if (!primary) {
+      return [];
     }
 
+    const variants = new Set<string>();
+    variants.add(primary);
+
+    const withoutDuration = stripDurationSuffix(primary);
+    if (withoutDuration) {
+      variants.add(withoutDuration);
+    }
+
+    return Array.from(variants);
+  };
+
+  const registerIdentifierVariants = (value?: string | null) => {
+    for (const variant of collectIdentifierVariants(value)) {
+      courseIds.add(variant);
+    }
+  };
+
+  for (const enrollment of enrollments) {
+    registerIdentifierVariants(enrollment.enroll_id);
+    registerIdentifierVariants(enrollment.product_id);
+
     for (const course of enrollment.included_courses ?? []) {
-      const childId = course.lw_bundle_child_id?.trim();
-      if (childId) {
-        courseIds.add(childId);
-      }
+      registerIdentifierVariants(course.lw_bundle_child_id);
+      registerIdentifierVariants(course.course_id);
     }
   }
 
@@ -289,13 +321,24 @@ async function attachProgressData(
   }
 
   const unitsMap = new Map<string, number>();
+  const registerUnits = (identifier?: string | null, totalUnits?: number | null) => {
+    const parsedTotal = typeof totalUnits === 'number'
+      ? totalUnits
+      : Number(totalUnits) || 0;
+
+    if (parsedTotal < 0) {
+      return;
+    }
+
+    for (const variant of collectIdentifierVariants(identifier)) {
+      if (!unitsMap.has(variant)) {
+        unitsMap.set(variant, parsedTotal);
+      }
+    }
+  };
+
   for (const row of unitRows ?? []) {
-    const id = row.lw_course_id?.trim();
-    if (!id) continue;
-    const totalUnits = typeof row.no_of_units === 'number'
-      ? row.no_of_units
-      : Number(row.no_of_units) || 0;
-    unitsMap.set(id, totalUnits);
+    registerUnits(row.lw_course_id, row.no_of_units);
   }
 
   // Prefer LW user ID for progress; fallback to email; if both exist, merge with LW as priority
@@ -367,37 +410,68 @@ async function attachProgressData(
   };
 
   const completedUnitsMap = new Map<string, number>();
+  const registerCompletedUnits = (identifier?: string | null, completedUnits?: number) => {
+    if (typeof completedUnits !== 'number' || completedUnits < 0) {
+      return;
+    }
+
+    for (const variant of collectIdentifierVariants(identifier)) {
+      const current = completedUnitsMap.get(variant) ?? 0;
+      if (completedUnits > current) {
+        completedUnitsMap.set(variant, completedUnits);
+      }
+    }
+  };
+
   for (const row of progressRows) {
-    const id = row.lw_course_id?.toString().trim();
-    if (!id) continue;
     const unitIds = parseUnitIds(row.unit_ids);
     const completedUnits = unitIds.length;
-    completedUnitsMap.set(id, completedUnits);
+    registerCompletedUnits(row.lw_course_id, completedUnits);
   }
 
   const defaultProgress = (): CourseProgress => ({ totalUnits: 0, completedUnits: 0, percent: 0 });
 
-  const buildProgress = (courseId?: string | null): CourseProgress => {
-    const trimmedId = courseId?.trim();
-    if (!trimmedId) {
+  const buildProgress = (...identifiers: Array<string | null | undefined>): CourseProgress => {
+    const candidateIds = new Set<string>();
+    for (const identifier of identifiers) {
+      for (const variant of collectIdentifierVariants(identifier)) {
+        candidateIds.add(variant);
+      }
+    }
+
+    if (candidateIds.size === 0) {
       return defaultProgress();
     }
 
-    const totalUnits = unitsMap.get(trimmedId) ?? 0;
-    const completedUnits = completedUnitsMap.get(trimmedId) ?? 0;
-    if (totalUnits <= 0) {
+    let totalUnits: number | null = null;
+    let completedUnits: number | null = null;
+
+    for (const candidate of candidateIds) {
+      if (totalUnits === null && unitsMap.has(candidate)) {
+        totalUnits = unitsMap.get(candidate) ?? 0;
+      }
+      if (completedUnitsMap.has(candidate)) {
+        const value = completedUnitsMap.get(candidate) ?? 0;
+        completedUnits = completedUnits === null ? value : Math.max(completedUnits, value);
+      }
+    }
+
+    const safeTotalUnits = totalUnits ?? 0;
+    const safeCompletedUnits = Math.max(0, completedUnits ?? 0);
+
+    if (safeTotalUnits <= 0) {
       return {
-        totalUnits,
-        completedUnits,
+        totalUnits: safeTotalUnits,
+        completedUnits: safeCompletedUnits,
         percent: 0,
       };
     }
 
-    const boundedCompleted = Math.min(completedUnits, totalUnits);
-    const percent = Math.round((boundedCompleted / totalUnits) * 100);
+    const boundedCompleted = Math.min(safeCompletedUnits, safeTotalUnits);
+    const percent = Math.round((boundedCompleted / safeTotalUnits) * 100);
 
     return {
-      totalUnits,
+      totalUnits: safeTotalUnits,
       completedUnits: boundedCompleted,
       percent: Math.min(100, Math.max(0, percent)),
     };
@@ -405,12 +479,12 @@ async function attachProgressData(
 
   return enrollments.map(enrollment => {
     const courseProgress = enrollment.product_type === 'course'
-      ? buildProgress(enrollment.enroll_id)
+      ? buildProgress(enrollment.enroll_id, enrollment.product_id)
       : undefined;
 
     const enrichedIncludedCourses = enrollment.included_courses?.map(course => ({
       ...course,
-      progress: buildProgress(course.lw_bundle_child_id),
+      progress: buildProgress(course.lw_bundle_child_id, course.course_id),
     }));
 
     return {
