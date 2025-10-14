@@ -279,6 +279,7 @@ async function attachProgressData(
   }
 
   const courseIdList = Array.from(courseIds);
+  console.log('[MyEnrollments] Aggregated LW course IDs:', courseIdList);
 
   const { data: unitRows, error: unitError } = await supabase
     .from('lw_course_units')
@@ -287,6 +288,8 @@ async function attachProgressData(
 
   if (unitError) {
     console.error("Failed to fetch course unit counts:", unitError);
+  } else {
+    console.log('[MyEnrollments] Unit rows:', unitRows);
   }
 
   const unitsMap = new Map<string, number>();
@@ -303,6 +306,7 @@ async function attachProgressData(
   for (const row of unitRows ?? []) {
     registerTotalUnits(row.lw_course_id, row.no_of_units);
   }
+  console.log('[MyEnrollments] Units map:', Object.fromEntries(unitsMap.entries()));
 
   // Prefer LW user ID for progress; fallback to email; if both exist, merge with LW as priority
   let progressRows: Array<{ lw_course_id: string; unit_ids: unknown }> = [];
@@ -317,6 +321,7 @@ async function attachProgressData(
     if (error) {
       console.error('Failed to fetch course progress by lw_user_id:', error);
     } else if (byUserId) {
+      console.log('[MyEnrollments] Progress rows (LW ID):', byUserId);
       for (const row of byUserId) {
         if (typeof row?.lw_course_id === 'string') {
           const key = row.lw_course_id.trim();
@@ -337,6 +342,7 @@ async function attachProgressData(
     if (error) {
       console.error('Failed to fetch course progress by email_id:', error);
     } else if (byEmail) {
+      console.log('[MyEnrollments] Progress rows (email):', byEmail);
       for (const row of byEmail) {
         if (typeof row?.lw_course_id !== 'string') continue;
         const key = row.lw_course_id.trim();
@@ -349,6 +355,7 @@ async function attachProgressData(
   }
 
   progressRows = Array.from(progressByCourseId.values());
+  console.log('[MyEnrollments] Combined progress rows:', progressRows);
 
   const parseUnitIds = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -390,6 +397,7 @@ async function attachProgressData(
     const unitIds = parseUnitIds(row.unit_ids);
     registerCompletedUnits(row.lw_course_id, unitIds.length);
   }
+  console.log('[MyEnrollments] Completed units map:', Object.fromEntries(completedUnitsMap.entries()));
 
   const defaultProgress = (): CourseProgress => ({ totalUnits: 0, completedUnits: 0, percent: 0 });
 
@@ -418,6 +426,25 @@ async function attachProgressData(
       percent: Math.min(100, Math.max(0, percent)),
     };
   };
+
+  const progressDebugSummary = enrollments.map(enrollment => ({
+    enrollmentId: enrollment.id,
+    productId: enrollment.product_id,
+    enrollId: enrollment.enroll_id,
+    totalUnits: unitsMap.get(enrollment.enroll_id?.trim() ?? '') ?? null,
+    completedUnits: completedUnitsMap.get(enrollment.enroll_id?.trim() ?? '') ?? null,
+    progress: enrollment.product_type === 'course'
+      ? buildProgress(enrollment.enroll_id)
+      : null,
+    includedCourses: (enrollment.included_courses ?? []).map(course => ({
+      courseId: course.course_id,
+      lwBundleChildId: course.lw_bundle_child_id,
+      totalUnits: unitsMap.get(course.lw_bundle_child_id?.trim() ?? '') ?? null,
+      completedUnits: completedUnitsMap.get(course.lw_bundle_child_id?.trim() ?? '') ?? null,
+      progress: buildProgress(course.lw_bundle_child_id),
+    })),
+  }));
+  console.log('[MyEnrollments] Progress debug summary:', progressDebugSummary);
 
   return enrollments.map(enrollment => {
     const courseProgress = enrollment.product_type === 'course'
