@@ -370,7 +370,7 @@ async function attachProgressData(
         if (Array.isArray(parsed)) {
           return parsed.filter(v => typeof v === 'string' && v.length > 0);
         }
-      } catch (_) {
+      } catch {
         // Not JSON; fall through to comma-separated parsing
       }
       // Fallback: comma-separated list

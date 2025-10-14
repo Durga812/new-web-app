@@ -4,18 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import stripe from "@/lib/stripe/stripe_client";
 import { supabase } from "@/lib/supabase/server";
-import { sendOrderConfirmationEmail, sendEnrollmentCompleteEmail } from "@/app/actions/email";
-
-type PurchasedItem = {
-  product_id: string;
-  enroll_id: string;
-  product_type: string; // 'course' | 'bundle'
-  lw_product_type: string;
-  title: string;
-  price: number;
-  validity_duration: number;
-  validity_type: string; // 'days' | 'months' | 'years' | string
-};
+import { sendOrderConfirmationEmail, sendEnrollmentCompleteEmail,sendRefundEmail } from "@/app/actions/email";
+import type { PurchasedOrderItem } from "@/types/order";
 
 type LearnWorldsUser = { id: string } & Record<string, unknown>;
 
@@ -69,8 +59,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+    // NEW: Handle refund events
+  if (event.type === "charge.refunded") {
+    const charge = event.data.object as Stripe.Charge;
+    console.log("Processing refund:", charge.id);
+
+    try {
+      await processRefundWebhook(charge);
+    } catch (error) {
+      console.error("Failed to process refund webhook:", error);
+    }
+  }
+
   return NextResponse.json({ received: true });
 }
+
 
 async function processCheckoutSession(session: Stripe.Checkout.Session) {
   const clerkId = session.client_reference_id || session.metadata?.clerk_id;
@@ -93,7 +96,7 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
   }
 
   // Extract purchased items from line items
-  const purchasedItems = lineItems.data.map(item => {
+  const purchasedItems: PurchasedOrderItem[] = lineItems.data.map(item => {
     const product = item.price?.product as Stripe.Product;
     const metadata = product?.metadata || {};
     
@@ -172,7 +175,7 @@ async function createOrder(
   session: Stripe.Checkout.Session,
   clerkId: string,
   email: string,
-  purchasedItems: PurchasedItem[]
+  purchasedItems: PurchasedOrderItem[]
 ) {
   try {
     const metadata = session.metadata || {};
@@ -290,7 +293,7 @@ async function enrollUserInProducts(
   clerkId: string,
   email: string,
   orderId: string,
-  purchasedItems: PurchasedItem[]
+  purchasedItems: PurchasedOrderItem[]
 ) {
   for (const item of purchasedItems) {
     try {
@@ -351,7 +354,7 @@ async function enrollUserInProducts(
 
 async function enrollInLearnWorlds(
   email: string, 
-  item: PurchasedItem, 
+  item: PurchasedOrderItem, 
   retryCount = 0
 ): Promise<{ success: boolean; error: string | null; retryCount: number }> {
   try {
@@ -431,7 +434,7 @@ async function enrollInLearnWorlds(
 async function saveEnrollment(
   clerkId: string,
   orderId: string,
-  item: PurchasedItem,
+  item: PurchasedOrderItem,
   enrolledAt: Date | null,
   expiresAt: Date | null,
   status: 'success' | 'failed',
@@ -560,4 +563,37 @@ async function clearUserCart(clerkId: string) {
   } catch (error) {
     console.error("Error clearing cart:", error);
   }
+}
+
+
+// NEW: Add this function at the bottom
+async function processRefundWebhook(charge: Stripe.Charge) {
+  const paymentIntentId = charge.payment_intent as string;
+
+  // Find order by payment intent
+  const { data: order, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .single();
+
+  if (error || !order) {
+    console.error('Order not found for payment intent:', paymentIntentId);
+    return;
+  }
+
+  // Get refund details from charge
+  const refundAmount = charge.amount_refunded / 100; // Convert from cents
+
+  // Send refund completed email
+  await sendRefundEmail({
+    email: order.customer_email,
+    customerName: order.customer_name,
+    productTitle: 'Your Order', // Generic since we don't know which item from webhook
+    refundAmount: refundAmount,
+    orderNumber: order.order_number,
+    status: 'completed',
+  });
+
+  console.log('Refund webhook processed successfully');
 }

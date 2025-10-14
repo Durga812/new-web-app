@@ -4,9 +4,17 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, ChevronDown, Calendar, Clock } from "lucide-react";
+import { Package, ChevronDown, Calendar, Clock, MoreVertical, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { RefundModal } from '@/app/my-enrollments/RefundModal';
 
 type CourseProgress = {
   totalUnits: number;
@@ -72,6 +80,7 @@ export function BundleEnrollmentCard({
   categoryConfig,
 }: BundleEnrollmentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const expiryDate = new Date(enrollment.expires_at);
   const enrolledDate = new Date(enrollment.enrolled_at);
   const daysUntilExpiry = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -92,6 +101,23 @@ export function BundleEnrollmentCard({
 
   return (
     <Card className="group relative overflow-hidden border-gray-200 bg-white transition-all duration-300 hover:shadow-xl">
+      {/* Three-dot menu - Top Right */}
+      <div className="absolute top-2 right-2 z-20">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white/90 backdrop-blur-sm hover:bg-white shadow-md">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setShowRefundModal(true)}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Request Refund
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Main Content Section */}
       <div className="flex flex-col sm:flex-row">
         {/* Thumbnail - Optimized size */}
@@ -123,7 +149,7 @@ export function BundleEnrollmentCard({
 
           {/* Expiry Warning Badge */}
           {isExpiringSoon && (
-            <div className="absolute right-2 top-2">
+            <div className="absolute right-2 top-2 sm:right-2 sm:top-2">
               <Badge className="border-0 bg-red-500/95 backdrop-blur-sm text-xs text-white shadow-lg">
                 {daysUntilExpiry}d left
               </Badge>
@@ -135,7 +161,7 @@ export function BundleEnrollmentCard({
         <div className="flex flex-1 flex-col p-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-8">
               <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors">
                 <Link href={detailPageUrl} prefetch={true}>
                   {enrollment.product_title}
@@ -264,6 +290,13 @@ export function BundleEnrollmentCard({
           )}
         </div>
       )}
+
+      {/* Refund Modal */}
+      <RefundModal
+        enrollment={enrollment}
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+      />
     </Card>
   );
 }

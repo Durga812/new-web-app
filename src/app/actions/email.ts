@@ -267,3 +267,118 @@ export async function sendEnrollmentCompleteEmail(
     return { success: false, error };
   }
 }
+
+type RefundEmailData = {
+  email: string;
+  customerName: string | null;
+  productTitle: string;
+  refundAmount: number;
+  orderNumber: string;
+  status: 'processing' | 'completed' | 'failed';
+};
+
+/**
+ * Send refund notification email
+ */
+export async function sendRefundEmail(data: RefundEmailData) {
+  try {
+    const formatPrice = (amount: number) => 
+      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+
+    let subject = '';
+    let statusColor = '';
+    let statusText = '';
+    let message = '';
+
+    if (data.status === 'processing') {
+      subject = 'Refund Request Being Processed';
+      statusColor = '#f59e0b';
+      statusText = 'Processing';
+      message = 'Your refund request has been received and is being processed. The refund amount will be returned to your original payment method within 5-10 business days.';
+    } else if (data.status === 'completed') {
+      subject = 'Refund Completed Successfully';
+      statusColor = '#10b981';
+      statusText = 'Completed';
+      message = 'Your refund has been successfully processed! The amount will appear in your account within 5-10 business days depending on your bank.';
+    } else {
+      subject = 'Refund Request Update';
+      statusColor = '#ef4444';
+      statusText = 'Issue';
+      message = 'There was an issue processing your refund. Our support team will contact you shortly.';
+    }
+
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 20px;">
+          
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, ${statusColor} 0%, ${statusColor} 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">Refund ${statusText}</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0;">${subject}</p>
+          </div>
+
+          <!-- Body -->
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+            
+            <p style="font-size: 16px; margin-bottom: 24px;">
+              Hi ${data.customerName || 'there'},
+            </p>
+
+            <p style="font-size: 16px; margin-bottom: 24px;">
+              ${message}
+            </p>
+
+            <!-- Refund Details -->
+            <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+              <h2 style="font-size: 18px; margin: 0 0 12px 0; color: #111827;">Refund Details</h2>
+              <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
+                <strong>Order Number:</strong> ${data.orderNumber}
+              </p>
+              <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
+                <strong>Product:</strong> ${data.productTitle}
+              </p>
+              <p style="margin: 4px 0; color: #111827; font-size: 16px; font-weight: 600;">
+                <strong>Refund Amount:</strong> ${formatPrice(data.refundAmount)}
+              </p>
+            </div>
+
+            <p style="font-size: 14px; color: #6b7280;">
+              Need help? Contact us at <a href="mailto:support@immigreat.ai" style="color: #f59e0b;">support@immigreat.ai</a>
+            </p>
+
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 24px; padding: 20px; color: #9ca3af; font-size: 12px;">
+            <p style="margin: 0;">© ${new Date().getFullYear()} Immigreat.ai</p>
+          </div>
+
+        </body>
+      </html>
+    `;
+
+    const { error } = await resend.emails.send({
+      from: 'Immigreat Support <support@email.greencardiy.com>',
+      to: data.email,
+      subject: subject,
+      html: emailHtml,
+    });
+
+    if (error) {
+      console.error('Failed to send refund email:', error);
+      return { success: false, error };
+    }
+
+    console.log('Refund email sent to:', data.email);
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error sending refund email:', error);
+    return { success: false, error };
+  }
+}

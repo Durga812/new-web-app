@@ -1,12 +1,19 @@
-// src/components/enrollments/EnrollmentCourseCard.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Clock, BookOpen, Package, Star } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, MoreVertical, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { RefundModal } from '@/app/my-enrollments/RefundModal';
 
 type CourseProgress = {
   totalUnits: number;
@@ -74,6 +81,7 @@ export function EnrollmentCourseCard({
   categoryConfig
 }: EnrollmentCourseCardProps) {
   const [showBundleTooltip, setShowBundleTooltip] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const tooltipTriggerRef = useRef<HTMLButtonElement | null>(null);
   const isBundle = enrollment.product_type === 'bundle';
@@ -124,6 +132,23 @@ export function EnrollmentCourseCard({
 
   return (
     <Card className="group relative flex h-full flex-col overflow-visible transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border-gray-200 bg-white">
+      {/* Three-dot menu - Top Right */}
+      <div className="absolute top-2 right-2 z-20">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white/90 backdrop-blur-sm hover:bg-white shadow-md">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setShowRefundModal(true)}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Request Refund
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Image */}
       <div className="relative h-36 overflow-hidden">
         {enrollment.image_url ? (
@@ -155,7 +180,7 @@ export function EnrollmentCourseCard({
             </Badge>
           )}
           
-          <div className="ml-auto flex flex-col gap-1.5 items-end">
+          <div className="ml-auto flex flex-col gap-1.5 items-end mr-10">
             {/* Review Badge */}
             {isCourse && enrollment.has_reviewed && enrollment.user_review && (
               <Badge className="border-0 bg-amber-500/95 backdrop-blur-sm text-xs text-white flex items-center gap-1 shadow-lg">
@@ -371,6 +396,13 @@ export function EnrollmentCourseCard({
           </div>
         </div>
       </div>
+
+      {/* Refund Modal */}
+      <RefundModal
+        enrollment={enrollment}
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+      />
     </Card>
   );
 }
