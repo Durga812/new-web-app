@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Clock, BookOpen, Package, Star, MoreVertical, RefreshCw } from "lucide-react";
+import { ExternalLink, Clock, BookOpen, Package, Star, MoreVertical, Undo2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -140,9 +140,10 @@ export function EnrollmentCourseCard({
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent className="bg-white">
             <DropdownMenuItem onClick={() => setShowRefundModal(true)}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              
+              <Undo2 className="mr-2 h-4 w-4"/>
               Request Refund
             </DropdownMenuItem>
           </DropdownMenuContent>
