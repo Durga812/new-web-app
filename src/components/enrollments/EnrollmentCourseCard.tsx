@@ -16,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { RefundModal } from '@/app/my-enrollments/RefundModal';
 
 type CourseProgress = {
-  totalUnits: number;
-  completedUnits: number;
+  totalDurationSeconds: number;
+  watchedDurationSeconds: number;
   percent: number;
 };
 
@@ -118,6 +118,41 @@ export function EnrollmentCourseCard({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
+  const formatSeconds = (seconds: number) => {
+    const totalSeconds = Math.max(0, Math.round(seconds));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    const parts: string[] = [];
+
+    if (hours > 0) {
+      parts.push(`${hours}h`);
+    }
+    if (minutes > 0) {
+      parts.push(`${minutes}m`);
+    }
+    if (parts.length === 0) {
+      parts.push(`${secs}s`);
+    }
+
+    return parts.join(" ");
+  };
+
+  const describeProgress = (progress: CourseProgress) => {
+    const watched = Math.max(0, progress.watchedDurationSeconds);
+    const total = Math.max(0, progress.totalDurationSeconds);
+
+    if (watched <= 0) {
+      return "No progress recorded yet";
+    }
+
+    if (total > 0) {
+      return `${formatSeconds(watched)} of ${formatSeconds(total)} watched`;
+    }
+
+    return `${formatSeconds(watched)} watched`;
+  };
+
   const trimmedEnrollId = enrollment.enroll_id.trim();
   const courseAccessUrl = trimmedEnrollId
     ? `https://courses.greencardiy.com/path-player?courseid=${trimmedEnrollId}&learningProgramId=${trimmedEnrollId}`
@@ -126,7 +161,7 @@ export function EnrollmentCourseCard({
     ? `/bundle/${enrollment.slug || enrollment.product_id}` 
     : `/course/${enrollment.slug || enrollment.product_id}`;
   const canAccessCourse = isCourse && Boolean(courseAccessUrl);
-  const fallbackProgress: CourseProgress = { totalUnits: 0, completedUnits: 0, percent: 0 };
+  const fallbackProgress: CourseProgress = { totalDurationSeconds: 0, watchedDurationSeconds: 0, percent: 0 };
   const courseProgress = isCourse ? (enrollment.progress ?? fallbackProgress) : undefined;
   const progressPercent = Math.max(0, Math.min(100, courseProgress?.percent ?? 0));
 
@@ -281,16 +316,12 @@ export function EnrollmentCourseCard({
                 className={`h-2 rounded-full bg-gradient-to-r ${categoryConfig.color}`}
                 style={{ width: `${progressPercent}%` }}
               />
-            </div>
-            <div className="mt-1 text-[10px] font-medium text-gray-500">
-              {courseProgress.totalUnits > 0
-                ? `${courseProgress.completedUnits} of ${courseProgress.totalUnits} units completed`
-                : courseProgress.completedUnits > 0
-                  ? `${courseProgress.completedUnits} units completed`
-                  : "No progress recorded yet"}
-            </div>
           </div>
-        )}
+          <div className="mt-1 text-[10px] font-medium text-gray-500">
+              {describeProgress(courseProgress)}
+          </div>
+        </div>
+      )}
 
         {/* Dates */}
         <div className="mb-4 pt-3 border-t border-gray-100 space-y-1.5 text-xs">

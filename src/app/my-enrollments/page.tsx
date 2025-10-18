@@ -2,6 +2,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase/server";
+import {
+  aggregateWatchedByCourse,
+  AggregatedCourseProgress,
+  RawVideoProgressRow,
+} from "@/lib/learnworlds/progress-utils";
 import Link from "next/link";
 import MyEnrollmentsClient from "./MyEnrollmentsClient";
 
@@ -24,8 +29,8 @@ type EnrollmentRow = {
 };
 
 type CourseProgress = {
-  totalUnits: number;
-  completedUnits: number;
+  totalDurationSeconds: number;
+  watchedDurationSeconds: number;
   percent: number;
 };
 
@@ -281,125 +286,93 @@ async function attachProgressData(
   const courseIdList = Array.from(courseIds);
   console.log('[MyEnrollments] Aggregated LW course IDs:', courseIdList);
 
-  const { data: unitRows, error: unitError } = await supabase
+  const { data: durationRows, error: durationError } = await supabase
     .from('lw_course_units')
-    .select('lw_course_id, no_of_units')
+    .select('lw_course_id, duration')
     .in('lw_course_id', courseIdList);
 
-  if (unitError) {
-    console.error("Failed to fetch course unit counts:", unitError);
+  if (durationError) {
+    console.error('Failed to fetch course durations:', durationError);
   } else {
-    console.log('[MyEnrollments] Unit rows:', unitRows);
+    console.log('[MyEnrollments] Duration rows:', durationRows);
   }
 
-  const unitsMap = new Map<string, number>();
-  const registerTotalUnits = (courseId?: string | null, totalUnits?: number | null) => {
-    if (typeof courseId !== 'string') return;
-    const trimmedId = courseId.trim();
-    if (!trimmedId) return;
-    const parsedUnits = typeof totalUnits === 'number'
-      ? totalUnits
-      : Number(totalUnits) || 0;
-    unitsMap.set(trimmedId, Math.max(0, parsedUnits));
+  const courseDurationMap = new Map<string, number>();
+  for (const row of durationRows ?? []) {
+    if (!row) continue;
+    const courseId = typeof row.lw_course_id === 'string' ? row.lw_course_id.trim() : '';
+    if (!courseId) continue;
+    const duration =
+      typeof row.duration === 'number'
+        ? row.duration
+        : Number(row.duration) || 0;
+    const existing = courseDurationMap.get(courseId) ?? 0;
+    courseDurationMap.set(courseId, Math.max(0, existing + Math.max(0, duration)));
+  }
+  console.log(
+    '[MyEnrollments] Course duration map:',
+    Object.fromEntries(courseDurationMap.entries())
+  );
+
+  const aggregatedProgress = new Map<string, AggregatedCourseProgress>();
+  const adoptProgressRows = (
+    rows: RawVideoProgressRow[] | null | undefined,
+    { overwrite }: { overwrite: boolean }
+  ) => {
+    const aggregated = aggregateWatchedByCourse(rows);
+    for (const [courseId, summary] of aggregated.entries()) {
+      if (!overwrite && aggregatedProgress.has(courseId)) {
+        continue;
+      }
+      aggregatedProgress.set(courseId, summary);
+    }
   };
-
-  for (const row of unitRows ?? []) {
-    registerTotalUnits(row.lw_course_id, row.no_of_units);
-  }
-  console.log('[MyEnrollments] Units map:', Object.fromEntries(unitsMap.entries()));
-
-  // Prefer LW user ID for progress; fallback to email; if both exist, merge with LW as priority
-  let progressRows: Array<{ lw_course_id: string; unit_ids: unknown }> = [];
-  const progressByCourseId = new Map<string, { lw_course_id: string; unit_ids: unknown }>();
 
   if (learnworldsUserId) {
     const { data: byUserId, error } = await supabase
-      .from('lw_course_progress_track')
-      .select('lw_course_id, unit_ids')
-      .in('lw_course_id', courseIdList)
-      .eq('lw_user_id', learnworldsUserId);
+      .from('video_progress')
+      .select('course_id, unit_id, video_id, video_duration, covered_segments')
+      .in('course_id', courseIdList)
+      .eq('user_id', learnworldsUserId);
+
     if (error) {
-      console.error('Failed to fetch course progress by lw_user_id:', error);
-    } else if (byUserId) {
-      console.log('[MyEnrollments] Progress rows (LW ID):', byUserId);
-      for (const row of byUserId) {
-        if (typeof row?.lw_course_id === 'string') {
-          const key = row.lw_course_id.trim();
-          if (key) {
-            progressByCourseId.set(key, row);
-          }
-        }
-      }
+      console.error('Failed to fetch video progress by user_id:', error);
+    } else {
+      console.log('[MyEnrollments] Video progress rows (user_id):', byUserId);
+      adoptProgressRows(byUserId, { overwrite: true });
     }
   }
 
   if (normalizedEmail) {
     const { data: byEmail, error } = await supabase
-      .from('lw_course_progress_track')
-      .select('lw_course_id, unit_ids')
-      .in('lw_course_id', courseIdList)
-      .eq('email_id', normalizedEmail);
+      .from('video_progress')
+      .select('course_id, unit_id, video_id, video_duration, covered_segments')
+      .in('course_id', courseIdList)
+      .eq('user_email', normalizedEmail);
+
     if (error) {
-      console.error('Failed to fetch course progress by email_id:', error);
-    } else if (byEmail) {
-      console.log('[MyEnrollments] Progress rows (email):', byEmail);
-      for (const row of byEmail) {
-        if (typeof row?.lw_course_id !== 'string') continue;
-        const key = row.lw_course_id.trim();
-        // Only set if not already present from lw_user_id (LW ID has priority)
-        if (key && !progressByCourseId.has(key)) {
-          progressByCourseId.set(key, row);
-        }
-      }
+      console.error('Failed to fetch video progress by email:', error);
+    } else {
+      console.log('[MyEnrollments] Video progress rows (email):', byEmail);
+      adoptProgressRows(byEmail, { overwrite: false });
     }
   }
 
-  progressRows = Array.from(progressByCourseId.values());
-  console.log('[MyEnrollments] Combined progress rows:', progressRows);
+  console.log(
+    '[MyEnrollments] Aggregated progress summaries:',
+    Object.fromEntries(
+      Array.from(aggregatedProgress.entries()).map(([courseId, summary]) => [
+        courseId,
+        summary,
+      ])
+    )
+  );
 
-  const parseUnitIds = (value: unknown): string[] => {
-    if (Array.isArray(value)) {
-      return value.filter(v => typeof v === 'string' && v.length > 0);
-    }
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) return [];
-      // Try JSON array string first
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(v => typeof v === 'string' && v.length > 0);
-        }
-      } catch {
-        // Not JSON; fall through to comma-separated parsing
-      }
-      // Fallback: comma-separated list
-      return trimmed
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-    }
-    return [];
-  };
-
-  const completedUnitsMap = new Map<string, number>();
-  const registerCompletedUnits = (courseId?: string | null, completed?: number) => {
-    if (typeof courseId !== 'string') return;
-    const trimmedId = courseId.trim();
-    if (!trimmedId) return;
-    if (typeof completed !== 'number' || completed < 0) {
-      return;
-    }
-    completedUnitsMap.set(trimmedId, completed);
-  };
-
-  for (const row of progressRows) {
-    const unitIds = parseUnitIds(row.unit_ids);
-    registerCompletedUnits(row.lw_course_id, unitIds.length);
-  }
-  console.log('[MyEnrollments] Completed units map:', Object.fromEntries(completedUnitsMap.entries()));
-
-  const defaultProgress = (): CourseProgress => ({ totalUnits: 0, completedUnits: 0, percent: 0 });
+  const defaultProgress = (): CourseProgress => ({
+    totalDurationSeconds: 0,
+    watchedDurationSeconds: 0,
+    percent: 0,
+  });
 
   const buildProgress = (courseId?: string | null): CourseProgress => {
     const trimmedId = courseId?.trim();
@@ -407,22 +380,32 @@ async function attachProgressData(
       return defaultProgress();
     }
 
-    const totalUnits = unitsMap.get(trimmedId) ?? 0;
-    const completedUnits = Math.max(0, completedUnitsMap.get(trimmedId) ?? 0);
-    if (totalUnits <= 0) {
+    const summary = aggregatedProgress.get(trimmedId);
+    const watchedSeconds = summary?.watchedSeconds ?? 0;
+    const fallbackTotal = summary?.availableSeconds ?? 0;
+    const registeredTotal = courseDurationMap.get(trimmedId) ?? 0;
+    const totalDurationSeconds = Math.max(
+      0,
+      Math.round(registeredTotal > 0 ? registeredTotal : fallbackTotal)
+    );
+
+    if (totalDurationSeconds <= 0) {
       return {
-        totalUnits,
-        completedUnits,
+        totalDurationSeconds,
+        watchedDurationSeconds: Math.max(0, Math.round(watchedSeconds)),
         percent: 0,
       };
     }
 
-    const boundedCompleted = Math.min(completedUnits, totalUnits);
-    const percent = Math.round((boundedCompleted / totalUnits) * 100);
+    const boundedWatched = Math.max(
+      0,
+      Math.round(Math.min(watchedSeconds, totalDurationSeconds))
+    );
+    const percent = Math.round((boundedWatched / totalDurationSeconds) * 100);
 
     return {
-      totalUnits,
-      completedUnits: boundedCompleted,
+      totalDurationSeconds,
+      watchedDurationSeconds: boundedWatched,
       percent: Math.min(100, Math.max(0, percent)),
     };
   };
@@ -431,16 +414,23 @@ async function attachProgressData(
     enrollmentId: enrollment.id,
     productId: enrollment.product_id,
     enrollId: enrollment.enroll_id,
-    totalUnits: unitsMap.get(enrollment.enroll_id?.trim() ?? '') ?? null,
-    completedUnits: completedUnitsMap.get(enrollment.enroll_id?.trim() ?? '') ?? null,
-    progress: enrollment.product_type === 'course'
-      ? buildProgress(enrollment.enroll_id)
-      : null,
+    totalDurationSeconds:
+      courseDurationMap.get(enrollment.enroll_id?.trim() ?? '') ?? null,
+    watchedDurationSeconds:
+      aggregatedProgress.get(enrollment.enroll_id?.trim() ?? '')?.watchedSeconds ??
+      null,
+    progress:
+      enrollment.product_type === 'course'
+        ? buildProgress(enrollment.enroll_id)
+        : null,
     includedCourses: (enrollment.included_courses ?? []).map(course => ({
       courseId: course.course_id,
       lwBundleChildId: course.lw_bundle_child_id,
-      totalUnits: unitsMap.get(course.lw_bundle_child_id?.trim() ?? '') ?? null,
-      completedUnits: completedUnitsMap.get(course.lw_bundle_child_id?.trim() ?? '') ?? null,
+      totalDurationSeconds:
+        courseDurationMap.get(course.lw_bundle_child_id?.trim() ?? '') ?? null,
+      watchedDurationSeconds:
+        aggregatedProgress.get(course.lw_bundle_child_id?.trim() ?? '')
+          ?.watchedSeconds ?? null,
       progress: buildProgress(course.lw_bundle_child_id),
     })),
   }));

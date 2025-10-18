@@ -17,8 +17,8 @@ import { Button } from '@/components/ui/button';
 import { RefundModal } from '@/app/my-enrollments/RefundModal';
 
 type CourseProgress = {
-  totalUnits: number;
-  completedUnits: number;
+  totalDurationSeconds: number;
+  watchedDurationSeconds: number;
   percent: number;
 };
 
@@ -94,6 +94,41 @@ export function BundleEnrollmentCard({
       day: 'numeric',
       year: 'numeric',
     }).format(date);
+  };
+
+  const formatSeconds = (seconds: number) => {
+    const totalSeconds = Math.max(0, Math.round(seconds));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    const parts: string[] = [];
+
+    if (hours > 0) {
+      parts.push(`${hours}h`);
+    }
+    if (minutes > 0) {
+      parts.push(`${minutes}m`);
+    }
+    if (parts.length === 0) {
+      parts.push(`${secs}s`);
+    }
+
+    return parts.join(" ");
+  };
+
+  const describeProgress = (progress: CourseProgress) => {
+    const watched = Math.max(0, progress.watchedDurationSeconds);
+    const total = Math.max(0, progress.totalDurationSeconds);
+
+    if (watched <= 0) {
+      return "No progress yet";
+    }
+
+    if (total > 0) {
+      return `${formatSeconds(watched)} of ${formatSeconds(total)} watched`;
+    }
+
+    return `${formatSeconds(watched)} watched`;
   };
 
   const includedCourses = enrollment.included_courses || [];
@@ -215,7 +250,7 @@ export function BundleEnrollmentCard({
               const courseUrl = course.lw_bundle_child_id
                 ? `https://courses.greencardiy.com/path-player?courseid=${course.lw_bundle_child_id}&learningProgramId=${enrollment.enroll_id}`
                 : null;
-              const fallbackProgress: CourseProgress = { totalUnits: 0, completedUnits: 0, percent: 0 };
+              const fallbackProgress: CourseProgress = { totalDurationSeconds: 0, watchedDurationSeconds: 0, percent: 0 };
               const courseProgress = course.progress ?? fallbackProgress;
               const progressPercent = Math.max(0, Math.min(100, courseProgress?.percent ?? 0));
               return (
@@ -231,13 +266,7 @@ export function BundleEnrollmentCard({
 
                     <div className="mt-2">
                       <div className="flex items-center justify-between text-[10px] font-medium text-gray-500">
-                        <span>
-                          {courseProgress.totalUnits > 0
-                            ? `${courseProgress.completedUnits} of ${courseProgress.totalUnits} units`
-                            : courseProgress.completedUnits > 0
-                              ? `${courseProgress.completedUnits} units completed`
-                              : 'No progress yet'}
-                        </span>
+                        <span>{describeProgress(courseProgress)}</span>
                         <span>{progressPercent}%</span>
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200">

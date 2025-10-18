@@ -10,8 +10,8 @@ import { EnrollmentCourseCard } from "@/components/enrollments/EnrollmentCourseC
 import { BundleEnrollmentCard } from "@/components/enrollments/BundleEnrollmentCard";
 
 type CourseProgress = {
-  totalUnits: number;
-  completedUnits: number;
+  totalDurationSeconds: number;
+  watchedDurationSeconds: number;
   percent: number;
 };
 
