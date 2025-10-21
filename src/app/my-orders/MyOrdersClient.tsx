@@ -130,15 +130,8 @@ export default function MyOrdersClient({
             <Badge className="rounded-full bg-white px-4 py-1 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-amber-200">
               {summary.totalOrders} orders
             </Badge>
-            {summary.totalRefunded > 0 && (
-              <Badge className="rounded-full bg-rose-50 px-4 py-1 text-sm font-medium text-rose-700 shadow-sm ring-1 ring-rose-200">
-                {currencyFormatter.format(summary.totalRefunded)} refunded
-              </Badge>
-            )}
           </div>
         </header>
-
-        <SummaryGrid summary={summary} />
 
         <div className="mt-10 space-y-6">
           {orders.map((order) => (
@@ -153,50 +146,6 @@ export default function MyOrdersClient({
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-function SummaryGrid({ summary }: { summary: OrdersSummary }) {
-  const items = [
-    {
-      label: "Total Spent",
-      value: currencyFormatter.format(summary.totalSpent),
-      description: "All-time purchases across your account.",
-    },
-    {
-      label: "Courses Purchased",
-      value: summary.coursesPurchased.toString(),
-      description: "Individual courses added to your library.",
-    },
-    {
-      label: "Bundles Purchased",
-      value: summary.bundlesPurchased.toString(),
-      description: "Curated bundles unlocked for your journey.",
-    },
-    {
-      label: "Active Refunds",
-      value: summary.currentRefunds.toString(),
-      description: "Orders currently processing refunds or completed.",
-    },
-  ];
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((item) => (
-        <Card
-          key={item.label}
-          className="border-amber-100 bg-white/80 p-5 shadow-sm backdrop-blur transition hover:shadow-md"
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-            {item.label}
-          </p>
-          <p className="mt-3 text-2xl font-semibold text-gray-900">
-            {item.value}
-          </p>
-          <p className="mt-2 text-sm text-gray-500">{item.description}</p>
-        </Card>
-      ))}
     </div>
   );
 }
@@ -401,11 +350,6 @@ function PurchasedItemCard({ item }: { item: PurchasedOrderItem }) {
             {item.validity_duration && item.validity_type && (
               <span>
                 Access: {item.validity_duration} {item.validity_type}
-              </span>
-            )}
-            {item.enroll_id && (
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-                Enroll ID: {item.enroll_id}
               </span>
             )}
           </div>
