@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   User as UserIcon,
   X,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -94,6 +95,12 @@ export function Navigation() {
     setIsProfileOpen(false);
     setIsMobileMenuOpen(false);
     router.push("/my-enrollments");
+  };
+
+  const handleViewOrders = () => {
+    setIsProfileOpen(false);
+    setIsMobileMenuOpen(false);
+    router.push("/my-orders");
   };
 
   return (
@@ -179,14 +186,24 @@ export function Navigation() {
                       <p className="text-xs text-gray-600">{user?.primaryEmailAddress?.emailAddress}</p>
                     </div>
                     <div className="p-2">
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={handleViewEnrollments}
-                      >
-                        <UserIcon className="mr-3 h-4 w-4" />
-                        My enrollments
-                      </Button>
+                      <div className="space-y-1">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={handleViewEnrollments}
+                        >
+                          <UserIcon className="mr-3 h-4 w-4" />
+                          My enrollments
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={handleViewOrders}
+                        >
+                          <Receipt className="mr-3 h-4 w-4" />
+                          My orders
+                        </Button>
+                      </div>
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-red-600 hover:bg-red-50"
@@ -249,14 +266,24 @@ export function Navigation() {
               <div className="mt-3 h-10 w-full animate-pulse rounded-lg bg-gray-200" />
             ) : isSignedIn ? (
               <div className="mt-3 space-y-2">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={handleViewEnrollments}
-                >
-                  <UserIcon className="mr-3 h-4 w-4" />
-                  My Enrollments  {/* Update this text */}
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={handleViewEnrollments}
+                  >
+                    <UserIcon className="mr-3 h-4 w-4" />
+                    My Enrollments
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={handleViewOrders}
+                  >
+                    <Receipt className="mr-3 h-4 w-4" />
+                    My Orders
+                  </Button>
+                </div>
                 <Button
                   variant="outline"
                   className="w-full justify-start text-red-600 hover:bg-red-50"
