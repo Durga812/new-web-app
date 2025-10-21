@@ -123,7 +123,7 @@ export default function MyOrdersClient({
             </h1>
             <p className="mt-2 text-sm text-gray-600 md:text-base">
               Keep track of your course and bundle purchases, download receipts,
-              and review refund updates in one place.
+              and review refund updates in one place
             </p>
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
