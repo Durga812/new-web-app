@@ -359,6 +359,7 @@ export function CompactCourseCard({
 
         {/* Add to Cart Button */}
         <Button
+          data-testid={`add-to-cart-button-${course.course_id}`}
           onClick={handleAddToCart}
           disabled={!selectedOption || isInCart || isPurchased}
           size="sm"
