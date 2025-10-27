@@ -49,6 +49,7 @@ export default function PricingSidebar({
       productType: course.type,
       title: course.title,
       price: selectedPrice.price,
+      originalPrice: selectedPrice.price,
       currency: "USD",
       comparedPrice: selectedPrice.compared_price,
       imageUrl: course.image_url,

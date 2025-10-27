@@ -19,4 +19,5 @@ export type CartItem = {
   category?: string;
   pricingKey?: string;
   enrollId?: string;
+  originalPrice?: number;
 };

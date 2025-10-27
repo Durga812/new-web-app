@@ -62,6 +62,7 @@ function fromGuestCartItem(item: GuestCartItem): CartItem {
     type: item.productType,
     title: item.title || '',
     price: item.price,
+    originalPrice: item.price,
     pricingKey: item.pricingKey,
     validityDuration: item.validityDuration,
     validityType: item.validityType,
@@ -247,6 +248,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
           type: dbItem.product_type,
           title: '', // Will be enriched
           price: Number(dbItem.price),
+          originalPrice: Number(dbItem.price),
           pricingKey: dbItem.pricing_key,
           validityDuration: dbItem.validity_duration,
           validityType: dbItem.validity_type,

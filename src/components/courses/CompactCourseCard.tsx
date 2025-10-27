@@ -196,6 +196,7 @@ export function CompactCourseCard({
       productType: course.type,
       title: course.title,
       price: selectedOption.price,
+      originalPrice: selectedOption.price,
       currency: "USD",
       comparedPrice: selectedOption.compared_price,
       imageUrl: course.image_url,

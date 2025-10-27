@@ -99,6 +99,10 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
   const purchasedItems: PurchasedOrderItem[] = lineItems.data.map(item => {
     const product = item.price?.product as Stripe.Product;
     const metadata = product?.metadata || {};
+    const discountedPrice = parseFloat(metadata.discounted_price || '0');
+    const originalPrice = parseFloat(
+      metadata.original_price || metadata.base_price || metadata.discounted_price || '0'
+    );
     
     return {
       product_id: metadata.product_id || '',
@@ -106,7 +110,8 @@ async function processCheckoutSession(session: Stripe.Checkout.Session) {
       product_type: metadata.product_type || '',
       lw_product_type: metadata.lw_product_type || '',
       title: product?.name || metadata.item_title || '',
-      price: parseFloat(metadata.discounted_price || '0'),
+      price: discountedPrice,
+      original_price: originalPrice,
       validity_duration: parseInt(metadata.validity_duration || '0'),
       validity_type: metadata.validity_type || '',
     };
