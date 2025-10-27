@@ -160,6 +160,7 @@ export async function checkCourseSectionLimit(params: {
 
     const firstUnit = units[0];
     const progressRate = parseProgressRate(firstUnit?.unit_progress_rate);
+    console.log(`Section ${index + 1} - Unit Progress Rate: ${progressRate}%`);
 
     if (progressRate > normalizedRateLimit) {
       return {
