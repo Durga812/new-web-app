@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/server';
-import { getCourseProgress, checkCourseSectionLimit } from '@/lib/learnworlds/progress';
+import { getCourseProgress, checkCourseSectionLimit, fetchUserCourseSectionProgressMap } from '@/lib/learnworlds/progress';
 import { REFUND_CONFIG } from '@/lib/refund/constants';
 import type { RefundEligibilityCheck } from '@/types/refund';
 import type { OrderRecord, PurchasedOrderItem } from '@/types/order';
@@ -152,6 +152,19 @@ export async function POST(req: NextRequest) {
         .filter(({ enrollId }) => enrollId.length > 0);
 
       if (childEntries.length > 0) {
+        const courseEnrollIds = Array.from(
+          new Set(
+            childEntries
+              .map(({ enrollId }) => enrollId)
+              .filter((enrollId) => enrollId.length > 0)
+          )
+        );
+
+        const preloadedSections = await fetchUserCourseSectionProgressMap({
+          email: order.customer_email,
+          courseIds: courseEnrollIds,
+        });
+
         const sectionChecks = await Promise.all(
           childEntries.map(async ({ courseId, enrollId }) => {
             const result = await checkCourseSectionLimit({
@@ -159,6 +172,7 @@ export async function POST(req: NextRequest) {
               courseEnrollId: enrollId,
               sectionLimit: REFUND_CONFIG.COURSE_SECTION_LIMIT,
               unitProgressRateLimit: REFUND_CONFIG.UNIT_PROGRESS_RATE_LIMIT,
+              sectionsOverride: preloadedSections.get(enrollId),
             });
 
             return { courseId, result };

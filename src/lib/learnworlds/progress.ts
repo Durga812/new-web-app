@@ -39,6 +39,11 @@ type LearnWorldsSectionProgress = {
   units?: LearnWorldsUnitProgress[] | null;
 };
 
+type LearnWorldsCourseProgressRecord = {
+  course_id?: string | null;
+  progress_per_section_unit?: LearnWorldsSectionProgress[] | null;
+};
+
 type CourseSectionLimitResult = {
   success: boolean;
   exceededLimit: boolean;
@@ -58,6 +63,99 @@ const parseProgressRate = (value: unknown): number => {
   }
   return 0;
 };
+
+export async function fetchUserCourseSectionProgressMap(params: {
+  email: string;
+  courseIds: string[];
+  itemsPerPage?: number;
+}): Promise<Map<string, LearnWorldsSectionProgress[]>> {
+  const { email, courseIds, itemsPerPage = 199 } = params;
+
+  const normalizedEmail = typeof email === "string" ? email.trim() : "";
+  const targetCourseIds = new Set(
+    courseIds
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter((value) => value.length > 0)
+  );
+
+  const results = new Map<string, LearnWorldsSectionProgress[]>();
+
+  if (!targetCourseIds.size) {
+    return results;
+  }
+
+  if (!LEARNWORLDS_API_TOKEN || !LEARNWORLDS_CLIENT_ID) {
+    console.warn(
+      "[fetchUserCourseSectionProgressMap] Missing LearnWorlds API credentials"
+    );
+    return results;
+  }
+
+  if (!normalizedEmail) {
+    return results;
+  }
+
+  const url = `${LEARNWORLDS_BASE_URL}/admin/api/v2/users/${encodeURIComponent(
+    normalizedEmail
+  )}/progress?items_per_page=${itemsPerPage}&page=1`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${LEARNWORLDS_API_TOKEN}`,
+        "Lw-Client": LEARNWORLDS_CLIENT_ID!,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error(
+        "[fetchUserCourseSectionProgressMap] Failed to fetch user progress",
+        response.status,
+        response.statusText
+      );
+      return results;
+    }
+
+    const payload = await response.json().catch((error: unknown) => {
+      console.error(
+        "[fetchUserCourseSectionProgressMap] Failed to parse response JSON",
+        error
+      );
+      return null;
+    });
+
+    const rows = Array.isArray(payload?.data)
+      ? (payload.data as LearnWorldsCourseProgressRecord[])
+      : [];
+
+    for (const row of rows) {
+      if (!row) continue;
+
+      const courseId =
+        typeof row.course_id === "string" ? row.course_id.trim() : "";
+      if (!courseId || !targetCourseIds.has(courseId)) {
+        continue;
+      }
+
+      const sections = Array.isArray(row.progress_per_section_unit)
+        ? row.progress_per_section_unit
+        : [];
+
+      results.set(courseId, sections);
+    }
+  } catch (error) {
+    console.error(
+      "[fetchUserCourseSectionProgressMap] Unexpected error while fetching progress snapshot",
+      error
+    );
+  }
+
+  return results;
+}
 
 const fetchCourseSectionProgress = async (
   email: string,
@@ -133,10 +231,22 @@ export async function checkCourseSectionLimit(params: {
   courseEnrollId: string;
   sectionLimit: number;
   unitProgressRateLimit: number;
+  sectionsOverride?: LearnWorldsSectionProgress[] | null;
 }): Promise<CourseSectionLimitResult> {
-  const { email, courseEnrollId, sectionLimit, unitProgressRateLimit } = params;
+  const {
+    email,
+    courseEnrollId,
+    sectionLimit,
+    unitProgressRateLimit,
+    sectionsOverride,
+  } = params;
 
-  const sections = await fetchCourseSectionProgress(email, courseEnrollId);
+  const sections =
+    sectionsOverride !== undefined
+      ? Array.isArray(sectionsOverride)
+        ? sectionsOverride
+        : []
+      : await fetchCourseSectionProgress(email, courseEnrollId);
 
   if (!sections) {
     return {
