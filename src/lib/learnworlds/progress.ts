@@ -28,6 +28,159 @@ type CourseProgressResult = {
   error?: string;
 };
 
+type LearnWorldsUnitProgress = {
+  unit_section_name?: string | null;
+  unit_status?: string | null;
+  unit_progress_rate?: number | string | null;
+};
+
+type LearnWorldsSectionProgress = {
+  section_id?: string | null;
+  units?: LearnWorldsUnitProgress[] | null;
+};
+
+type CourseSectionLimitResult = {
+  success: boolean;
+  exceededLimit: boolean;
+  violatingSection?: {
+    sectionIndex: number;
+    sectionId?: string | null;
+    sectionName?: string | null;
+    unitProgressRate: number;
+  };
+  error?: string;
+};
+
+const parseProgressRate = (value: unknown): number => {
+  const parsed = toPositiveNumber(value);
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+  return 0;
+};
+
+const fetchCourseSectionProgress = async (
+  email: string,
+  courseEnrollId: string
+): Promise<LearnWorldsSectionProgress[] | null> => {
+  if (!LEARNWORLDS_API_TOKEN || !LEARNWORLDS_CLIENT_ID) {
+    console.warn(
+      "[fetchCourseSectionProgress] Missing LearnWorlds API credentials"
+    );
+    return null;
+  }
+
+  const normalizedEmail = typeof email === "string" ? email.trim() : "";
+  const normalizedCourseId =
+    typeof courseEnrollId === "string" ? courseEnrollId.trim() : "";
+
+  if (!normalizedEmail || !normalizedCourseId) {
+    return null;
+  }
+
+  const url = `${LEARNWORLDS_BASE_URL}/admin/api/v2/users/${encodeURIComponent(
+    normalizedEmail
+  )}/courses/${encodeURIComponent(normalizedCourseId)}/progress`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${LEARNWORLDS_API_TOKEN}`,
+        "Lw-Client": LEARNWORLDS_CLIENT_ID!,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error(
+        "[fetchCourseSectionProgress] Failed to fetch course progress",
+        response.status,
+        response.statusText
+      );
+      return null;
+    }
+
+    const payload = await response.json().catch((error: unknown) => {
+      console.error(
+        "[fetchCourseSectionProgress] Failed to parse response JSON",
+        error
+      );
+      return null;
+    });
+
+    if (
+      payload &&
+      Array.isArray(payload.progress_per_section_unit)
+    ) {
+      return payload.progress_per_section_unit as LearnWorldsSectionProgress[];
+    }
+
+    return [];
+  } catch (error) {
+    console.error(
+      "[fetchCourseSectionProgress] Unexpected error while fetching progress",
+      error
+    );
+    return null;
+  }
+};
+
+export async function checkCourseSectionLimit(params: {
+  email: string;
+  courseEnrollId: string;
+  sectionLimit: number;
+  unitProgressRateLimit: number;
+}): Promise<CourseSectionLimitResult> {
+  const { email, courseEnrollId, sectionLimit, unitProgressRateLimit } = params;
+
+  const sections = await fetchCourseSectionProgress(email, courseEnrollId);
+
+  if (!sections) {
+    return {
+      success: false,
+      exceededLimit: false,
+      error: "Unable to retrieve section progress from LearnWorlds",
+    };
+  }
+
+  const normalizedSectionLimit = Math.max(0, Math.floor(sectionLimit));
+  const normalizedRateLimit = Math.max(0, unitProgressRateLimit);
+
+  for (let index = normalizedSectionLimit; index < sections.length; index++) {
+    const section = sections[index];
+    if (!section) continue;
+
+    const units = Array.isArray(section.units) ? section.units : [];
+    if (!units.length) {
+      continue;
+    }
+
+    const firstUnit = units[0];
+    const progressRate = parseProgressRate(firstUnit?.unit_progress_rate);
+
+    if (progressRate > normalizedRateLimit) {
+      return {
+        success: true,
+        exceededLimit: true,
+        violatingSection: {
+          sectionIndex: index + 1, // 1-based index for readability
+          sectionId: section.section_id ?? undefined,
+          sectionName: firstUnit?.unit_section_name ?? undefined,
+          unitProgressRate: progressRate,
+        },
+      };
+    }
+  }
+
+  return {
+    success: true,
+    exceededLimit: false,
+  };
+}
+
 /**
  * Fetch course progress based on aggregated video durations
  */
