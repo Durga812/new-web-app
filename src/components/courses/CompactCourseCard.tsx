@@ -196,6 +196,7 @@ export function CompactCourseCard({
       productType: course.type,
       title: course.title,
       price: selectedOption.price,
+      originalPrice: selectedOption.price,
       currency: "USD",
       comparedPrice: selectedOption.compared_price,
       imageUrl: course.image_url,
@@ -359,6 +360,8 @@ export function CompactCourseCard({
 
         {/* Add to Cart Button */}
         <Button
+          // data-testid={`add-to-cart-button-${course.course_id}`}
+          data-testid="add-to-cart-button"
           onClick={handleAddToCart}
           disabled={!selectedOption || isInCart || isPurchased}
           size="sm"

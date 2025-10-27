@@ -123,7 +123,7 @@ export default function MyOrdersClient({
             </h1>
             <p className="mt-2 text-sm text-gray-600 md:text-base">
               Keep track of your course and bundle purchases, download receipts,
-              and review refund updates in one place.
+              and review refund updates in one place
             </p>
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
@@ -328,6 +328,14 @@ function SectionHeader({
 
 function PurchasedItemCard({ item }: { item: PurchasedOrderItem }) {
   const isCourse = item.product_type === "course";
+  const paidAmount = Number(item.price || 0);
+  const originalAmount = Number(
+    item.original_price !== undefined ? item.original_price : item.price || 0
+  );
+  const showOriginalPrice =
+    Number.isFinite(originalAmount) &&
+    Number.isFinite(paidAmount) &&
+    originalAmount > paidAmount + 0.009;
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -356,8 +364,13 @@ function PurchasedItemCard({ item }: { item: PurchasedOrderItem }) {
         </div>
       </div>
       <div className="flex flex-col items-start sm:items-end">
+        {showOriginalPrice && (
+          <span className="text-xs text-gray-400 line-through">
+            {currencyFormatter.format(originalAmount)}
+          </span>
+        )}
         <span className="text-sm font-semibold text-gray-900">
-          {currencyFormatter.format(Number(item.price || 0))}
+          {currencyFormatter.format(paidAmount)}
         </span>
         <span className="text-xs text-gray-500">
           {item.lw_product_type?.replace(/_/g, " ") || ""}

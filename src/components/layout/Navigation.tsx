@@ -164,6 +164,7 @@ export function Navigation() {
             ) : isSignedIn ? (
               <div className="relative hidden sm:block" ref={profileRef}>
                 <Button
+                  data-testid="profile-button"
                   variant="ghost"
                   onClick={() => setIsProfileOpen((open) => !open)}
                   className="flex items-center gap-2"

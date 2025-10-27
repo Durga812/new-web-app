@@ -44,6 +44,7 @@ export default function BundlePricingSidebar({ bundle }: BundlePricingSidebarPro
       productType: "bundle",
       title: bundle.title,
       price: bundle.pricing.price,
+      originalPrice: bundle.pricing.price,
       currency: "USD",
       comparedPrice: bundle.pricing.compared_price,
       imageUrl: bundle.image_url,

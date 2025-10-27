@@ -1,7 +1,9 @@
 // Refund policy configuration
 export const REFUND_CONFIG = {
-  ELIGIBLE_DAYS: 3, // Refund window in days
-  MAX_PROGRESS_PERCENT: 25, // Maximum progress allowed for refund eligibility
+  COURSE_ELIGIBLE_DAYS: 3, // Refund window in days for individual courses
+  BUNDLE_ELIGIBLE_DAYS: 6, // Refund window in days for bundles
+  COURSE_SECTION_LIMIT: 2, // Maximum number of sections a learner can explore and remain eligible
+  UNIT_PROGRESS_RATE_LIMIT: 0, // Maximum allowed progress in gated sections before becoming ineligible
   
   // Email subject lines
   EMAIL_SUBJECTS: {

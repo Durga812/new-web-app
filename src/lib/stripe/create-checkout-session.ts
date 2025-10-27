@@ -36,8 +36,9 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
   const { discountRate, subtotal, discountAmount, total, currentTier } = discountSummary;
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = enrichedItems.map(item => {
+    const originalPrice = item.originalPrice ?? item.price;
     const itemDiscountRate = getItemDiscountRate(item, discountRate);
-    const baseCents = Math.round(item.price * 100);
+    const baseCents = Math.round(originalPrice * 100);
     const discountedCents = Math.round(baseCents * (1 - itemDiscountRate));
     const appliedCents = Math.max(discountedCents, 0);
     const currency = (item.currency ?? 'USD').toLowerCase();
@@ -54,6 +55,7 @@ export const createCheckoutSession = async ({ items }: CheckoutSessionPayload) =
       discounted_price: formatCurrency(appliedCents / 100),
       discount_percent: discountPercent.toString(),
       base_price: formatCurrency(baseCents / 100),
+      original_price: formatCurrency(originalPrice),
     };
 
     return {
@@ -130,17 +132,28 @@ async function enrichCartItemsForCheckout(items: CartItem[]): Promise<CartItem[]
       if (courseData) {
         const pricingKey = item.pricingKey || 'price3';
         const pricingData = courseData.pricing?.[pricingKey];
-        
+
+        const latestPrice = pricingData?.price ?? item.price;
+
+        const latestComparedPrice =
+          (pricingData?.compared_price ?? item.comparedPrice) ?? undefined;
+
         enrichedItems.push({
           ...item,
+          price: latestPrice,
+          originalPrice: latestPrice,
           enrollId: courseData.enroll_id,
           lwProductType: courseData.lw_product_type || 'subscription',
           title: courseData.title || item.title,
           validityDuration: pricingData?.validity_duration || item.validityDuration,
           validityType: pricingData?.validity_type || item.validityType,
+          comparedPrice: latestComparedPrice,
         });
       } else {
-        enrichedItems.push(item);
+        enrichedItems.push({
+          ...item,
+          originalPrice: item.price,
+        });
       }
     }
   }
@@ -155,16 +168,27 @@ async function enrichCartItemsForCheckout(items: CartItem[]): Promise<CartItem[]
     for (const item of items.filter(i => i.type === 'bundle')) {
       const bundleData = bundles?.find(b => b.bundle_id === item.productId);
       if (bundleData) {
+        const bundlePricing = bundleData.pricing;
+        const latestPrice = bundlePricing?.price ?? item.price;
+        const latestComparedPrice =
+          (bundlePricing?.compared_price ?? item.comparedPrice) ?? undefined;
+
         enrichedItems.push({
           ...item,
+          price: latestPrice,
+          originalPrice: latestPrice,
           enrollId: bundleData.enroll_id,
           lwProductType: bundleData.lw_product_type || 'bundle',
           title: bundleData.title || item.title,
-          validityDuration: bundleData.pricing?.validity_duration || item.validityDuration,
-          validityType: bundleData.pricing?.validity_type || item.validityType,
+          validityDuration: bundlePricing?.validity_duration || item.validityDuration,
+          validityType: bundlePricing?.validity_type || item.validityType,
+          comparedPrice: latestComparedPrice,
         });
       } else {
-        enrichedItems.push(item);
+        enrichedItems.push({
+          ...item,
+          originalPrice: item.price,
+        });
       }
     }
   }

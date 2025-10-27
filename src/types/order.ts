@@ -7,6 +7,7 @@ export type PurchasedOrderItem = {
   lw_product_type: string;
   title: string;
   price: number;
+  original_price: number;
   validity_duration: number;
   validity_type: string;
 };
