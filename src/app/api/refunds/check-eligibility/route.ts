@@ -140,6 +140,32 @@ export async function POST(req: NextRequest) {
         .filter(({ enrollId }) => enrollId.length > 0);
 
       if (childEntries.length > 0) {
+        const bundleCourseIds = Array.from(
+          new Set(
+            childEntries
+              .map(({ courseId }) => courseId)
+              .filter((courseId) => typeof courseId === 'string' && courseId.trim().length > 0)
+          )
+        );
+        const courseTitleMap: Record<string, string> = {};
+
+        if (bundleCourseIds.length > 0) {
+          const { data: courseRows, error: courseFetchError } = await supabase
+            .from('courses')
+            .select('course_id, title')
+            .in('course_id', bundleCourseIds);
+
+          if (courseFetchError) {
+            console.error('Failed to fetch course titles for bundle refund eligibility:', courseFetchError);
+          }
+
+          for (const row of Array.isArray(courseRows) ? courseRows : []) {
+            if (row && typeof row.course_id === 'string') {
+              courseTitleMap[row.course_id] = typeof row.title === 'string' && row.title.length > 0 ? row.title : row.course_id;
+            }
+          }
+        }
+
         const courseEnrollIds = Array.from(
           new Set(
             childEntries
@@ -175,7 +201,10 @@ export async function POST(req: NextRequest) {
               REFUND_CONFIG.COURSE_SECTION_LIMIT,
               result.violatingSection
             );
-            const courseLabel = courseId || 'one of the bundle courses';
+            const courseLabel =
+              (courseId && courseTitleMap[courseId]) ||
+              courseId ||
+              'one of the bundle courses';
 
             return NextResponse.json({
               eligible: false,
@@ -204,13 +233,13 @@ export async function POST(req: NextRequest) {
 
     const processingFeeApplied = REFUND_CONFIG.APPLY_PROCESSING_FEE === true;
     const processingFeePercent = REFUND_CONFIG.PROCESSING_FEE_PERCENT ?? 0;
-    const originalAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
+    const paidAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
     const processingFeeCents = processingFeeApplied
-      ? Math.round(originalAmountCents * processingFeePercent)
+      ? Math.round(paidAmountCents * processingFeePercent)
       : 0;
-    const refundAmountCents = Math.max(0, originalAmountCents - processingFeeCents);
+    const refundAmountCents = Math.max(0, paidAmountCents - processingFeeCents);
 
-    const originalAmount = Number((originalAmountCents / 100).toFixed(2));
+    const paidAmount = Number((paidAmountCents / 100).toFixed(2));
     const processingFeeAmount = Number((processingFeeCents / 100).toFixed(2));
     const refundAmount = Number((refundAmountCents / 100).toFixed(2));
 
@@ -222,7 +251,7 @@ export async function POST(req: NextRequest) {
         productTitle: enrollment.product_title,
         purchaseDate: order.paid_at,
         daysElapsed,
-        originalAmount,
+        paidAmount,
         processingFeeApplied,
         processingFeePercent,
         processingFeeAmount,

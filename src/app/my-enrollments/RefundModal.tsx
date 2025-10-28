@@ -36,7 +36,7 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
   const formatCurrency = (amount: number) =>
     amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   const details = eligibility?.details;
-  const originalAmount = details?.originalAmount ?? 0;
+  const paidAmount = details?.paidAmount ?? 0;
   const processingFeeApplied = details?.processingFeeApplied ?? false;
   const processingFeePercent =
     typeof details?.processingFeePercent === 'number' ? details.processingFeePercent : 0;
@@ -136,8 +136,8 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
 
                 <div className="mt-4 space-y-2 text-sm">
                   <div className="flex items-center justify-between text-gray-600">
-                    <span>Original Amount</span>
-                    <span>{formatCurrency(originalAmount)}</span>
+                    <span>Amount Paid</span>
+                    <span>{formatCurrency(paidAmount)}</span>
                   </div>
                   <div className="flex items-center justify-between text-gray-600">
                     <span>

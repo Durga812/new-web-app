@@ -60,11 +60,11 @@ export async function POST(req: NextRequest) {
 
     const processingFeeApplied = REFUND_CONFIG.APPLY_PROCESSING_FEE === true;
     const processingFeePercent = REFUND_CONFIG.PROCESSING_FEE_PERCENT ?? 0;
-    const originalAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
+    const paidAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
     const processingFeeCents = processingFeeApplied
-      ? Math.round(originalAmountCents * processingFeePercent)
+      ? Math.round(paidAmountCents * processingFeePercent)
       : 0;
-    const refundAmountCents = Math.max(0, originalAmountCents - processingFeeCents);
+    const refundAmountCents = Math.max(0, paidAmountCents - processingFeeCents);
     const refundAmount = Number((refundAmountCents / 100).toFixed(2));
     const processingFeeAmount = Number((processingFeeCents / 100).toFixed(2));
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
           product_id: enrollment.product_id,
           product_title: enrollment.product_title,
           clerk_user_id: userId,
-          original_amount: purchasedItem.price.toString(),
+          paid_amount: purchasedItem.price.toString(),
           processing_fee_applied: processingFeeApplied ? 'true' : 'false',
           processing_fee_percent: processingFeePercent.toString(),
           processing_fee_amount: processingFeeAmount.toString(),

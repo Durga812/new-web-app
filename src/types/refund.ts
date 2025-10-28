@@ -6,7 +6,7 @@ export type RefundEligibilityCheck = {
     productTitle: string;
     purchaseDate: string;
     daysElapsed: number;
-    originalAmount: number;
+    paidAmount: number;
     processingFeeApplied: boolean;
     processingFeePercent: number;
     processingFeeAmount: number;
