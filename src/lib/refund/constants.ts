@@ -4,7 +4,9 @@ export const REFUND_CONFIG = {
   BUNDLE_ELIGIBLE_DAYS: 6, // Refund window in days for bundles
   COURSE_SECTION_LIMIT: 2, // Maximum number of sections a learner can explore and remain eligible
   UNIT_PROGRESS_RATE_LIMIT: 0, // Maximum allowed progress in gated sections before becoming ineligible
-  
+  APPLY_PROCESSING_FEE: true, // Toggle to deduct payment processing fees from refunds
+  PROCESSING_FEE_PERCENT: 0.04, // 4% processing fee
+
   // Email subject lines
   EMAIL_SUBJECTS: {
     REQUEST_CREATED: 'Refund Request Received',

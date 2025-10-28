@@ -6,7 +6,10 @@ export type RefundEligibilityCheck = {
     productTitle: string;
     purchaseDate: string;
     daysElapsed: number;
-    progressPercent: number;
+    originalAmount: number;
+    processingFeeApplied: boolean;
+    processingFeePercent: number;
+    processingFeeAmount: number;
     refundAmount: number;
   };
 };

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase/server';
-import { getCourseProgress, checkCourseSectionLimit, fetchUserCourseSectionProgressMap } from '@/lib/learnworlds/progress';
+import { checkCourseSectionLimit, fetchUserCourseSectionProgressMap } from '@/lib/learnworlds/progress';
 import { REFUND_CONFIG } from '@/lib/refund/constants';
 import type { RefundEligibilityCheck } from '@/types/refund';
 import type { OrderRecord, PurchasedOrderItem } from '@/types/order';
@@ -91,19 +91,7 @@ export async function POST(req: NextRequest) {
       } as RefundEligibilityCheck);
     }
 
-    // Step 6: Gather progress details for display (falls back to 0 if unavailable)
-    let progressPercent = 0;
-    if (isCourse) {
-      const progressResult = await getCourseProgress(order.customer_email, enrollment.enroll_id);
-
-      if (progressResult.success && progressResult.progress !== null) {
-        progressPercent = progressResult.progress;
-      } else {
-        console.warn('Could not fetch aggregated progress, defaulting to 0%:', progressResult.error);
-      }
-    }
-
-    // Step 7: Enforce LearnWorlds section-level eligibility rules
+    // Step 6: Enforce LearnWorlds section-level eligibility rules
     if (isCourse) {
       const sectionCheck = await checkCourseSectionLimit({
         email: order.customer_email,
@@ -205,7 +193,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 8: Find purchase price from order
+    // Step 7: Find purchase price from order
     const purchasedItem = order.purchased_items.find(
       (item: PurchasedOrderItem) => item.product_id === enrollment.product_id
     );
@@ -214,7 +202,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Purchase item not found' }, { status: 404 });
     }
 
-    // Step 9: Return eligible response
+    const processingFeeApplied = REFUND_CONFIG.APPLY_PROCESSING_FEE === true;
+    const processingFeePercent = REFUND_CONFIG.PROCESSING_FEE_PERCENT ?? 0;
+    const originalAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
+    const processingFeeCents = processingFeeApplied
+      ? Math.round(originalAmountCents * processingFeePercent)
+      : 0;
+    const refundAmountCents = Math.max(0, originalAmountCents - processingFeeCents);
+
+    const originalAmount = Number((originalAmountCents / 100).toFixed(2));
+    const processingFeeAmount = Number((processingFeeCents / 100).toFixed(2));
+    const refundAmount = Number((refundAmountCents / 100).toFixed(2));
+
+    // Step 8: Return eligible response
     return NextResponse.json({
       eligible: true,
       details: {
@@ -222,8 +222,11 @@ export async function POST(req: NextRequest) {
         productTitle: enrollment.product_title,
         purchaseDate: order.paid_at,
         daysElapsed,
-        progressPercent,
-        refundAmount: purchasedItem.price,
+        originalAmount,
+        processingFeeApplied,
+        processingFeePercent,
+        processingFeeAmount,
+        refundAmount,
       },
     } as RefundEligibilityCheck);
 

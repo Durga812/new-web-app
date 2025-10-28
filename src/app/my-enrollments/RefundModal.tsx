@@ -33,6 +33,16 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
   const [eligibility, setEligibility] = useState<RefundEligibilityCheck | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const formatCurrency = (amount: number) =>
+    amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  const details = eligibility?.details;
+  const originalAmount = details?.originalAmount ?? 0;
+  const processingFeeApplied = details?.processingFeeApplied ?? false;
+  const processingFeePercent =
+    typeof details?.processingFeePercent === 'number' ? details.processingFeePercent : 0;
+  const processingFeePercentLabel = `${(processingFeePercent * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
+  const processingFeeAmount = details?.processingFeeAmount ?? 0;
+  const refundAmount = details?.refundAmount ?? 0;
 
   // Check eligibility when modal opens
   useEffect(() => {
@@ -119,16 +129,32 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
           <>
             <div className="space-y-4">
               <div className="rounded-lg bg-gray-50 p-4">
-                <h4 className="font-semibold">{eligibility.details?.productTitle}</h4>
+                <h4 className="font-semibold">{details?.productTitle}</h4>
                 <p className="text-sm text-gray-600">
-                  Purchased: {new Date(eligibility.details?.purchaseDate || '').toLocaleDateString()}
+                  Purchased: {new Date(details?.purchaseDate || '').toLocaleDateString()}
                 </p>
-                <p className="text-sm text-gray-600">
-                  Progress: {eligibility.details?.progressPercent.toFixed(1)}%
-                </p>
-                <p className="mt-2 text-lg font-bold">
-                  Refund Amount: ${eligibility.details?.refundAmount.toFixed(2)}
-                </p>
+
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between text-gray-600">
+                    <span>Original Amount</span>
+                    <span>{formatCurrency(originalAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-gray-600">
+                    <span>
+                      Processing Fee ({processingFeePercentLabel})
+                      {!processingFeeApplied && (
+                        <span className="ml-1 text-xs text-gray-500">(waived)</span>
+                      )}
+                    </span>
+                    <span>
+                      {formatCurrency(processingFeeApplied ? -processingFeeAmount : 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-base font-semibold text-gray-900">
+                    <span>Refund Total</span>
+                    <span>{formatCurrency(refundAmount)}</span>
+                  </div>
+                </div>
               </div>
 
               <div>

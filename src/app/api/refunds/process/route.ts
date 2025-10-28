@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 import stripe from '@/lib/stripe/stripe_client';
 import { unenrollFromLearnWorlds } from '@/lib/learnworlds/progress';
 import { sendRefundEmail } from '@/app/actions/email';
+import { REFUND_CONFIG } from '@/lib/refund/constants';
 import type Stripe from 'stripe';
 import type { RefundProcessRequest, RefundItem } from '@/types/refund';
 import type { OrderRecord, PurchasedOrderItem } from '@/types/order';
@@ -57,7 +58,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Purchase item not found' }, { status: 404 });
     }
 
-    const refundAmountCents = Math.round(purchasedItem.price * 100);
+    const processingFeeApplied = REFUND_CONFIG.APPLY_PROCESSING_FEE === true;
+    const processingFeePercent = REFUND_CONFIG.PROCESSING_FEE_PERCENT ?? 0;
+    const originalAmountCents = Math.round((purchasedItem.price ?? 0) * 100);
+    const processingFeeCents = processingFeeApplied
+      ? Math.round(originalAmountCents * processingFeePercent)
+      : 0;
+    const refundAmountCents = Math.max(0, originalAmountCents - processingFeeCents);
+    const refundAmount = Number((refundAmountCents / 100).toFixed(2));
+    const processingFeeAmount = Number((processingFeeCents / 100).toFixed(2));
 
     // Step 4: Process Stripe refund
     let stripeRefund: Stripe.Response<Stripe.Refund>;
@@ -70,6 +79,11 @@ export async function POST(req: NextRequest) {
           product_id: enrollment.product_id,
           product_title: enrollment.product_title,
           clerk_user_id: userId,
+          original_amount: purchasedItem.price.toString(),
+          processing_fee_applied: processingFeeApplied ? 'true' : 'false',
+          processing_fee_percent: processingFeePercent.toString(),
+          processing_fee_amount: processingFeeAmount.toString(),
+          refund_amount: refundAmount.toString(),
         },
       });
     } catch (stripeError: unknown) {
@@ -121,12 +135,12 @@ export async function POST(req: NextRequest) {
       product_id: enrollment.product_id,
       product_type: enrollment.product_type,
       product_title: enrollment.product_title,
-      refund_amount: purchasedItem.price,
+      refund_amount: refundAmount,
       refunded_at: new Date().toISOString(),
       enrollment_id: enrollmentId,
     });
 
-    const totalRefunded = (order.refund_amount || 0) + purchasedItem.price;
+    const totalRefunded = (order.refund_amount || 0) + refundAmount;
     const allItemsRefunded = order.purchased_items.length === refundedItems.length;
 
     const { error: updateOrderError } = await supabase
@@ -151,7 +165,7 @@ export async function POST(req: NextRequest) {
       email: order.customer_email,
       customerName: order.customer_name,
       productTitle: enrollment.product_title,
-      refundAmount: purchasedItem.price,
+      refundAmount,
       orderNumber: order.order_number,
       status: 'processing',
     });
@@ -159,7 +173,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       refundId: stripeRefund.id,
-      amount: purchasedItem.price,
+      amount: refundAmount,
     });
 
   } catch (error) {
