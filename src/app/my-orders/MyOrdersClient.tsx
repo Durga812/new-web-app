@@ -300,7 +300,10 @@ function OrderCard({
             </div>
 
             <div className="md:col-span-3">
-              <RefundTimeline refunds={refundedItems} />
+              <RefundTimeline
+                refunds={refundedItems}
+                purchasedItems={purchasedItems}
+              />
             </div>
           </div>
         </div>
@@ -401,7 +404,13 @@ function SummaryRow({
   );
 }
 
-function RefundTimeline({ refunds }: { refunds: RefundItem[] }) {
+function RefundTimeline({
+  refunds,
+  purchasedItems,
+}: {
+  refunds: RefundItem[];
+  purchasedItems: PurchasedOrderItem[];
+}) {
   if (!refunds.length) {
     return (
       <div className="rounded-2xl border border-gray-100 bg-white/60 px-6 py-5 text-sm text-gray-500 shadow-sm">
@@ -421,26 +430,62 @@ function RefundTimeline({ refunds }: { refunds: RefundItem[] }) {
           const refundedAt = refund.refunded_at
             ? new Date(refund.refunded_at)
             : null;
+          const matchingItem =
+            purchasedItems.find(
+              (item) =>
+                item.enroll_id === refund.enrollment_id ||
+                item.product_id === refund.product_id
+            ) ?? null;
+          const paidAmount = Number(
+            matchingItem?.price !== undefined ? matchingItem.price : refund.refund_amount || 0
+          );
+          const refundAmount = Number(refund.refund_amount || 0);
+          const processingFeeRaw = paidAmount - refundAmount;
+          const processingFeeAmount =
+            processingFeeRaw > 0 ? Number(processingFeeRaw.toFixed(2)) : 0;
+          const processingFeeApplied = processingFeeAmount > 0;
+
           return (
             <div
               key={`${refund.enrollment_id}-${refund.refunded_at}`}
               className="flex flex-col gap-2 rounded-xl border border-rose-100 bg-white/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
             >
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">
                   {refund.product_title}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Refund amount:{" "}
-                  <span className="font-medium text-rose-600">
-                    {currencyFormatter.format(Number(refund.refund_amount || 0))}
-                  </span>
                 </p>
                 {refundedAt && (
                   <p className="text-xs text-gray-400">
                     Refunded on {dateFormatter.format(refundedAt)}
                   </p>
                 )}
+                <div className="mt-3 space-y-1.5 text-xs text-gray-500">
+                  <div className="flex items-center justify-between">
+                    <span>Amount Paid</span>
+                    <span className="font-semibold text-gray-900">
+                      {currencyFormatter.format(paidAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>
+                      Processing Fee
+                      {!processingFeeApplied && (
+                        <span className="ml-1 text-[10px] text-gray-400">
+                          (waived)
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      {processingFeeApplied
+                        ? `-${currencyFormatter.format(processingFeeAmount)}`
+                        : currencyFormatter.format(0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-semibold text-rose-600">
+                    <span>Refund Amount</span>
+                    <span>{currencyFormatter.format(refundAmount)}</span>
+                  </div>
+                </div>
               </div>
               {refund.enrollment_id && (
                 <span className="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700">

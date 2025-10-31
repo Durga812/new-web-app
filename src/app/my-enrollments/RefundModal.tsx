@@ -178,7 +178,10 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button onClick={processRefund}>
+              <Button
+                onClick={processRefund}
+                className="bg-amber-500 text-white hover:bg-amber-600"
+              >
                 Confirm Refund
               </Button>
             </DialogFooter>
@@ -213,7 +216,10 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>
-              <Button asChild>
+              <Button
+                asChild
+                className="bg-amber-500 text-white hover:bg-amber-600"
+              >
                 <a href={REFUND_POLICY_URL} target="_blank">
                   View Refund Policy
                 </a>
