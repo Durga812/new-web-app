@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -33,6 +33,7 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
   const [eligibility, setEligibility] = useState<RefundEligibilityCheck | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const manualCloseRef = useRef(false);
   const formatCurrency = (amount: number) =>
     amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   const details = eligibility?.details;
@@ -43,6 +44,16 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
   const processingFeePercentLabel = `${(processingFeePercent * 100).toFixed(2).replace(/\.?0+$/, '')}%`;
   const processingFeeAmount = details?.processingFeeAmount ?? 0;
   const refundAmount = details?.refundAmount ?? 0;
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('checking');
+      setEligibility(null);
+      setRefundReason('');
+      setError(null);
+      manualCloseRef.current = false;
+    }
+  }, [isOpen]);
 
   // Check eligibility when modal opens
   useEffect(() => {
@@ -76,6 +87,14 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
     }
   }
 
+  function handleClose() {
+    if (step === 'success') {
+      router.refresh();
+    }
+    manualCloseRef.current = true;
+    onClose();
+  }
+
   async function processRefund() {
     setStep('processing');
 
@@ -94,13 +113,6 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
       }
 
       setStep('success');
-      
-      // Refresh page after 2 seconds
-      setTimeout(() => {
-        router.refresh();
-        onClose();
-      }, 2000);
-      
     } catch (error) {
       console.error('Failed to process refund:', error);
       setStep('error');
@@ -109,7 +121,22 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          if (!manualCloseRef.current && step === 'success') {
+            router.refresh();
+          }
+          if (!manualCloseRef.current) {
+            onClose();
+          }
+          manualCloseRef.current = false;
+        } else {
+          manualCloseRef.current = false;
+        }
+      }}
+    >
       <DialogContent className="bg-white">
         <DialogHeader>
           <DialogTitle>Request Refund</DialogTitle>
@@ -175,7 +202,7 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button
@@ -202,6 +229,14 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
             <p className="mt-2 text-sm text-gray-600">
               Your refund is being processed. You will receive a confirmation email shortly.
             </p>
+            <div className="mt-6 flex justify-center">
+              <Button
+                onClick={handleClose}
+                className="bg-amber-500 text-white hover:bg-amber-600"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         )}
 
@@ -213,7 +248,7 @@ export function RefundModal({ enrollment, isOpen, onClose }: RefundModalProps) {
             </Alert>
 
             <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
+              <Button variant="outline" onClick={handleClose}>
                 Close
               </Button>
               <Button
