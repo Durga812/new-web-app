@@ -291,10 +291,10 @@ function OrderCard({
                   {order.country && (
                     <SummaryRow label="Country" value={order.country} />
                   )}
-                  <SummaryRow
+                  {/* <SummaryRow
                     label="Payment intent"
                     value={order.stripe_payment_intent_id}
-                  />
+                  /> */}
                 </dl>
               </div>
             </div>

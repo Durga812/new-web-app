@@ -70,6 +70,15 @@ const CATEGORY_CONFIG: Record<CategoryKey, CategoryConfig> = {
   eb5: { label: "EB-5", color: "from-green-500 to-emerald-500", text: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
 };
 
+const CATEGORY_DISPLAY_ORDER: CategoryKey[] = ["eb1a", "eb2-niw", "o-1", "eb5"];
+
+const CATEGORY_ORDER_LOOKUP: Record<CategoryKey, number> = {
+  eb1a: 0,
+  "eb2-niw": 1,
+  "o-1": 2,
+  eb5: 3,
+};
+
 const isKnownCategory = (category: string): category is CategoryKey =>
   category in CATEGORY_CONFIG;
 
@@ -84,6 +93,8 @@ const formatSeriesName = (series: string) => {
 
 type MainTabType = 'course' | 'bundle';
 
+type SeriesOrderByCategory = Record<string, Record<string, number>>;
+
 // Helper function to calculate number of refreshes based on item count
 const calculateRefreshTimes = (itemCount: number): number => {
   if (itemCount <= 10) return 1;
@@ -93,10 +104,12 @@ const calculateRefreshTimes = (itemCount: number): number => {
   return 5; // Max 5 refreshes for 50+ items
 };
 
-export default function MyEnrollmentsClient({ 
-  enrollments
-}: { 
+export default function MyEnrollmentsClient({
+  enrollments,
+  seriesOrderByCategory = {},
+}: {
   enrollments: EnrichedEnrollment[];
+  seriesOrderByCategory?: SeriesOrderByCategory;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -245,7 +258,21 @@ export default function MyEnrollmentsClient({
           categories.add(enrollment.category);
         }
       });
-    return Array.from(categories);
+    const unordered = Array.from(categories);
+    const resolveIndex = (category: string) => {
+      if (isKnownCategory(category)) {
+        return CATEGORY_ORDER_LOOKUP[category];
+      }
+      return Number.MAX_SAFE_INTEGER;
+    };
+    return unordered.sort((a, b) => {
+      const indexA = resolveIndex(a);
+      const indexB = resolveIndex(b);
+      if (indexA === indexB) {
+        return a.localeCompare(b);
+      }
+      return indexA - indexB;
+    });
   }, [enrollments, activeMainTab]);
 
   // Get available series for the active category and main tab
@@ -259,9 +286,19 @@ export default function MyEnrollmentsClient({
           series.add(enrollment.series);
         }
       });
-    
-    return Array.from(series);
-  }, [enrollments, activeMainTab, activeCategory]);
+
+    const list = Array.from(series);
+    const orderMap = activeCategory ? seriesOrderByCategory[activeCategory] ?? {} : undefined;
+
+    return list.sort((a, b) => {
+      const orderA = orderMap?.[a] ?? 999;
+      const orderB = orderMap?.[b] ?? 999;
+      if (orderA === orderB) {
+        return a.localeCompare(b);
+      }
+      return orderA - orderB;
+    });
+  }, [enrollments, activeMainTab, activeCategory, seriesOrderByCategory]);
 
   // Get available tags (tag[0]) for the active category and main tab
   const availableTags = useMemo<string[]>(() => {
@@ -418,20 +455,52 @@ export default function MyEnrollmentsClient({
   // Group courses by series for series-based view (always for courses tab)
   const shouldShowSeriesGrouped = activeMainTab === 'course';
   
-  const groupedBySeries = useMemo(() => {
-    if (!shouldShowSeriesGrouped) return {};
-    
-    const grouped: Record<string, EnrichedEnrollment[]> = {};
+  const groupedSeriesEntries = useMemo(() => {
+    if (!shouldShowSeriesGrouped) return [];
+
+    const grouped = new Map<string, EnrichedEnrollment[]>();
+
     filteredEnrollments.forEach(enrollment => {
       const seriesKey = enrollment.series || 'other';
-      if (!grouped[seriesKey]) {
-        grouped[seriesKey] = [];
+      const existing = grouped.get(seriesKey);
+      if (existing) {
+        existing.push(enrollment);
+      } else {
+        grouped.set(seriesKey, [enrollment]);
       }
-      grouped[seriesKey].push(enrollment);
     });
-    
-    return grouped;
-  }, [filteredEnrollments, shouldShowSeriesGrouped]);
+
+    const orderMapForActiveCategory = activeCategory
+      ? seriesOrderByCategory[activeCategory] ?? {}
+      : undefined;
+
+    const resolveSeriesOrder = (seriesKey: string) => {
+      if (orderMapForActiveCategory) {
+        return orderMapForActiveCategory[seriesKey] ?? 999;
+      }
+
+      const fallbackOrders = Object.values(seriesOrderByCategory)
+        .map(map => map[seriesKey])
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+      if (fallbackOrders.length > 0) {
+        return Math.min(...fallbackOrders);
+      }
+
+      return 999;
+    };
+
+    return Array.from(grouped.entries()).sort((a, b) => {
+      const orderA = resolveSeriesOrder(a[0]);
+      const orderB = resolveSeriesOrder(b[0]);
+
+      if (orderA === orderB) {
+        return a[0].localeCompare(b[0]);
+      }
+
+      return orderA - orderB;
+    });
+  }, [filteredEnrollments, shouldShowSeriesGrouped, activeCategory, seriesOrderByCategory]);
 
   // Get grid column class based on number of series
   const getSeriesGridClass = (seriesCount: number) => {
@@ -743,8 +812,8 @@ export default function MyEnrollmentsClient({
               </div>
             ) : shouldShowSeriesGrouped ? (
               // Series-grouped view for courses (always on courses tab)
-              <div className={`grid gap-6 ${getSeriesGridClass(Object.keys(groupedBySeries).length)}`}>
-                {Object.entries(groupedBySeries).map(([seriesKey, seriesCourses]) => (
+              <div className={`grid gap-6 ${getSeriesGridClass(groupedSeriesEntries.length)}`}>
+                {groupedSeriesEntries.map(([seriesKey, seriesCourses]) => (
                   <div key={seriesKey} className="flex flex-col">
                     {/* Series Header - Sticky */}
                     <div className="sticky top-16 z-20 mb-4 bg-gradient-to-r from-emerald-50 to-white backdrop-blur-sm border-b-2 border-emerald-500 pb-2 pt-2 -mx-2 px-2 rounded-t-lg shadow-sm">
@@ -757,7 +826,7 @@ export default function MyEnrollmentsClient({
                     </div>
                     
                     {/* Course Cards for this series */}
-                    <div className={`grid gap-4 ${getCardGridClass(Object.keys(groupedBySeries).length)}`}>
+                    <div className={`grid gap-4 ${getCardGridClass(groupedSeriesEntries.length)}`}>
                       {seriesCourses.map(enrollment => (
                         <EnrollmentCourseCard
                           key={enrollment.id}

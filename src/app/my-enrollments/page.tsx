@@ -7,6 +7,8 @@ import {
   AggregatedCourseProgress,
   RawVideoProgressRow,
 } from "@/lib/learnworlds/progress-utils";
+import { getSeriesMetadata } from "@/lib/isg/data-isr";
+import type { RawSeriesMetadata } from "@/types/catalog";
 import Link from "next/link";
 import MyEnrollmentsClient from "./MyEnrollmentsClient";
 
@@ -134,12 +136,53 @@ export default async function MyEnrollmentsPage() {
     reviewsMap
   );
 
+  const courseCategoriesForOrdering = Array.from(
+    new Set(
+      enrichedEnrollments
+        .filter(enrollment => enrollment.product_type === 'course' && enrollment.category)
+        .map(enrollment => enrollment.category as string)
+    )
+  );
+
+  let seriesOrderByCategory: Record<string, Record<string, number>> = {};
+
+  if (courseCategoriesForOrdering.length > 0) {
+    const seriesOrderEntries = await Promise.all(
+      courseCategoriesForOrdering.map(async category => {
+        const metadata = await getSeriesMetadata(category);
+        const orderMap = (metadata as RawSeriesMetadata[] | null | undefined)?.reduce<Record<string, number>>(
+          (acc, item) => {
+            if (!item?.slug) {
+              return acc;
+            }
+            const orderValue =
+              typeof item.display_order === 'number' && Number.isFinite(item.display_order)
+                ? item.display_order
+                : 999;
+            acc[item.slug] = orderValue;
+            return acc;
+          },
+          {}
+        ) ?? {};
+
+        return [category, orderMap] as const;
+      })
+    );
+
+    seriesOrderByCategory = Object.fromEntries(seriesOrderEntries);
+  }
+
   const enrollmentsWithProgress = await attachProgressData(enrichedEnrollments, {
     learnworldsUserId: userRecord?.learnworlds_user_id ?? null,
     email: userRecord?.email ?? null,
   });
 
-  return <MyEnrollmentsClient enrollments={enrollmentsWithProgress} />;
+  return (
+    <MyEnrollmentsClient
+      enrollments={enrollmentsWithProgress}
+      seriesOrderByCategory={seriesOrderByCategory}
+    />
+  );
 }
 
 async function enrichEnrollments(
